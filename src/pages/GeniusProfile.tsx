@@ -274,83 +274,74 @@ const GeniusProfile: React.FC = () => {
   return (
     <div className="min-h-screen bg-background pt-20 pb-8">
       <div className="container mx-auto px-4 max-w-4xl">
-        {/* Profile Edit Form */}
-        <GeniusProfileEditForm
-          initialData={geniusData}
-          onSave={handleSaveProfile}
-          onPreview={handlePreviewProfile}
-        />
-
-        {/* Subscription Status Section */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-          <h2 className="font-heading text-xl font-bold text-text mb-4 text-center">
-            ════════ 💳 Estado de Suscripción ═══════
+        {/* Subscription Status Section - Now at the top */}
+        <div className="bg-white rounded-2xl shadow-sm p-5 mb-6 border-2 border-primary/20">
+          <h2 className="font-heading text-lg font-bold text-text mb-4 flex items-center justify-center space-x-2">
+            <span>💳</span>
+            <span>Estado de Suscripción</span>
           </h2>
           
           {hasActiveSubscriptionStatus && subscription ? (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-              <div className="flex items-center justify-center space-x-3 mb-4">
-                <div className="w-8 h-8 text-green-500">✓</div>
-                <h3 className="font-heading text-xl font-bold text-green-800">
-                  ¡Tu perfil está activo!
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <div className="flex items-center justify-center space-x-2 mb-3">
+                <div className="w-6 h-6 text-green-500">✓</div>
+                <h3 className="font-heading text-lg font-bold text-green-800">
+                  ¡Perfil activo!
                 </h3>
               </div>
-              
-              <div className="text-center space-y-2">
-                <p className="text-green-700 font-medium">
-                  Suscripción: {subscription.subscriptionType === 'annual' ? 'Anual' : 'Código de Prueba'}
-                </p>
-                <p className="text-green-600">
-                  Días restantes: <span className="font-bold">{subscription.daysRemaining}</span>
+
+              <div className="text-center space-y-1.5">
+                <p className="text-green-700 text-sm font-medium">
+                  {subscription.subscriptionType === 'annual' ? 'Suscripción Anual' : 'Código de Prueba'}
                 </p>
                 <p className="text-green-600 text-sm">
+                  <span className="font-bold">{subscription.daysRemaining}</span> días restantes
+                </p>
+                <p className="text-green-600 text-xs">
                   Vence: {new Date(subscription.endDate).toLocaleDateString('es-ES')}
                 </p>
               </div>
 
               {subscription.daysRemaining <= 30 && (
-                <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-3">
                   <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 text-orange-600">⚠️</div>
-                    <p className="text-orange-800 font-medium">
-                      Tu suscripción vence pronto
+                    <div className="w-4 h-4 text-orange-600">⚠️</div>
+                    <p className="text-orange-800 text-xs font-medium">
+                      Tu suscripción vence pronto. Renueva para mantener tu perfil visible.
                     </p>
                   </div>
-                  <p className="text-orange-700 text-sm mt-1">
-                    Renueva tu suscripción para mantener tu perfil visible
-                  </p>
                 </div>
               )}
             </div>
           ) : (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-              <div className="flex items-center justify-center space-x-3 mb-4">
-                <div className="w-8 h-8 text-red-500">❌</div>
-                <h3 className="font-heading text-xl font-bold text-red-800">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center justify-center space-x-2 mb-3">
+                <div className="w-6 h-6 text-red-500">❌</div>
+                <h3 className="font-heading text-lg font-bold text-red-800">
                   Perfil inactivo
                 </h3>
               </div>
-              
-              <div className="text-center space-y-4">
-                <p className="text-red-700">
-                  Tu perfil no está visible para los clientes. Activa tu suscripción para empezar a recibir contactos.
+
+              <div className="text-center space-y-3">
+                <p className="text-red-700 text-sm">
+                  Tu perfil no está visible. Activa tu suscripción para recibir contactos.
                 </p>
-                
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+
+                <div className="flex flex-col sm:flex-row gap-2 justify-center">
                   <button
                     onClick={() => setShowPaymentModal(true)}
-                    className="flex items-center justify-center space-x-2 bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-full transition-colors shadow-md"
+                    className="flex items-center justify-center space-x-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-full transition-colors shadow-md text-sm"
                   >
-                    <div className="w-5 h-5">💳</div>
-                    <span> Pagar Suscripción (S/100)</span>
+                    <div className="w-4 h-4">💳</div>
+                    <span>Pagar (S/100)</span>
                   </button>
-                  
+
                   <button
                     onClick={() => setShowTrialCodeModal(true)}
-                    className="flex items-center justify-center space-x-2 bg-secondary hover:bg-secondary-dark text-text px-6 py-3 rounded-full transition-colors shadow-md"
+                    className="flex items-center justify-center space-x-2 bg-secondary hover:bg-secondary-dark text-text px-5 py-2.5 rounded-full transition-colors shadow-md text-sm"
                   >
-                    <div className="w-5 h-5">🎁</div>
-                    <span> Usar Código de Prueba</span>
+                    <div className="w-4 h-4">🎁</div>
+                    <span>Código de Prueba</span>
                   </button>
                 </div>
               </div>
@@ -358,41 +349,42 @@ const GeniusProfile: React.FC = () => {
           )}
         </div>
 
-        {/* Quick Navigation Section */}
-        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Profile Edit Form */}
+        <GeniusProfileEditForm
+          initialData={geniusData}
+          onSave={handleSaveProfile}
+          onPreview={handlePreviewProfile}
+        />
+
+        {/* Quick Navigation & Logout Section - Simplified and combined */}
+        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 px-2">
+          <div className="flex items-center gap-3">
             <a
               href="/categories"
-              className="flex items-center justify-center space-x-3 bg-primary/10 hover:bg-primary/20 text-text p-4 rounded-xl transition-colors border border-primary/20"
-              style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
+              className="flex items-center space-x-2 text-primary hover:text-primary-dark transition-colors text-sm"
             >
-              <ArrowLeft className="w-5 h-5" />
-              <span>🔁 Volver a Categorías</span>
+              <ArrowLeft className="w-4 h-4" />
+              <span>Categorías</span>
             </a>
-            
+
+            <span className="text-gray-300">|</span>
+
             <a
               href="/"
-              className="flex items-center justify-center space-x-3 bg-success/10 hover:bg-success/20 text-text p-4 rounded-xl transition-colors border border-success/20"
-              style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
+              className="flex items-center space-x-2 text-success hover:text-success-dark transition-colors text-sm"
             >
-              <Home className="w-5 h-5" />
-              <span>🏠 Inicio – Ir a la Portada</span>
+              <Home className="w-4 h-4" />
+              <span>Inicio</span>
             </a>
           </div>
-        </div>
 
-        {/* Logout Section */}
-        <div className="bg-white rounded-2xl shadow-sm p-6">
-          <div className="text-center">
-            <button
-              onClick={handleLogout}
-              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full transition-colors shadow-md flex items-center space-x-2 mx-auto"
-              style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
-            >
-              <LogOut className="w-5 h-5" />
-              <span>🔓 Cerrar sesión</span>
-            </button>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center space-x-2 text-red-500 hover:text-red-600 transition-colors text-sm"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Cerrar sesión</span>
+          </button>
         </div>
       </div>
 

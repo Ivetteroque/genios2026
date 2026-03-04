@@ -32,6 +32,8 @@ interface GeniusProfileEditFormProps {
   onPreview: (formData: Genius) => void;
 }
 
+type SectionKey = 'personal' | 'about' | 'service' | 'portfolio' | 'documents';
+
 const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
   initialData,
   onSave,
@@ -40,6 +42,13 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [activeCategories, setActiveCategories] = useState<Category[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<Record<SectionKey, boolean>>({
+    personal: true,
+    about: false,
+    service: false,
+    portfolio: false,
+    documents: false
+  });
   const [formData, setFormData] = useState<Genius>({
     ...initialData,
     profilePhoto: initialData.profilePhoto || '',
@@ -64,6 +73,65 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
     const categories = getActiveCategories();
     setActiveCategories(categories);
   }, []);
+
+  const toggleSection = (section: SectionKey) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const calculateSectionCompletion = (section: SectionKey): { completed: number; total: number; isComplete: boolean } => {
+    let completed = 0;
+    let total = 0;
+
+    switch (section) {
+      case 'personal':
+        total = 5;
+        if (formData.profilePhoto) completed++;
+        if (formData.fullName.trim()) completed++;
+        if (formData.dni.trim() && formData.dni.length === 8) completed++;
+        if (formData.email.trim()) completed++;
+        if (formData.phone.trim() && formData.phone.length === 9) completed++;
+        if (formData.workLocations.length > 0) completed++;
+        total = 6;
+        break;
+      case 'about':
+        total = 1;
+        if (formData.description.trim() && formData.description.length >= 50) completed++;
+        break;
+      case 'service':
+        total = 3;
+        if (formData.category) completed++;
+        if (formData.subcategories.length > 0) completed++;
+        if (formData.serviceName.trim()) completed++;
+        break;
+      case 'portfolio':
+        total = 1;
+        if (formData.portfolio.length > 0) completed++;
+        break;
+      case 'documents':
+        total = 1;
+        if (formData.documents.some(doc => doc.type === 'dni')) completed++;
+        break;
+    }
+
+    return { completed, total, isComplete: completed === total };
+  };
+
+  const calculateOverallProgress = (): number => {
+    const sections: SectionKey[] = ['personal', 'about', 'service', 'portfolio', 'documents'];
+    let totalCompleted = 0;
+    let totalFields = 0;
+
+    sections.forEach(section => {
+      const { completed, total } = calculateSectionCompletion(section);
+      totalCompleted += completed;
+      totalFields += total;
+    });
+
+    return Math.round((totalCompleted / totalFields) * 100);
+  };
 
   const handleInputChange = (field: keyof Genius, value: any) => {
     setFormData(prev => ({
@@ -501,6 +569,68 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
     </div>
   );
 
+  const renderCollapsibleSection = (
+    sectionKey: SectionKey,
+    icon: React.ReactNode,
+    title: string,
+    renderContent: () => React.ReactNode,
+    bgColor: string
+  ) => {
+    const { completed, total, isComplete } = calculateSectionCompletion(sectionKey);
+    const isExpanded = expandedSections[sectionKey];
+
+    return (
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => toggleSection(sectionKey)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center space-x-3">
+            <div className={`w-10 h-10 ${bgColor} rounded-full flex items-center justify-center flex-shrink-0`}>
+              {icon}
+            </div>
+            <div className="text-left">
+              <h2 className="font-heading text-lg font-bold text-text">
+                {title}
+              </h2>
+              <div className="flex items-center space-x-2 mt-1">
+                <span className="text-xs text-text/60">
+                  {completed}/{total} completados
+                </span>
+                {isComplete && (
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            {isComplete ? (
+              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 text-white" />
+              </div>
+            ) : (
+              <div className="w-6 h-6 border-2 border-gray-300 rounded-full"></div>
+            )}
+            {isExpanded ? (
+              <ChevronUp className="w-5 h-5 text-text/60" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-text/60" />
+            )}
+          </div>
+        </button>
+
+        {isExpanded && (
+          <div className="p-6 border-t border-gray-200 bg-gray-50/50">
+            {renderContent()}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const overallProgress = calculateOverallProgress();
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -509,77 +639,66 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
           <h1 className="font-heading text-2xl font-bold text-text mb-2">
             ✏️ Editar mi Perfil de Genio
           </h1>
-          <p className="text-text/60">
+          <p className="text-text/60 mb-4">
             Completa tu información para que los clientes puedan encontrarte y contactarte
           </p>
+
+          {/* Progress Bar */}
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-text/70">Perfil completado</span>
+              <span className="text-sm font-bold text-primary">{overallProgress}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-primary to-success h-full rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${overallProgress}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
 
         {/* Form Sections */}
-        <div className="p-6 space-y-8">
-          {/* Personal Information Section */}
-          <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
-              <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
-              </div>
-              <h2 className="font-heading text-xl font-bold text-text">
-                Información Personal y de Contacto
-              </h2>
-            </div>
-            {renderPersonalSection()}
-          </div>
+        <div className="p-6 space-y-4">
+          {renderCollapsibleSection(
+            'personal',
+            <User className="w-5 h-5 text-primary" />,
+            'Información Personal y de Contacto',
+            renderPersonalSection,
+            'bg-primary/10'
+          )}
 
-          {/* About Section */}
-          <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
-              <div className="w-10 h-10 bg-secondary/10 rounded-full flex items-center justify-center">
-                <Globe className="w-5 h-5 text-secondary" />
-              </div>
-              <h2 className="font-heading text-xl font-bold text-text">
-                Acerca de Mí y Redes Sociales
-              </h2>
-            </div>
-            {renderAboutSection()}
-          </div>
+          {renderCollapsibleSection(
+            'about',
+            <Globe className="w-5 h-5 text-secondary" />,
+            'Acerca de Mí y Redes Sociales',
+            renderAboutSection,
+            'bg-secondary/10'
+          )}
 
-          {/* Service Section */}
-          <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
-              <div className="w-10 h-10 bg-success/10 rounded-full flex items-center justify-center">
-                <Briefcase className="w-5 h-5 text-success" />
-              </div>
-              <h2 className="font-heading text-xl font-bold text-text">
-                Detalles de mi Servicio
-              </h2>
-            </div>
-            {renderServiceSection()}
-          </div>
+          {renderCollapsibleSection(
+            'service',
+            <Briefcase className="w-5 h-5 text-success" />,
+            'Detalles de mi Servicio',
+            renderServiceSection,
+            'bg-success/10'
+          )}
 
-          {/* Portfolio Section */}
-          <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
-              <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
-                <Camera className="w-5 h-5 text-primary" />
-              </div>
-              <h2 className="font-heading text-xl font-bold text-text">
-                Mi Portafolio de Trabajos
-              </h2>
-            </div>
-            {renderPortfolioSection()}
-          </div>
+          {renderCollapsibleSection(
+            'portfolio',
+            <Camera className="w-5 h-5 text-primary" />,
+            'Mi Portafolio de Trabajos',
+            renderPortfolioSection,
+            'bg-primary/20'
+          )}
 
-          {/* Documents Section */}
-          <div className="space-y-6">
-            <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
-              <div className="w-10 h-10 bg-secondary/20 rounded-full flex items-center justify-center">
-                <FileText className="w-5 h-5 text-secondary" />
-              </div>
-              <h2 className="font-heading text-xl font-bold text-text">
-                Documentos de Verificación
-              </h2>
-            </div>
-            {renderDocumentsSection()}
-          </div>
+          {renderCollapsibleSection(
+            'documents',
+            <FileText className="w-5 h-5 text-secondary" />,
+            'Documentos de Verificación',
+            renderDocumentsSection,
+            'bg-secondary/20'
+          )}
         </div>
 
         {/* Action Buttons */}
