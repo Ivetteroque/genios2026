@@ -262,7 +262,7 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
   };
 
   const renderPersonalSection = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Profile Photo */}
       <ImageUploadField
         label="📸 Foto de Perfil"
@@ -274,30 +274,30 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
       />
 
       {/* Personal Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-text/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             👤 Nombre Completo <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={formData.fullName}
             onChange={(e) => handleInputChange('fullName', e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+            className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 placeholder:text-gray-400"
             placeholder="Tu nombre completo"
             title="Nombre que aparecerá en tu perfil público"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             🆔 DNI <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={formData.dni}
             onChange={(e) => handleInputChange('dni', e.target.value.replace(/\D/g, '').slice(0, 8))}
-            className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+            className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 placeholder:text-gray-400"
             placeholder="12345678"
             maxLength={8}
             title="Documento Nacional de Identidad"
@@ -305,32 +305,32 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             📧 Email <span className="text-red-500">*</span>
           </label>
           <input
             type="email"
             value={formData.email}
             onChange={(e) => handleInputChange('email', e.target.value)}
-            className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+            className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 placeholder:text-gray-400"
             placeholder="tu@email.com"
             title="Email de contacto para clientes"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             📱 Teléfono <span className="text-red-500">*</span>
           </label>
           <div className="flex">
-            <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-primary/20 bg-gray-50 text-text/60">
+            <span className="inline-flex items-center px-3 rounded-l-lg border-2 border-r-0 border-gray-300 bg-gray-100 text-gray-600 text-sm font-medium">
               +51
             </span>
             <input
               type="tel"
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value.replace(/\D/g, '').slice(0, 9))}
-              className="w-full px-4 py-3 rounded-r-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+              className="w-full px-3 py-2 rounded-r-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 placeholder:text-gray-400"
               placeholder="987654321"
               maxLength={9}
               title="Número de WhatsApp para contacto directo"
@@ -341,23 +341,23 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
 
       {/* Work Locations */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <label className="block text-sm font-medium text-text/80">
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">
             🗺️ Zonas de Trabajo <span className="text-red-500">*</span>
           </label>
           {currentUser?.location && (
             <button
               type="button"
               onClick={handleAddHomeLocation}
-              className="flex items-center space-x-2 text-primary hover:text-primary-dark transition-colors text-sm"
+              className="flex items-center space-x-1.5 text-primary hover:text-primary-dark transition-colors text-xs font-medium"
               title="Agregar tu domicilio como zona de trabajo"
             >
-              <Home className="w-4 h-4" />
+              <Home className="w-3.5 h-3.5" />
               <span>Usar mi domicilio</span>
             </button>
           )}
         </div>
-        
+
         <FlexibleLocationSelector
           selectedLocations={formData.workLocations}
           onLocationsChange={(locations) => handleInputChange('workLocations', locations)}
@@ -369,10 +369,10 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
   );
 
   const renderAboutSection = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Description */}
       <div>
-        <label className="block text-sm font-medium text-text/80 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
           📝 Descripción de tu Trabajo <span className="text-red-500">*</span>
         </label>
         <textarea
@@ -384,73 +384,73 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
           }}
           rows={4}
           maxLength={500}
-          className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 resize-none"
+          className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none text-gray-900 placeholder:text-gray-400"
           placeholder="Cuéntanos sobre tu experiencia, especialidad y qué te hace único..."
           title="Describe tu trabajo y experiencia para atraer clientes"
         />
-        <div className="flex justify-between items-center mt-2">
-          <span className="text-xs text-text/40">
+        <div className="flex justify-between items-center mt-1.5">
+          <span className="text-xs text-gray-500">
             {500 - formData.description.length} caracteres restantes
           </span>
           {formData.description.length >= 50 && (
-            <span className="text-xs text-green-500 flex items-center">
+            <span className="text-xs text-green-600 flex items-center">
               <CheckCircle className="w-3 h-3 mr-1" />
-              Descripción completa
+              Completo
             </span>
           )}
         </div>
       </div>
 
       {/* Social Media Links */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-sm font-medium text-text/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             📷 Instagram
           </label>
           <div className="relative">
-            <Instagram className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-500 w-5 h-5" />
+            <Instagram className="absolute left-3 top-1/2 transform -translate-y-1/2 text-pink-500 w-4 h-4" />
             <input
               type="url"
               value={formData.instagram}
               onChange={(e) => handleInputChange('instagram', e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-              placeholder="https://instagram.com/tu_usuario"
+              className="w-full pl-10 pr-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 placeholder:text-gray-400 text-sm"
+              placeholder="instagram.com/tu_usuario"
               title="Tu perfil de Instagram (opcional)"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             📘 Facebook
           </label>
           <div className="relative">
-            <Facebook className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600 w-5 h-5" />
+            <Facebook className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600 w-4 h-4" />
             <input
               type="url"
               value={formData.facebook}
               onChange={(e) => handleInputChange('facebook', e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-              placeholder="https://facebook.com/tu_pagina"
+              className="w-full pl-10 pr-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 placeholder:text-gray-400 text-sm"
+              placeholder="facebook.com/tu_pagina"
               title="Tu página de Facebook (opcional)"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             🎵 TikTok
           </label>
           <div className="relative">
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-black font-bold text-sm">
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-900 font-bold text-xs">
               TT
             </div>
             <input
               type="url"
               value={formData.tiktok}
               onChange={(e) => handleInputChange('tiktok', e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-              placeholder="https://tiktok.com/@tu_usuario"
+              className="w-full pl-10 pr-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 placeholder:text-gray-400 text-sm"
+              placeholder="tiktok.com/@tu_usuario"
               title="Tu perfil de TikTok (opcional)"
             />
           </div>
@@ -460,19 +460,19 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
   );
 
   const renderServiceSection = () => (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Category Selection */}
       <div>
-        <label className="block text-sm font-medium text-text/80 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
           🏷️ Categoría Principal <span className="text-red-500">*</span>
         </label>
         <select
           value={formData.category}
           onChange={(e) => {
             handleInputChange('category', e.target.value);
-            handleInputChange('subcategories', []); // Reset subcategories when category changes
+            handleInputChange('subcategories', []);
           }}
-          className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+          className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900"
           title="Selecciona la categoría principal de tu servicio"
         >
           <option value="">Selecciona una categoría</option>
@@ -487,18 +487,18 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
       {/* Subcategories Selection */}
       {formData.category && (
         <div>
-          <label className="block text-sm font-medium text-text/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
             🔧 Subcategorías <span className="text-red-500">*</span>
-            <span className="text-text/60 ml-2">({formData.subcategories.length}/4)</span>
+            <span className="text-gray-500 ml-2 text-xs">({formData.subcategories.length}/4)</span>
           </label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {getAvailableSubcategories().map(subcategory => (
               <label
                 key={subcategory.id}
-                className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                className={`flex items-center space-x-2 p-2.5 rounded-lg border-2 cursor-pointer transition-colors text-sm ${
                   formData.subcategories.includes(subcategory.name)
-                    ? 'border-primary bg-primary/10'
-                    : 'border-gray-200 hover:border-primary/30 hover:bg-primary/5'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-gray-400'
                 }`}
               >
                 <input
@@ -507,26 +507,26 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
                   onChange={() => handleSubcategoryToggle(subcategory.name)}
                   className="w-4 h-4 text-primary focus:ring-primary rounded"
                 />
-                <span className="font-medium text-text">{subcategory.name}</span>
+                <span className="font-medium text-gray-900">{subcategory.name}</span>
               </label>
             ))}
           </div>
-          <p className="text-xs text-text/60 mt-2">
-            Selecciona hasta 4 subcategorías que mejor describan tus servicios
+          <p className="text-xs text-gray-500 mt-1.5">
+            Selecciona hasta 4 subcategorías
           </p>
         </div>
       )}
 
       {/* Service Name */}
       <div>
-        <label className="block text-sm font-medium text-text/80 mb-2">
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">
           ✨ Nombre de tu Servicio <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           value={formData.serviceName}
           onChange={(e) => handleInputChange('serviceName', e.target.value)}
-          className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+          className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 placeholder:text-gray-400"
           placeholder="Ej: Maquillaje profesional para eventos y novias"
           title="Nombre descriptivo de tu servicio principal"
         />
@@ -580,48 +580,48 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
     const isExpanded = expandedSections[sectionKey];
 
     return (
-      <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white">
         <button
           type="button"
           onClick={() => toggleSection(sectionKey)}
-          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
         >
-          <div className="flex items-center space-x-3">
-            <div className={`w-10 h-10 ${bgColor} rounded-full flex items-center justify-center flex-shrink-0`}>
+          <div className="flex items-center space-x-2.5">
+            <div className={`w-8 h-8 ${bgColor} rounded-lg flex items-center justify-center flex-shrink-0`}>
               {icon}
             </div>
             <div className="text-left">
-              <h2 className="font-heading text-lg font-bold text-text">
+              <h2 className="font-semibold text-base text-gray-900">
                 {title}
               </h2>
-              <div className="flex items-center space-x-2 mt-1">
-                <span className="text-xs text-text/60">
-                  {completed}/{total} completados
+              <div className="flex items-center space-x-1.5 mt-0.5">
+                <span className="text-xs text-gray-500">
+                  {completed}/{total}
                 </span>
                 {isComplete && (
-                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <CheckCircle className="w-3.5 h-3.5 text-green-500" />
                 )}
               </div>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             {isComplete ? (
-              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-4 h-4 text-white" />
+              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-3.5 h-3.5 text-white" />
               </div>
             ) : (
-              <div className="w-6 h-6 border-2 border-gray-300 rounded-full"></div>
+              <div className="w-5 h-5 border-2 border-gray-300 rounded-full"></div>
             )}
             {isExpanded ? (
-              <ChevronUp className="w-5 h-5 text-text/60" />
+              <ChevronUp className="w-4 h-4 text-gray-500" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-text/60" />
+              <ChevronDown className="w-4 h-4 text-gray-500" />
             )}
           </div>
         </button>
 
         {isExpanded && (
-          <div className="p-6 border-t border-gray-200 bg-gray-50/50">
+          <div className="px-4 py-4 border-t border-gray-100">
             {renderContent()}
           </div>
         )}
@@ -633,23 +633,23 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary/10 to-secondary/10 p-6 border-b border-gray-100">
-          <h1 className="font-heading text-2xl font-bold text-text mb-2">
+        <div className="bg-gradient-to-r from-primary/10 to-secondary/10 px-5 py-4 border-b border-gray-100">
+          <h1 className="font-heading text-xl font-bold text-gray-900 mb-1">
             ✏️ Editar mi Perfil de Genio
           </h1>
-          <p className="text-text/60 mb-4">
+          <p className="text-gray-600 text-sm mb-3">
             Completa tu información para que los clientes puedan encontrarte y contactarte
           </p>
 
           {/* Progress Bar */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-text/70">Perfil completado</span>
-              <span className="text-sm font-bold text-primary">{overallProgress}%</span>
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-medium text-gray-600">Completado</span>
+              <span className="text-xs font-bold text-primary">{overallProgress}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-primary to-success h-full rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${overallProgress}%` }}
@@ -659,10 +659,10 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
         </div>
 
         {/* Form Sections */}
-        <div className="p-6 space-y-4">
+        <div className="p-4 space-y-3">
           {renderCollapsibleSection(
             'personal',
-            <User className="w-5 h-5 text-primary" />,
+            <User className="w-4 h-4 text-primary" />,
             'Información Personal y de Contacto',
             renderPersonalSection,
             'bg-primary/10'
@@ -670,7 +670,7 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
 
           {renderCollapsibleSection(
             'about',
-            <Globe className="w-5 h-5 text-secondary" />,
+            <Globe className="w-4 h-4 text-secondary" />,
             'Acerca de Mí y Redes Sociales',
             renderAboutSection,
             'bg-secondary/10'
@@ -678,7 +678,7 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
 
           {renderCollapsibleSection(
             'service',
-            <Briefcase className="w-5 h-5 text-success" />,
+            <Briefcase className="w-4 h-4 text-success" />,
             'Detalles de mi Servicio',
             renderServiceSection,
             'bg-success/10'
@@ -686,7 +686,7 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
 
           {renderCollapsibleSection(
             'portfolio',
-            <Camera className="w-5 h-5 text-primary" />,
+            <Camera className="w-4 h-4 text-primary" />,
             'Mi Portafolio de Trabajos',
             renderPortfolioSection,
             'bg-primary/20'
@@ -694,7 +694,7 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
 
           {renderCollapsibleSection(
             'documents',
-            <FileText className="w-5 h-5 text-secondary" />,
+            <FileText className="w-4 h-4 text-secondary" />,
             'Documentos de Verificación',
             renderDocumentsSection,
             'bg-secondary/20'
@@ -702,25 +702,25 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="p-6 bg-gray-50 border-t border-gray-100">
-          <div className="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4">
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+          <div className="flex flex-col md:flex-row gap-2.5">
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className={`flex-1 flex items-center justify-center space-x-2 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-md hover:shadow-lg ${
+              className={`flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg font-semibold text-sm transition-all ${
                 isSaving
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-primary hover:bg-primary-dark text-white transform hover:scale-[1.02]'
+                  : 'bg-primary hover:bg-primary-dark text-white shadow-sm hover:shadow'
               }`}
             >
               {isSaving ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-500"></div>
-                  <span>Guardando cambios...</span>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+                  <span>Guardando...</span>
                 </>
               ) : (
                 <>
-                  <Save className="w-5 h-5" />
+                  <Save className="w-4 h-4" />
                   <span>Guardar Cambios</span>
                 </>
               )}
@@ -729,9 +729,9 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
             <button
               onClick={handlePreview}
               disabled={isSaving}
-              className="flex-1 flex items-center justify-center space-x-2 py-4 rounded-xl font-semibold text-lg bg-secondary hover:bg-secondary-dark text-text transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:opacity-50"
+              className="flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-lg font-semibold text-sm bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-300 transition-all disabled:opacity-50"
             >
-              <Eye className="w-5 h-5" />
+              <Eye className="w-4 h-4" />
               <span>Vista Previa</span>
             </button>
           </div>
