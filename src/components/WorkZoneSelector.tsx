@@ -42,136 +42,107 @@ export default function WorkZoneSelector({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Layers className="w-5 h-5 text-blue-600" />
+        <Layers className="w-4 h-4 text-blue-600" />
         <label className="block text-sm font-medium text-gray-700">
           Zona de Atención - ¿Dónde ofreces tus servicios?
         </label>
       </div>
 
-      <p className="text-sm text-gray-500">
-        Esto ayuda a que los clientes cercanos encuentren tus servicios más rápido
-      </p>
-
       {!homeLocation ? (
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800">
+        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-xs text-yellow-800">
             Primero debes seleccionar tu ubicación de residencia
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          <div
-            onClick={() => handleCoverageTypeChange('all-department')}
-            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+        <div className="space-y-2">
+          <label
+            className={`p-2.5 border rounded-lg cursor-pointer transition-all flex items-center gap-2 ${
               coverageType === 'all-department'
                 ? 'border-blue-600 bg-blue-50'
                 : 'border-gray-300 hover:border-blue-400 bg-white'
             }`}
           >
-            <div className="flex items-start gap-3">
-              <input
-                type="radio"
-                checked={coverageType === 'all-department'}
-                onChange={() => handleCoverageTypeChange('all-department')}
-                className="mt-1"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Map className="w-5 h-5 text-blue-600" />
-                  <span className="font-medium text-gray-900">Todo el departamento</span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  Atiendes en todo {homeLocation.departmentName} ({getDistrictCount('all-department')} distritos)
-                </p>
-              </div>
+            <input
+              type="radio"
+              checked={coverageType === 'all-department'}
+              onChange={() => handleCoverageTypeChange('all-department')}
+              className="flex-shrink-0"
+            />
+            <Map className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-gray-900">Todo el departamento</span>
+              <span className="text-xs text-gray-600 ml-1">
+                ({getDistrictCount('all-department')} distritos)
+              </span>
             </div>
-          </div>
+          </label>
 
-          <div
-            onClick={() => handleCoverageTypeChange('all-province')}
-            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+          <label
+            className={`p-2.5 border rounded-lg cursor-pointer transition-all flex items-center gap-2 ${
               coverageType === 'all-province'
                 ? 'border-green-600 bg-green-50'
                 : 'border-gray-300 hover:border-green-400 bg-white'
             }`}
           >
-            <div className="flex items-start gap-3">
-              <input
-                type="radio"
-                checked={coverageType === 'all-province'}
-                onChange={() => handleCoverageTypeChange('all-province')}
-                className="mt-1"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-green-600" />
-                  <span className="font-medium text-gray-900">Toda la provincia</span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  Atiendes en toda la provincia de {homeLocation.provinceName} ({getDistrictCount('all-province')} distritos)
-                </p>
-              </div>
+            <input
+              type="radio"
+              checked={coverageType === 'all-province'}
+              onChange={() => handleCoverageTypeChange('all-province')}
+              className="flex-shrink-0"
+            />
+            <Layers className="w-4 h-4 text-green-600 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-gray-900">Toda la provincia</span>
+              <span className="text-xs text-gray-600 ml-1">
+                ({getDistrictCount('all-province')} distritos)
+              </span>
             </div>
-          </div>
+          </label>
 
-          <div
-            onClick={() => handleCoverageTypeChange('my-district')}
-            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+          <label
+            className={`p-2.5 border rounded-lg cursor-pointer transition-all flex items-center gap-2 ${
               coverageType === 'my-district'
                 ? 'border-orange-600 bg-orange-50'
                 : 'border-gray-300 hover:border-orange-400 bg-white'
             }`}
           >
-            <div className="flex items-start gap-3">
-              <input
-                type="radio"
-                checked={coverageType === 'my-district'}
-                onChange={() => handleCoverageTypeChange('my-district')}
-                className="mt-1"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-orange-600" />
-                  <span className="font-medium text-gray-900">Solo mi distrito</span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  Solo atiendes en {homeLocation.districtName}
-                </p>
-              </div>
+            <input
+              type="radio"
+              checked={coverageType === 'my-district'}
+              onChange={() => handleCoverageTypeChange('my-district')}
+              className="flex-shrink-0"
+            />
+            <MapPin className="w-4 h-4 text-orange-600 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-gray-900">Solo mi distrito</span>
             </div>
-          </div>
+          </label>
 
-          <div
-            onClick={() => handleCoverageTypeChange('custom')}
-            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+          <label
+            className={`p-2.5 border rounded-lg cursor-pointer transition-all flex items-center gap-2 ${
               coverageType === 'custom'
-                ? 'border-purple-600 bg-purple-50'
-                : 'border-gray-300 hover:border-purple-400 bg-white'
+                ? 'border-gray-600 bg-gray-50'
+                : 'border-gray-300 hover:border-gray-400 bg-white'
             }`}
           >
-            <div className="flex items-start gap-3">
-              <input
-                type="radio"
-                checked={coverageType === 'custom'}
-                onChange={() => handleCoverageTypeChange('custom')}
-                className="mt-1"
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Map className="w-5 h-5 text-purple-600" />
-                  <span className="font-medium text-gray-900">Seleccionar distritos manualmente</span>
-                </div>
-                <p className="text-sm text-gray-600 mt-1">
-                  Elige los distritos específicos donde atiendes (máximo 10)
-                </p>
-              </div>
+            <input
+              type="radio"
+              checked={coverageType === 'custom'}
+              onChange={() => handleCoverageTypeChange('custom')}
+              className="flex-shrink-0"
+            />
+            <Map className="w-4 h-4 text-gray-600 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium text-gray-900">Seleccionar manualmente</span>
+              <span className="text-xs text-gray-600 ml-1">(máx. 10)</span>
             </div>
-          </div>
+          </label>
 
           {coverageType === 'custom' && (
-            <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
               <FlexibleLocationSelector
                 selectedLocations={customDistricts}
                 onLocationsChange={onCustomDistrictsChange}
@@ -181,15 +152,15 @@ export default function WorkZoneSelector({
           )}
 
           {coverageType === 'all-department' && getDistrictCount('all-department') > 20 && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800">
-                Esta selección agregará {getDistrictCount('all-department')} distritos a tu zona de atención
+            <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-800">
+                {getDistrictCount('all-department')} distritos incluidos
               </p>
             </div>
           )}
 
           {error && (
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-xs text-red-600">{error}</p>
           )}
         </div>
       )}

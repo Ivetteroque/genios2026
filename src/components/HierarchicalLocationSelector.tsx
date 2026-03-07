@@ -73,16 +73,6 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
     }
   };
 
-  const getProgress = () => {
-    if (!value) return 0;
-    if (value.departmentId && !value.provinceId) return 1;
-    if (value.provinceId && !value.districtId) return 2;
-    if (value.districtId) return 3;
-    return 0;
-  };
-
-  const progress = getProgress();
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -95,18 +85,6 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
       <p className="text-sm text-gray-500">
         Tu domicilio ayuda a los clientes cercanos a encontrarte
       </p>
-
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-600 transition-all duration-300"
-            style={{ width: `${(progress / 3) * 100}%` }}
-          />
-        </div>
-        <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-          {progress}/3
-        </span>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
