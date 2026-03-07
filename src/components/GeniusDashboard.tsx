@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Calendar, CreditCard, LogOut, Home, Edit, Settings } from 'lucide-react';
+import { User, Calendar, CreditCard, LogOut, Home, CreditCard as Edit, Settings } from 'lucide-react';
 import { getCurrentUser } from '../utils/authUtils';
 import { getGeniusProfile, calculateProfileCompleteness } from '../services/supabaseGeniusService';
 import { getAvailabilitySummary } from '../services/supabaseAvailabilityService';
