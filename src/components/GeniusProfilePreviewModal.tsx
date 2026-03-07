@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Star, MapPin, MessageSquare, Globe, Instagram, Facebook, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Star, MapPin, MessageSquare, Globe, Instagram, Facebook, ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import { Genius } from '../utils/geniusUtils';
 import { getReviewsForGenius, calculateGeniusRatingStats } from '../utils/reviewUtils';
+import LocationChips from './LocationChips';
 
 interface GeniusProfilePreviewModalProps {
   isOpen: boolean;
@@ -86,13 +87,12 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-4 justify-center items-center">
-                  <div className="flex items-center text-text/60">
-                    <MapPin className="w-5 h-5 mr-1" />
-                    {geniusData.workLocations.length > 0 
-                      ? `${geniusData.workLocations.length} zona${geniusData.workLocations.length > 1 ? 's' : ''} de trabajo`
-                      : 'Sin zonas definidas'
-                    }
-                  </div>
+                  {geniusData.homeLocation && (
+                    <div className="flex items-center text-text/60">
+                      <Home className="w-5 h-5 mr-1" />
+                      {geniusData.homeLocation.districtName}, {geniusData.homeLocation.provinceName}
+                    </div>
+                  )}
                   <div className="flex items-center text-primary">
                     <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
                     Disponible
@@ -183,8 +183,42 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
             </section>
           )}
 
-          {/* Work Locations Section */}
-          {geniusData.workLocations.length > 0 && (
+          {/* Location Section */}
+          {geniusData.homeLocation && (
+            <section className="py-6 bg-gray-50 rounded-lg mb-6">
+              <div className="px-6 space-y-6">
+                <div>
+                  <h2 className="font-heading text-2xl font-bold mb-4 flex items-center">
+                    <Home className="w-6 h-6 mr-2 text-primary" />
+                    Ubicación
+                  </h2>
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <p className="text-text">
+                      <span className="font-medium">Vive en:</span> {geniusData.homeLocation.districtName}, {geniusData.homeLocation.provinceName}, {geniusData.homeLocation.departmentName}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="font-heading text-2xl font-bold mb-4 flex items-center">
+                    <MapPin className="w-6 h-6 mr-2 text-primary" />
+                    Zonas de Atención
+                  </h2>
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <LocationChips
+                      coverageType={geniusData.coverageType || 'my-district'}
+                      homeLocation={geniusData.homeLocation}
+                      customDistricts={geniusData.workLocations}
+                      showRemoveButton={false}
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Fallback for old data structure */}
+          {!geniusData.homeLocation && geniusData.workLocations.length > 0 && (
             <section className="py-6 bg-gray-50 rounded-lg mb-6">
               <div className="px-6">
                 <h2 className="font-heading text-2xl font-bold mb-4">Zonas de Trabajo</h2>
@@ -192,7 +226,7 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
                   {geniusData.workLocations.map((location, index) => (
                     <div key={index} className="flex items-center space-x-2 bg-white p-3 rounded-lg border border-gray-200">
                       <MapPin className="w-4 h-4 text-primary" />
-                      <span className="text-text text-sm">{location.fullName}</span>
+                      <span className="text-text text-sm">{location.districtName || location.fullName}</span>
                     </div>
                   ))}
                 </div>

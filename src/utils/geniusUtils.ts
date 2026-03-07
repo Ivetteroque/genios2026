@@ -1,6 +1,7 @@
 // Genius management utility functions
 
 import { SelectedLocation } from '../components/FlexibleLocationSelector';
+import { HomeLocation, CoverageType } from './locationUtils';
 
 export interface GeniusTag {
   id: string;
@@ -45,6 +46,8 @@ export interface Genius {
   category: string;
   subcategories: string[];
   serviceName: string;
+  homeLocation?: HomeLocation;
+  coverageType?: CoverageType;
   workLocations: SelectedLocation[];
   specialty: string;
   subscriptionDate: string;

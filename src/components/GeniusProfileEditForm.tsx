@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  Save, 
-  Eye, 
-  User, 
-  MapPin, 
-  Briefcase, 
-  Camera, 
+import {
+  ChevronDown,
+  ChevronUp,
+  Save,
+  Eye,
+  User,
+  MapPin,
+  Briefcase,
+  Camera,
   FileText,
   Instagram,
   Facebook,
@@ -21,10 +21,14 @@ import {
 import ImageUploadField from './ImageUploadField';
 import MultiImageUploadField from './MultiImageUploadField';
 import DocumentUploadField from './DocumentUploadField';
-import FlexibleLocationSelector from './FlexibleLocationSelector';
-import { Genius, Document, SelectedLocation } from '../utils/geniusUtils';
+import HierarchicalLocationSelector from './HierarchicalLocationSelector';
+import WorkZoneSelector from './WorkZoneSelector';
+import LocationChips from './LocationChips';
+import { Genius, Document } from '../utils/geniusUtils';
+import { SelectedLocation } from './FlexibleLocationSelector';
 import { getActiveCategories, Category } from '../utils/categoryUtils';
 import { getCurrentUser } from '../utils/authUtils';
+import { HomeLocation, CoverageType, expandCoverageToDistricts } from '../utils/locationUtils';
 
 interface GeniusProfileEditFormProps {
   initialData: Genius;
@@ -64,6 +68,8 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
     category: initialData.category || '',
     subcategories: initialData.subcategories || [],
     serviceName: initialData.serviceName || '',
+    homeLocation: initialData.homeLocation || null,
+    coverageType: initialData.coverageType || 'my-district',
     workLocations: initialData.workLocations || [],
     documents: initialData.documents || []
   });
@@ -87,14 +93,13 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
 
     switch (section) {
       case 'personal':
-        total = 5;
+        total = 6;
         if (formData.profilePhoto) completed++;
         if (formData.fullName.trim()) completed++;
         if (formData.dni.trim() && formData.dni.length === 8) completed++;
         if (formData.email.trim()) completed++;
         if (formData.phone.trim() && formData.phone.length === 9) completed++;
-        if (formData.workLocations.length > 0) completed++;
-        total = 6;
+        if (formData.homeLocation && formData.homeLocation.districtId) completed++;
         break;
       case 'about':
         total = 1;
@@ -140,34 +145,12 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
     }));
   };
 
-  const handleAddHomeLocation = () => {
-    if (!currentUser?.location) {
-      alert('No se pudo obtener tu domicilio. Verifica tu información de perfil.');
-      return;
-    }
+  const handleCoverageTypeChange = (type: CoverageType) => {
+    setFormData(prev => ({ ...prev, coverageType: type }));
+  };
 
-    const homeLocation: SelectedLocation = {
-      departmentId: currentUser.location.departmentId,
-      departmentName: currentUser.location.departmentName,
-      provinceId: currentUser.location.provinceId,
-      provinceName: currentUser.location.provinceName,
-      districtId: currentUser.location.districtId,
-      districtName: currentUser.location.districtName,
-      fullName: currentUser.location.fullName,
-      type: 'district'
-    };
-
-    // Check if home location is already in work locations
-    const isAlreadyAdded = formData.workLocations.some(loc => 
-      loc.districtId === homeLocation.districtId && loc.type === 'district'
-    );
-
-    if (isAlreadyAdded) {
-      alert('Tu domicilio ya está incluido en las zonas de trabajo.');
-      return;
-    }
-
-    handleInputChange('workLocations', [...formData.workLocations, homeLocation]);
+  const handleCustomDistrictsChange = (districts: SelectedLocation[]) => {
+    setFormData(prev => ({ ...prev, workLocations: districts }));
   };
 
   const getAvailableSubcategories = () => {
@@ -229,26 +212,42 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
     if (!formData.category) errors.push('Categoría principal es requerida');
     if (formData.subcategories.length === 0) errors.push('Al menos una subcategoría es requerida');
     if (!formData.serviceName.trim()) errors.push('Nombre del servicio es requerido');
-    if (formData.workLocations.length === 0) errors.push('Al menos una zona de trabajo es requerida');
+    if (!formData.homeLocation || !formData.homeLocation.districtId) errors.push('La ubicación de residencia es requerida');
 
     return errors;
   };
 
   const handleSave = async () => {
     const errors = validateForm();
-    
+
     if (errors.length > 0) {
       alert('Por favor completa los siguientes campos:\n\n' + errors.join('\n'));
       return;
     }
 
+    if (!formData.homeLocation) {
+      alert('Por favor selecciona tu ubicación de residencia');
+      return;
+    }
+
     setIsSaving(true);
-    
+
     try {
-      // Simulate API call delay
+      const expandedWorkLocations = expandCoverageToDistricts(
+        formData.homeLocation,
+        formData.coverageType || 'my-district',
+        formData.workLocations
+      );
+
+      const updatedData = {
+        ...formData,
+        workLocations: expandedWorkLocations,
+        location: `${formData.homeLocation.districtName}, ${formData.homeLocation.provinceName}, ${formData.homeLocation.departmentName}`
+      };
+
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      onSave(formData);
+
+      onSave(updatedData);
     } catch (error) {
       console.error('Error saving profile:', error);
       alert('Error al guardar el perfil. Por favor, intenta nuevamente.');
@@ -339,32 +338,39 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
         </div>
       </div>
 
-      {/* Work Locations */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">
-            🗺️ Zonas de Trabajo <span className="text-red-500">*</span>
-          </label>
-          {currentUser?.location && (
-            <button
-              type="button"
-              onClick={handleAddHomeLocation}
-              className="flex items-center space-x-1.5 text-primary hover:text-primary-dark transition-colors text-xs font-medium"
-              title="Agregar tu domicilio como zona de trabajo"
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span>Usar mi domicilio</span>
-            </button>
-          )}
-        </div>
-
-        <FlexibleLocationSelector
-          selectedLocations={formData.workLocations}
-          onLocationsChange={(locations) => handleInputChange('workLocations', locations)}
-          placeholder="Selecciona las zonas donde ofreces tus servicios..."
-          maxSelections={10}
+      {/* Home Location */}
+      <div className="border-t border-gray-200 pt-4 mt-4">
+        <HierarchicalLocationSelector
+          value={formData.homeLocation}
+          onChange={(location) => handleInputChange('homeLocation', location)}
         />
       </div>
+
+      {/* Work Coverage */}
+      <div className="border-t border-gray-200 pt-4 mt-4">
+        <WorkZoneSelector
+          homeLocation={formData.homeLocation}
+          coverageType={formData.coverageType || 'my-district'}
+          customDistricts={formData.workLocations}
+          onCoverageTypeChange={handleCoverageTypeChange}
+          onCustomDistrictsChange={handleCustomDistrictsChange}
+        />
+      </div>
+
+      {/* Display selected coverage */}
+      {formData.homeLocation && (
+        <div className="border-t border-gray-200 pt-4 mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Cobertura seleccionada:
+          </label>
+          <LocationChips
+            coverageType={formData.coverageType || 'my-district'}
+            homeLocation={formData.homeLocation}
+            customDistricts={formData.workLocations}
+            showRemoveButton={false}
+          />
+        </div>
+      )}
     </div>
   );
 

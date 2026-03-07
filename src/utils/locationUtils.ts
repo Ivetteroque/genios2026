@@ -1020,3 +1020,160 @@ export const searchLocations = (query: string): Array<{
 
   return results.slice(0, 20); // Limit results
 };
+
+export interface HomeLocation {
+  departmentId: string;
+  departmentName: string;
+  provinceId: string;
+  provinceName: string;
+  districtId: string;
+  districtName: string;
+}
+
+export type CoverageType = 'all-department' | 'all-province' | 'my-district' | 'custom';
+
+export const getAllDistrictsInDepartment = (departmentId: string): Array<{
+  departmentId: string;
+  departmentName: string;
+  provinceId: string;
+  provinceName: string;
+  districtId: string;
+  districtName: string;
+}> => {
+  const department = getDepartmentById(departmentId);
+  if (!department) return [];
+
+  const districts: Array<{
+    departmentId: string;
+    departmentName: string;
+    provinceId: string;
+    provinceName: string;
+    districtId: string;
+    districtName: string;
+  }> = [];
+
+  department.provinces.forEach(prov => {
+    if (prov.isActive) {
+      prov.districts.forEach(dist => {
+        if (dist.isActive) {
+          districts.push({
+            departmentId: department.id,
+            departmentName: department.name,
+            provinceId: prov.id,
+            provinceName: prov.name,
+            districtId: dist.id,
+            districtName: dist.name
+          });
+        }
+      });
+    }
+  });
+
+  return districts;
+};
+
+export const getAllDistrictsInProvince = (departmentId: string, provinceId: string): Array<{
+  departmentId: string;
+  departmentName: string;
+  provinceId: string;
+  provinceName: string;
+  districtId: string;
+  districtName: string;
+}> => {
+  const department = getDepartmentById(departmentId);
+  if (!department) return [];
+
+  const province = department.provinces.find(p => p.id === provinceId);
+  if (!province || !province.isActive) return [];
+
+  const districts: Array<{
+    departmentId: string;
+    departmentName: string;
+    provinceId: string;
+    provinceName: string;
+    districtId: string;
+    districtName: string;
+  }> = [];
+
+  province.districts.forEach(dist => {
+    if (dist.isActive) {
+      districts.push({
+        departmentId: department.id,
+        departmentName: department.name,
+        provinceId: province.id,
+        provinceName: province.name,
+        districtId: dist.id,
+        districtName: dist.name
+      });
+    }
+  });
+
+  return districts;
+};
+
+export const expandCoverageToDistricts = (
+  homeLocation: HomeLocation,
+  coverageType: CoverageType,
+  customDistricts?: Array<{
+    departmentId: string;
+    departmentName: string;
+    provinceId: string;
+    provinceName: string;
+    districtId: string;
+    districtName: string;
+  }>
+): Array<{
+  departmentId: string;
+  departmentName: string;
+  provinceId: string;
+  provinceName: string;
+  districtId: string;
+  districtName: string;
+}> => {
+  switch (coverageType) {
+    case 'all-department':
+      return getAllDistrictsInDepartment(homeLocation.departmentId);
+
+    case 'all-province':
+      return getAllDistrictsInProvince(homeLocation.departmentId, homeLocation.provinceId);
+
+    case 'my-district':
+      return [{
+        departmentId: homeLocation.departmentId,
+        departmentName: homeLocation.departmentName,
+        provinceId: homeLocation.provinceId,
+        provinceName: homeLocation.provinceName,
+        districtId: homeLocation.districtId,
+        districtName: homeLocation.districtName
+      }];
+
+    case 'custom':
+      return customDistricts || [];
+
+    default:
+      return [];
+  }
+};
+
+export const formatCoverageDisplay = (
+  coverageType: CoverageType,
+  districtCount: number,
+  locationName: string
+): string => {
+  switch (coverageType) {
+    case 'all-department':
+      return `Todo ${locationName} (${districtCount} distrito${districtCount !== 1 ? 's' : ''})`;
+
+    case 'all-province':
+      return `Toda provincia de ${locationName} (${districtCount} distrito${districtCount !== 1 ? 's' : ''})`;
+
+    case 'my-district':
+      return locationName;
+
+    case 'custom':
+      return `${districtCount} distrito${districtCount !== 1 ? 's' : ''} seleccionado${districtCount !== 1 ? 's' : ''}`;
+
+    default:
+      return '';
+  }
+};

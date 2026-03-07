@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import { Upload, MapPin, Check, X, Camera, Instagram, Facebook, MessageSquare } from 'lucide-react';
+import HierarchicalLocationSelector from './HierarchicalLocationSelector';
+import WorkZoneSelector from './WorkZoneSelector';
+import { HomeLocation, CoverageType, expandCoverageToDistricts } from '../utils/locationUtils';
+import { SelectedLocation } from './FlexibleLocationSelector';
 
 interface RegistrationStep {
   id: number;
@@ -15,21 +19,23 @@ const GeniusRegistration: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     dni: '',
     email: '',
     whatsapp: '',
-    
+
     // Step 2 - Profile & Location
     profilePhoto: '',
-    workZone: '',
-    
+    homeLocation: null as HomeLocation | null,
+    coverageType: 'my-district' as CoverageType,
+    customDistricts: [] as SelectedLocation[],
+
     // Step 3 - Service Details
     category: '',
     subcategory: '',
     serviceName: '',
     price: '',
-    
+
     // Step 4 - Experience
     startYear: '',
     description: '',
-    
+
     // Step 5 - Gallery & Social
     gallery: [] as string[],
     instagram: '',
@@ -213,7 +219,7 @@ const GeniusRegistration: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           📸 Perfil y Ubicación
         </h3>
         <p className="text-text/60 font-body">
-          Tu foto y zona de trabajo
+          Tu foto, domicilio y zona de trabajo
         </p>
       </div>
 
@@ -242,7 +248,7 @@ const GeniusRegistration: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <Camera className="w-8 h-8 text-primary/60" />
             </div>
           )}
-          
+
           <label className="cursor-pointer bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors">
             <span>Seleccionar foto</span>
             <input
@@ -255,27 +261,21 @@ const GeniusRegistration: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          🗺️ Zona de trabajo:
-        </label>
-        <div className="relative">
-          <select
-            name="workZone"
-            value={formData.workZone}
-            onChange={handleInputChange}
-            className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 appearance-none"
-          >
-            <option value="">Selecciona una zona</option>
-            <option value="san-martin">San Martín, Tacna</option>
-            <option value="alto-alianza">Alto Alianza, Tacna</option>
-            <option value="ciudad-nueva">Ciudad Nueva, Tacna</option>
-            <option value="pocollay">Pocollay, Tacna</option>
-            <option value="calana">Calana, Tacna</option>
-            <option value="pachia">Pachía, Tacna</option>
-          </select>
-          <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-        </div>
+      <div className="border-t border-gray-200 pt-6 mt-6">
+        <HierarchicalLocationSelector
+          value={formData.homeLocation}
+          onChange={(location) => setFormData(prev => ({ ...prev, homeLocation: location }))}
+        />
+      </div>
+
+      <div className="border-t border-gray-200 pt-6 mt-6">
+        <WorkZoneSelector
+          homeLocation={formData.homeLocation}
+          coverageType={formData.coverageType}
+          customDistricts={formData.customDistricts}
+          onCoverageTypeChange={(type) => setFormData(prev => ({ ...prev, coverageType: type }))}
+          onCustomDistrictsChange={(districts) => setFormData(prev => ({ ...prev, customDistricts: districts }))}
+        />
       </div>
 
       <div className="bg-success/10 border border-success/20 p-4 rounded-lg">
@@ -590,10 +590,26 @@ const GeniusRegistration: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Form submitted:', formData);
-    
-    // Show success message
+
+    if (!formData.homeLocation) {
+      alert('Por favor selecciona tu ubicación de residencia');
+      return;
+    }
+
+    const expandedWorkLocations = expandCoverageToDistricts(
+      formData.homeLocation,
+      formData.coverageType,
+      formData.customDistricts
+    );
+
+    const submissionData = {
+      ...formData,
+      workLocations: expandedWorkLocations,
+      location: `${formData.homeLocation.districtName}, ${formData.homeLocation.provinceName}, ${formData.homeLocation.departmentName}`
+    };
+
+    console.log('Form submitted:', submissionData);
+
     alert('¡🎉 Registro completado exitosamente!\n\nTu perfil será revisado por nuestro equipo y activado en las próximas 24 horas.\n\n¡Bienvenido a la comunidad de Genios!');
     onClose();
   };
@@ -603,7 +619,7 @@ const GeniusRegistration: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       case 1:
         return formData.fullName && formData.dni && formData.email && formData.whatsapp;
       case 2:
-        return formData.profilePhoto && formData.workZone;
+        return formData.profilePhoto && formData.homeLocation && formData.homeLocation.districtId;
       case 3:
         return formData.category && formData.subcategory && formData.serviceName;
       case 4:
