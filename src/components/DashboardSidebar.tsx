@@ -1,0 +1,93 @@
+import { User, Calendar, CreditCard, Lightbulb } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+interface DashboardSidebarProps {
+  activeSection: 'profile' | 'availability' | 'subscription';
+  onSectionChange: (section: 'profile' | 'availability' | 'subscription') => void;
+  geniusProfile: {
+    profile_photo: string;
+    full_name: string;
+    category: string;
+  } | null;
+}
+
+export default function DashboardSidebar({ activeSection, onSectionChange, geniusProfile }: DashboardSidebarProps) {
+  const menuItems = [
+    { id: 'profile' as const, label: 'Mi perfil', icon: User },
+    { id: 'availability' as const, label: 'Disponibilidad', icon: Calendar },
+    { id: 'subscription' as const, label: 'Suscripción', icon: CreditCard },
+  ];
+
+  return (
+    <div className="w-80 bg-white border-r border-gray-200 h-screen flex flex-col">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-amber-400 rounded-full flex items-center justify-center">
+            <Lightbulb className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Genios</h1>
+            <p className="text-sm text-gray-600">a la Obra</p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 p-4">
+        {menuItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeSection === item.id;
+
+          return (
+            <button
+              key={item.id}
+              onClick={() => onSectionChange(item.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
+                isActive
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="font-medium">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      {geniusProfile && (
+        <div className="p-6 border-t border-gray-200">
+          <div className="flex items-start gap-3">
+            <div className="relative">
+              {geniusProfile.profile_photo ? (
+                <img
+                  src={geniusProfile.profile_photo}
+                  alt={geniusProfile.full_name}
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white"></div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 truncate">
+                {geniusProfile.full_name || 'Usuario'}
+              </h3>
+              <p className="text-sm text-gray-600 truncate">
+                {geniusProfile.category || 'Profesional'}
+              </p>
+              <Link
+                to="/genius-profile"
+                className="text-sm text-blue-600 hover:text-blue-700 mt-1 inline-block"
+              >
+                Ver perfil público →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

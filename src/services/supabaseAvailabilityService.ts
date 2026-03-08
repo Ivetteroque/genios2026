@@ -105,3 +105,23 @@ export const getAvailabilitySummary = async (
 
   return summary;
 };
+
+export const getTodayAvailability = async (
+  geniusId: string
+): Promise<GeniusAvailability | null> => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data, error } = await supabase
+    .from('genius_availability')
+    .select('*')
+    .eq('genius_id', geniusId)
+    .eq('date', today)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching today availability:', error);
+    return null;
+  }
+
+  return data;
+};
