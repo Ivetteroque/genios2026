@@ -19,7 +19,7 @@ export default function DashboardSidebar({ activeSection, onSectionChange, geniu
   ];
 
   return (
-    <div className="w-80 bg-white border-r border-gray-200 h-screen flex flex-col">
+    <div className="w-80 bg-white border-r border-gray-200 flex flex-col fixed left-0 top-20 bottom-0 overflow-y-auto">
       <nav className="p-4 pt-6 pb-8">
         {menuItems.map((item) => {
           const Icon = item.icon;
