@@ -20,7 +20,7 @@ export default function DashboardSidebar({ activeSection, onSectionChange, geniu
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 h-screen flex flex-col">
-      <nav className="flex-1 p-4 pt-6">
+      <nav className="p-4 pt-6 pb-8">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
@@ -42,10 +42,12 @@ export default function DashboardSidebar({ activeSection, onSectionChange, geniu
         })}
       </nav>
 
+      <div className="flex-1"></div>
+
       {geniusProfile && (
-        <div className="p-6 border-t border-gray-200">
+        <div className="p-6 border-t border-gray-200 bg-white">
           <div className="flex items-start gap-3">
-            <div className="relative">
+            <div className="relative flex-shrink-0">
               {geniusProfile.profile_photo ? (
                 <img
                   src={geniusProfile.profile_photo}
