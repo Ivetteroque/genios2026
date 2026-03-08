@@ -1,4 +1,4 @@
-import { Calendar, CheckCircle2, Edit3 } from 'lucide-react';
+import { Calendar, CheckCircle2, CreditCard as Edit3 } from 'lucide-react';
 
 interface AvailabilitySectionProps {
   status: 'available' | 'full' | 'vacation';
