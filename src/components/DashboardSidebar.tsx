@@ -1,4 +1,4 @@
-import { User, Calendar, CreditCard, Lightbulb } from 'lucide-react';
+import { User, Calendar, CreditCard } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DashboardSidebarProps {
@@ -20,19 +20,7 @@ export default function DashboardSidebar({ activeSection, onSectionChange, geniu
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 h-screen flex flex-col">
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-amber-400 rounded-full flex items-center justify-center">
-            <Lightbulb className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Genios</h1>
-            <p className="text-sm text-gray-600">a la Obra</p>
-          </div>
-        </div>
-      </div>
-
-      <nav className="flex-1 p-4">
+      <nav className="flex-1 p-4 pt-6">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;

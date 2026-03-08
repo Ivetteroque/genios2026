@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabase';
 import { calculateProfileCompletion } from '../utils/profileCompletionUtils';
 import LoadingSpinner from './LoadingSpinner';
 import DashboardSidebar from './DashboardSidebar';
-import DashboardHeader from './DashboardHeader';
 import ProfileSection from './ProfileSection';
 import AvailabilitySection from './AvailabilitySection';
 import SubscriptionSection from './SubscriptionSection';
@@ -128,13 +127,8 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
         geniusProfile={geniusProfile}
       />
 
-      <div className="flex-1 flex flex-col">
-        <DashboardHeader
-          userName={geniusProfile?.full_name || 'Usuario'}
-          userPhoto={geniusProfile?.profile_photo}
-        />
-
-        <main className="flex-1 p-8">
+      <div className="flex-1">
+        <main className="p-8">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Bienvenido a tu panel de Genio
