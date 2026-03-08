@@ -120,14 +120,14 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
   const daysRemaining = calculateDaysRemaining();
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-20">
+    <div className="flex min-h-screen bg-gray-50 pt-20">
       <DashboardSidebar
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         geniusProfile={geniusProfile}
       />
 
-      <div className="ml-80">
+      <div className="flex-1">
         <main className="p-8">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
