@@ -10,6 +10,8 @@ import ProfileSection from './ProfileSection';
 import AvailabilitySection from './AvailabilitySection';
 import SubscriptionSection from './SubscriptionSection';
 import GeniusAvailabilityCalendar from './GeniusAvailabilityCalendar';
+import GeniusProfileWizard from './GeniusProfileWizard';
+import Modal from './Modal';
 
 interface GeniusDashboardProps {
   onEditProfile: () => void;
@@ -58,6 +60,9 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
   const [todayStatus, setTodayStatus] = useState<'available' | 'full' | 'vacation'>('available');
   const [activeSection, setActiveSection] = useState<'profile' | 'availability' | 'subscription'>('profile');
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [pendingSection, setPendingSection] = useState<'profile' | 'availability' | 'subscription' | null>(null);
+  const [showSectionChangeModal, setShowSectionChangeModal] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -108,6 +113,40 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
     return Math.max(0, diffDays);
   };
 
+  const handleSectionChange = (section: 'profile' | 'availability' | 'subscription') => {
+    if (showWizard) {
+      setPendingSection(section);
+      setShowSectionChangeModal(true);
+    } else {
+      setActiveSection(section);
+      setShowCalendar(false);
+    }
+  };
+
+  const handleWizardComplete = async () => {
+    setShowWizard(false);
+    await loadDashboardData();
+  };
+
+  const handleWizardCancel = () => {
+    setShowWizard(false);
+  };
+
+  const handleConfirmSectionChange = () => {
+    if (pendingSection) {
+      setShowWizard(false);
+      setActiveSection(pendingSection);
+      setPendingSection(null);
+      setShowSectionChangeModal(false);
+      setShowCalendar(false);
+    }
+  };
+
+  const handleCancelSectionChange = () => {
+    setPendingSection(null);
+    setShowSectionChangeModal(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -123,7 +162,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
     <div className="flex min-h-screen bg-gray-50 pt-20">
       <DashboardSidebar
         activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        onSectionChange={handleSectionChange}
         geniusProfile={geniusProfile}
       />
 
@@ -136,10 +175,24 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
           </div>
 
           {activeSection === 'profile' && (
-            <ProfileSection
-              percentage={profileCompletion}
-              onCompleteProfile={onEditProfile}
-            />
+            <>
+              {!showWizard ? (
+                <ProfileSection
+                  percentage={profileCompletion}
+                  onCompleteProfile={() => setShowWizard(true)}
+                />
+              ) : (
+                <div className="max-w-5xl">
+                  {geniusProfile && (
+                    <GeniusProfileWizard
+                      initialData={geniusProfile}
+                      onComplete={handleWizardComplete}
+                      onCancel={handleWizardCancel}
+                    />
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {activeSection === 'availability' && (
@@ -177,6 +230,33 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
           )}
         </main>
       </div>
+
+      {showSectionChangeModal && (
+        <Modal onClose={handleCancelSectionChange}>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              ¿Quieres cambiar de sección?
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Tu progreso se guardará automáticamente. Puedes continuar editando tu perfil más tarde.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelSectionChange}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+              >
+                Quedarme aquí
+              </button>
+              <button
+                onClick={handleConfirmSectionChange}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                Cambiar de sección
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
