@@ -717,7 +717,8 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
 
       {showPreview && (
         <GeniusProfilePreviewModal
-          genius={formData}
+          isOpen={showPreview}
+          geniusData={formData}
           onClose={() => setShowPreview(false)}
         />
       )}

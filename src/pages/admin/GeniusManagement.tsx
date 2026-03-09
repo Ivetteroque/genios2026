@@ -431,7 +431,8 @@ const GeniusManagement: React.FC = () => {
       {/* Modal de Perfil */}
       {showProfileModal && selectedGenius && (
         <GeniusProfilePreviewModal
-          genius={selectedGenius}
+          isOpen={showProfileModal}
+          geniusData={selectedGenius}
           onClose={() => {
             setShowProfileModal(false);
             setSelectedGenius(null);

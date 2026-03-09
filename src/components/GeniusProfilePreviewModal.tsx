@@ -16,26 +16,33 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
   geniusData
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
-  // Get real reviews and rating stats for this genius
-  const reviews = getReviewsForGenius(geniusData.id);
-  const ratingStats = calculateGeniusRatingStats(geniusData.id);
+
+  // Validate geniusData exists
+  if (!isOpen || !geniusData) return null;
+
+  // Safe portfolio access with default empty array
+  const portfolio = geniusData.portfolio || [];
+
+  // Get real reviews and rating stats for this genius (only if ID exists)
+  const reviews = geniusData.id ? getReviewsForGenius(geniusData.id) : [];
+  const ratingStats = geniusData.id ? calculateGeniusRatingStats(geniusData.id) : { averageRating: 0, totalReviews: 0, ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } };
 
   const nextImage = () => {
-    setCurrentImageIndex((prev) => 
-      prev + 3 >= geniusData.portfolio.length ? 0 : prev + 3
+    setCurrentImageIndex((prev) =>
+      prev + 3 >= portfolio.length ? 0 : prev + 3
     );
   };
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) => 
-      prev - 3 < 0 ? Math.max(0, geniusData.portfolio.length - 3) : prev - 3
+    setCurrentImageIndex((prev) =>
+      prev - 3 < 0 ? Math.max(0, portfolio.length - 3) : prev - 3
     );
   };
 
-  const visibleImages = geniusData.portfolio.slice(currentImageIndex, currentImageIndex + 3);
+  const visibleImages = portfolio.slice(currentImageIndex, currentImageIndex + 3);
 
-  if (!isOpen) return null;
+  // Check if profile is incomplete
+  const isIncomplete = !geniusData.fullName || !geniusData.description || !geniusData.profilePhoto;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -55,6 +62,25 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
 
         {/* Preview Content */}
         <div className="p-6">
+          {/* Incomplete Profile Banner */}
+          {isIncomplete && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-yellow-800">Vista previa con datos incompletos</h3>
+                  <p className="mt-1 text-sm text-yellow-700">
+                    Esta es una vista previa de tu perfil. Completa todos los campos para que tu perfil se vea profesional y atractivo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Hero Section */}
           <section className="bg-white shadow-sm rounded-lg mb-6">
             <div className="p-6">
@@ -70,7 +96,9 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
                   {geniusData.fullName || 'Nombre del Genio'}
                 </h1>
                 <p className="text-text/60 text-lg mb-4">
-                  {geniusData.subcategories.join(' / ') || 'Subcategorías'}
+                  {geniusData.subcategories && geniusData.subcategories.length > 0
+                    ? geniusData.subcategories.join(' / ')
+                    : 'Sin categorías especificadas'}
                 </p>
                 
                 <div className="flex items-center mb-4">
@@ -87,7 +115,7 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-4 justify-center items-center">
-                  {geniusData.homeLocation && (
+                  {geniusData.homeLocation?.districtName && (
                     <div className="flex items-center text-text/60">
                       <Home className="w-5 h-5 mr-1" />
                       {geniusData.homeLocation.districtName}, {geniusData.homeLocation.provinceName}
@@ -139,12 +167,12 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
           </section>
 
           {/* Portfolio Section */}
-          {geniusData.portfolio.length > 0 && (
+          {portfolio.length > 0 && (
             <section className="py-6 bg-white rounded-lg mb-6">
               <div className="px-6">
                 <h2 className="font-heading text-2xl font-bold mb-6">Trabajos realizados</h2>
                 <div className="relative max-w-5xl mx-auto">
-                  {geniusData.portfolio.length > 3 && (
+                  {portfolio.length > 3 && (
                     <button
                       onClick={prevImage}
                       className="absolute -left-4 top-1/2 transform -translate-y-1/2 bg-white/80 p-2 rounded-full shadow-md z-10"
@@ -169,8 +197,8 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
                       ))}
                     </div>
                   </div>
-                  
-                  {geniusData.portfolio.length > 3 && (
+
+                  {portfolio.length > 3 && (
                     <button
                       onClick={nextImage}
                       className="absolute -right-4 top-1/2 transform -translate-y-1/2 bg-white/80 p-2 rounded-full shadow-md z-10"
@@ -218,7 +246,7 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
           )}
 
           {/* Fallback for old data structure */}
-          {!geniusData.homeLocation && geniusData.workLocations.length > 0 && (
+          {!geniusData.homeLocation && geniusData.workLocations && geniusData.workLocations.length > 0 && (
             <section className="py-6 bg-gray-50 rounded-lg mb-6">
               <div className="px-6">
                 <h2 className="font-heading text-2xl font-bold mb-4">Zonas de Trabajo</h2>
