@@ -183,13 +183,11 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
                 />
               ) : (
                 <div className="max-w-5xl">
-                  {geniusProfile && (
-                    <GeniusProfileWizard
-                      initialData={convertGeniusProfileToGenius(geniusProfile)}
-                      onComplete={handleWizardComplete}
-                      onCancel={handleWizardCancel}
-                    />
-                  )}
+                  <GeniusProfileWizard
+                    initialData={geniusProfile ? convertGeniusProfileToGenius(geniusProfile) : undefined}
+                    onComplete={handleWizardComplete}
+                    onCancel={handleWizardCancel}
+                  />
                 </div>
               )}
             </>
