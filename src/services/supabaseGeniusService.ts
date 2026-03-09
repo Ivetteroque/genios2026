@@ -133,6 +133,33 @@ export const deleteDraft = async (userId: string): Promise<void> => {
   }
 };
 
+export const convertGeniusProfileToGenius = (profile: GeniusProfile): Genius => {
+  return {
+    id: profile.id,
+    profilePhoto: profile.profile_photo,
+    fullName: profile.full_name,
+    dni: profile.dni,
+    email: profile.email,
+    phone: profile.phone,
+    description: profile.description,
+    instagram: profile.instagram,
+    facebook: profile.facebook,
+    tiktok: profile.tiktok,
+    category: profile.category,
+    subcategories: profile.subcategories,
+    serviceName: profile.service_name,
+    homeLocation: profile.home_location,
+    coverageType: profile.coverage_type,
+    workLocations: profile.work_locations,
+    portfolio: profile.portfolio,
+    documents: profile.documents,
+    rating: 0,
+    reviews: 0,
+    available: true,
+    verified: false
+  };
+};
+
 export const calculateProfileCompleteness = (profileData: Partial<Genius>): number => {
   const requiredFields = [
     profileData.profilePhoto,

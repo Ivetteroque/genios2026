@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser } from '../utils/authUtils';
-import { getGeniusProfile } from '../services/supabaseGeniusService';
+import { getGeniusProfile, convertGeniusProfileToGenius } from '../services/supabaseGeniusService';
 import { getAvailabilitySummary, getTodayAvailability } from '../services/supabaseAvailabilityService';
 import { supabase } from '../lib/supabase';
 import { calculateProfileCompletion } from '../utils/profileCompletionUtils';
@@ -185,7 +185,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
                 <div className="max-w-5xl">
                   {geniusProfile && (
                     <GeniusProfileWizard
-                      initialData={geniusProfile}
+                      initialData={convertGeniusProfileToGenius(geniusProfile)}
                       onComplete={handleWizardComplete}
                       onCancel={handleWizardCancel}
                     />
