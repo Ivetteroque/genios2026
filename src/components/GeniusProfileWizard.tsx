@@ -243,7 +243,9 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
           : ''
       };
 
-      await saveGeniusProfile(currentUser.id, profileData);
+      const completionPercentage = calculateProfileCompletion(profileData);
+
+      await saveGeniusProfile(currentUser.id, profileData, completionPercentage, 6);
       await deleteDraft(currentUser.id);
 
       setShowSuccess(true);

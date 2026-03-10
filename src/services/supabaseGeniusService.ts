@@ -50,7 +50,16 @@ export const getGeniusProfile = async (userId: string): Promise<GeniusProfile | 
   return data;
 };
 
-export const saveGeniusProfile = async (userId: string, profileData: Partial<Genius>): Promise<GeniusProfile> => {
+export const saveGeniusProfile = async (
+  userId: string,
+  profileData: Partial<Genius>,
+  completionPercentage?: number,
+  lastWizardStep?: number
+): Promise<GeniusProfile> => {
+  const calculatedCompletion = completionPercentage !== undefined
+    ? completionPercentage
+    : calculateProfileCompleteness(profileData);
+
   const profilePayload = {
     user_id: userId,
     profile_photo: profileData.profilePhoto || '',
@@ -70,6 +79,8 @@ export const saveGeniusProfile = async (userId: string, profileData: Partial<Gen
     work_locations: profileData.workLocations || [],
     portfolio: profileData.portfolio || [],
     documents: profileData.documents || [],
+    completion_percentage: calculatedCompletion,
+    last_wizard_step: lastWizardStep || 6,
     updated_at: new Date().toISOString()
   };
 
