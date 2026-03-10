@@ -658,63 +658,102 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
     };
     const percentage = calculateProfileCompletion(profileForValidation);
 
+    const missingFields = getMissingFields(profileForValidation);
+
     return (
       <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-12 h-12 text-green-600" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">
-            {percentage === 100 ? '¡Perfecto! Tu perfil está completo' : '¡Perfil guardado!'}
+
+          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
+            {percentage === 100 ? '¡Perfil completado al 100%!' : '¡Perfil guardado exitosamente!'}
           </h2>
-          {percentage < 100 && (
-            <div className="mb-4">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <div className="relative w-16 h-16">
-                  <svg className="transform -rotate-90 w-16 h-16">
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r="28"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="transparent"
-                      className="text-gray-200"
-                    />
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r="28"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="transparent"
-                      strokeDasharray={`${2 * Math.PI * 28}`}
-                      strokeDashoffset={`${2 * Math.PI * 28 * (1 - percentage / 100)}`}
-                      className="text-green-600 transition-all duration-500"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-lg font-bold text-gray-900">{percentage}%</span>
-                  </div>
+
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-6">
+              <div className="relative w-32 h-32 flex-shrink-0">
+                <svg className="transform -rotate-90 w-32 h-32">
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="transparent"
+                    className="text-blue-200"
+                  />
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="transparent"
+                    strokeDasharray={`${2 * Math.PI * 56}`}
+                    strokeDashoffset={`${2 * Math.PI * 56 * (1 - percentage / 100)}`}
+                    className="text-blue-600 transition-all duration-1000"
+                    style={{ strokeLinecap: 'round' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-3xl font-bold text-gray-900">{percentage}%</span>
                 </div>
+              </div>
+
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  Tu perfil está al {percentage}%
+                </h3>
+                <p className="text-gray-700">
+                  {percentage === 100
+                    ? '¡Excelente! Tu perfil está completo y optimizado para recibir más clientes.'
+                    : 'Tu perfil está listo, pero puedes mejorarlo completando más información.'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {percentage < 100 && missingFields.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+              <div className="flex items-start gap-3 mb-4">
+                <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-gray-900 text-lg mb-1">Campos opcionales</h4>
+                  <p className="text-sm text-gray-600">
+                    Completa estos campos para aumentar tu visibilidad
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {missingFields.slice(0, 5).map((field, index) => (
+                  <div key={index} className="flex items-center gap-3 text-gray-700">
+                    <span className="flex-shrink-0 w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
+                      {field.step}
+                    </span>
+                    <span className="flex-1">{field.label}</span>
+                    <span className="text-sm text-gray-500">Opcional</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
-          <p className="text-gray-600 mb-6">
-            {percentage === 100
-              ? 'Tu perfil está 100% completo y listo para recibir clientes.'
-              : 'Tu perfil se ha guardado. Puedes completar la información restante más tarde para recibir más clientes.'}
-          </p>
+
           {percentage < 100 && (
-            <p className="text-sm text-amber-700 bg-amber-50 px-4 py-2 rounded-lg mb-6">
-              Los perfiles completos reciben hasta 3 veces más consultas.
-            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-amber-800 text-center font-medium">
+                Los perfiles completos reciben hasta 3 veces más consultas de clientes
+              </p>
+            </div>
           )}
+
           <button
             onClick={onComplete}
             className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
           >
-            Ver mi dashboard
+            {percentage === 100 ? 'Ver mi dashboard' : 'Ir al dashboard'}
           </button>
         </div>
       </div>
