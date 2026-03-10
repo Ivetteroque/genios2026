@@ -46,17 +46,15 @@ const WizardStepsIndicator: React.FC<WizardStepsIndicatorProps> = ({
             {steps.map((step, index) => {
               const status = getStepStatus(step.number);
               const Icon = step.icon;
-              const isClickable = completedSteps.includes(step.number) || step.number === currentStep;
 
               return (
                 <React.Fragment key={step.number}>
                   <div className="flex flex-col items-center relative z-10">
                     <button
-                      onClick={() => isClickable && onStepClick(step.number)}
-                      disabled={!isClickable}
+                      onClick={() => onStepClick(step.number)}
                       className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all ${getStepColor(
                         step.number
-                      )} ${isClickable ? 'cursor-pointer hover:scale-110' : 'cursor-not-allowed'}`}
+                      )} cursor-pointer hover:scale-110`}
                     >
                       {status === 'completed' ? (
                         <Check className="w-6 h-6" />

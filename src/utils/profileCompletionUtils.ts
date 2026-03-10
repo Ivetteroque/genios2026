@@ -56,3 +56,70 @@ export function getProfileCompletionMessage(percentage: number): string {
     return 'Completa tu información para aparecer en más búsquedas.';
   }
 }
+
+interface MissingField {
+  field: string;
+  step: number;
+  required: boolean;
+}
+
+export function getMissingFields(profile: GeniusProfile | null): MissingField[] {
+  if (!profile) return [];
+
+  const missing: MissingField[] = [];
+
+  if (!profile.profile_photo) {
+    missing.push({ field: 'Foto de perfil', step: 1, required: true });
+  }
+  if (!profile.full_name?.trim()) {
+    missing.push({ field: 'Nombre completo', step: 1, required: true });
+  }
+  if (!profile.dni || profile.dni.length !== 8) {
+    missing.push({ field: 'DNI', step: 1, required: true });
+  }
+  if (!profile.email?.trim()) {
+    missing.push({ field: 'Email', step: 1, required: true });
+  }
+  if (!profile.phone || profile.phone.length !== 9) {
+    missing.push({ field: 'Teléfono', step: 1, required: true });
+  }
+  if (!profile.home_location) {
+    missing.push({ field: 'Ubicación de residencia', step: 1, required: true });
+  }
+
+  if (!profile.description || profile.description.length < 20) {
+    missing.push({ field: 'Descripción de tu trabajo', step: 2, required: true });
+  }
+  if (!profile.instagram?.trim()) {
+    missing.push({ field: 'Instagram', step: 2, required: false });
+  }
+  if (!profile.facebook?.trim()) {
+    missing.push({ field: 'Facebook', step: 2, required: false });
+  }
+  if (!profile.tiktok?.trim()) {
+    missing.push({ field: 'TikTok', step: 2, required: false });
+  }
+
+  if (!profile.category) {
+    missing.push({ field: 'Categoría principal', step: 3, required: true });
+  }
+  if (!profile.subcategories || profile.subcategories.length === 0) {
+    missing.push({ field: 'Subcategorías', step: 3, required: true });
+  }
+  if (!profile.service_name?.trim()) {
+    missing.push({ field: 'Nombre del servicio', step: 3, required: true });
+  }
+
+  if (!profile.portfolio || profile.portfolio.length === 0) {
+    missing.push({ field: 'Fotos del portafolio', step: 4, required: false });
+  }
+
+  if (!profile.documents || !profile.documents.some((doc: any) => doc.type === 'dni')) {
+    missing.push({ field: 'Documento de identidad (DNI)', step: 5, required: false });
+  }
+  if (!profile.documents || !profile.documents.some((doc: any) => doc.type === 'certificate')) {
+    missing.push({ field: 'Certificado de trabajo', step: 5, required: false });
+  }
+
+  return missing;
+}
