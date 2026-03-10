@@ -249,9 +249,19 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       await deleteDraft(currentUser.id);
 
       setShowSuccess(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving profile:', error);
-      alert('Error al guardar el perfil. Por favor, intenta nuevamente.');
+
+      let errorMessage = 'Error al guardar el perfil. ';
+      if (error?.message) {
+        errorMessage += error.message;
+      } else if (error?.code) {
+        errorMessage += `Código de error: ${error.code}`;
+      } else {
+        errorMessage += 'Por favor, verifica tu conexión e intenta nuevamente.';
+      }
+
+      alert(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -349,10 +359,18 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
             type="text"
             value={formData.dni}
             onChange={(e) => handleInputChange('dni', e.target.value.replace(/\D/g, '').slice(0, 8))}
-            className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-600 focus:outline-none"
+            className={`w-full px-4 py-2 rounded-lg border-2 focus:outline-none ${
+              formData.dni.length === 8
+                ? 'border-green-300 focus:border-green-600'
+                : 'border-gray-300 focus:border-blue-600'
+            }`}
             placeholder="12345678"
             maxLength={8}
           />
+          <p className="text-xs text-gray-500 mt-1">
+            {formData.dni.length}/8 dígitos
+            {formData.dni.length === 8 && <span className="text-green-600 ml-2">✓</span>}
+          </p>
         </div>
 
         <div>
@@ -380,11 +398,19 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
               type="tel"
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value.replace(/\D/g, '').slice(0, 9))}
-              className="w-full px-4 py-2 rounded-r-lg border-2 border-gray-300 focus:border-blue-600 focus:outline-none"
+              className={`w-full px-4 py-2 rounded-r-lg border-2 focus:outline-none ${
+                formData.phone.length === 9
+                  ? 'border-green-300 focus:border-green-600'
+                  : 'border-gray-300 focus:border-blue-600'
+              }`}
               placeholder="987654321"
               maxLength={9}
             />
           </div>
+          <p className="text-xs text-gray-500 mt-1">
+            {formData.phone.length}/9 dígitos
+            {formData.phone.length === 9 && <span className="text-green-600 ml-2">✓</span>}
+          </p>
         </div>
       </div>
 
@@ -418,11 +444,15 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
           }}
           rows={6}
           maxLength={500}
-          className="w-full px-4 py-3 rounded-lg border-2 border-gray-300 focus:border-blue-600 focus:outline-none resize-none"
+          className={`w-full px-4 py-3 rounded-lg border-2 focus:outline-none resize-none ${
+            formData.description.length >= 20
+              ? 'border-green-300 focus:border-green-600'
+              : 'border-gray-300 focus:border-blue-600'
+          }`}
           placeholder="Cuéntanos sobre tu experiencia, especialidad y qué te hace único..."
         />
         <div className="flex justify-between items-center mt-2">
-          <span className="text-sm text-gray-500">
+          <span className={`text-sm ${formData.description.length >= 20 ? 'text-green-600' : 'text-gray-500'}`}>
             {formData.description.length}/500 caracteres (mínimo 20)
           </span>
           {formData.description.length >= 20 && (
