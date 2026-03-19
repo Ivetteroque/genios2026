@@ -56,7 +56,7 @@ export const useGeniusAvailability = (geniusId: string | undefined) => {
     }
 
     if (availabilityStatus.currentStatus === 'full') {
-      return { text: 'No disponible', color: 'text-white', bgColor: 'bg-red-500/80' };
+      return { text: 'Agenda llena', color: 'text-white', bgColor: 'bg-red-500/80' };
     }
 
     if (availabilityStatus.currentStatus === 'vacation') {

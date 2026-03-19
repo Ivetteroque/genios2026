@@ -123,7 +123,7 @@ const PublicAvailabilityCalendar: React.FC<PublicAvailabilityCalendarProps> = ({
           </div>
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 bg-red-100 border border-red-300 rounded"></div>
-            <span>No disponible</span>
+            <span>Agenda llena</span>
           </div>
         </div>
       </div>
