@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Save, CheckCircle, Calendar as CalendarIcon, Plane } from 'lucide-react';
 import { getCurrentUser } from '../utils/authUtils';
 import { getGeniusProfile } from '../services/supabaseGeniusService';
 import {
   getAvailabilityForMonth,
   saveBulkAvailability,
+  deleteAvailabilityRecord,
   AvailabilityStatus
 } from '../services/supabaseAvailabilityService';
 import LoadingSpinner from './LoadingSpinner';
@@ -20,6 +21,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
   const [geniusId, setGeniusId] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [availability, setAvailability] = useState<Record<string, AvailabilityStatus>>({});
+  const [originalAvailability, setOriginalAvailability] = useState<Record<string, AvailabilityStatus>>({});
   const [changedDates, setChangedDates] = useState<Set<string>>(new Set());
   const [showMenu, setShowMenu] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -58,6 +60,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
         });
 
         setAvailability(availabilityMap);
+        setOriginalAvailability(availabilityMap);
         setChangedDates(new Set());
       }
     } catch (error) {
@@ -136,15 +139,48 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
 
     setSaving(true);
     try {
-      const changesArray = Array.from(changedDates).map(date => ({
-        date,
-        status: availability[date]
-      }));
+      const datesToSave: Array<{ date: string; status: AvailabilityStatus }> = [];
+      const datesToDelete: string[] = [];
 
-      await saveBulkAvailability(geniusId, changesArray);
+      Array.from(changedDates).forEach(date => {
+        const currentStatus = availability[date];
+        const originalStatus = originalAvailability[date];
+
+        if (currentStatus === 'available') {
+          if (originalStatus && originalStatus !== 'available') {
+            datesToDelete.push(date);
+          }
+        } else {
+          datesToSave.push({ date, status: currentStatus });
+        }
+      });
+
+      if (datesToSave.length > 0) {
+        await saveBulkAvailability(geniusId, datesToSave);
+      }
+
+      if (datesToDelete.length > 0) {
+        for (const date of datesToDelete) {
+          await deleteAvailabilityRecord(geniusId, date);
+        }
+      }
 
       alert('Disponibilidad actualizada correctamente');
+
+      const newOriginalAvailability = { ...originalAvailability };
+      datesToDelete.forEach(date => {
+        delete newOriginalAvailability[date];
+      });
+      datesToSave.forEach(({ date, status }) => {
+        newOriginalAvailability[date] = status;
+      });
+      setOriginalAvailability(newOriginalAvailability);
+
       setChangedDates(new Set());
+
+      if (window.location.pathname.includes('profile')) {
+        window.location.reload();
+      }
     } catch (error) {
       console.error('Error saving availability:', error);
       alert('Error al guardar los cambios. Por favor, intenta nuevamente.');
@@ -153,7 +189,8 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
     }
   };
 
-  const getStatusColor = (status?: AvailabilityStatus) => {
+  const getStatusColor = (status?: AvailabilityStatus, isFutureDate?: boolean) => {
+    if (!status && isFutureDate) return 'bg-green-100 border-green-500';
     if (!status) return 'bg-white';
     switch (status) {
       case 'available':
@@ -167,7 +204,8 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
     }
   };
 
-  const getStatusIcon = (status?: AvailabilityStatus) => {
+  const getStatusIcon = (status?: AvailabilityStatus, isFutureDate?: boolean) => {
+    if (!status && isFutureDate) return <CheckCircle className="w-4 h-4 text-green-600" />;
     if (!status) return null;
     switch (status) {
       case 'available':
@@ -188,6 +226,38 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
     const date = new Date(dateString);
     return date < today;
   };
+
+  const isFutureDate = (dateString: string) => {
+    if (!dateString) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const date = new Date(dateString);
+    return date >= today;
+  };
+
+  const monthSummary = useMemo(() => {
+    const days = getDaysInMonth();
+    const summary = {
+      available: 0,
+      full: 0,
+      vacation: 0
+    };
+
+    days.forEach(day => {
+      if (day.isCurrentMonth && isFutureDate(day.dateString)) {
+        const status = availability[day.dateString];
+        if (!status || status === 'available') {
+          summary.available++;
+        } else if (status === 'full') {
+          summary.full++;
+        } else if (status === 'vacation') {
+          summary.vacation++;
+        }
+      }
+    });
+
+    return summary;
+  }, [currentDate, availability]);
 
   if (loading) {
     return (
@@ -247,7 +317,8 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
                       ? isPastDate(day.dateString)
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : `cursor-pointer hover:scale-105 ${getStatusColor(
-                            availability[day.dateString]
+                            availability[day.dateString],
+                            isFutureDate(day.dateString)
                           )}`
                       : 'bg-gray-50 border-transparent'
                   }`}
@@ -255,14 +326,14 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
                   {day.isCurrentMonth && (
                     <>
                       <span className="text-sm font-medium text-gray-900">{day.date}</span>
-                      {getStatusIcon(availability[day.dateString])}
+                      {getStatusIcon(availability[day.dateString], isFutureDate(day.dateString))}
                     </>
                   )}
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 flex items-center justify-between">
+            <div className="mt-6 space-y-4">
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-green-100 border-2 border-green-500 rounded"></div>
@@ -275,6 +346,29 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-red-100 border-2 border-red-500 rounded"></div>
                   <span className="text-sm text-gray-700">Vacaciones</span>
+                </div>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-gray-700">
+                      <span className="font-semibold text-green-700">{monthSummary.available}</span> días disponibles
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <CalendarIcon className="w-4 h-4 text-yellow-600" />
+                    <span className="text-gray-700">
+                      <span className="font-semibold text-yellow-700">{monthSummary.full}</span> agenda llena
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Plane className="w-4 h-4 text-red-600" />
+                    <span className="text-gray-700">
+                      <span className="font-semibold text-red-700">{monthSummary.vacation}</span> de vacaciones
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

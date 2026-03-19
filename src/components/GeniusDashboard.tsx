@@ -93,6 +93,8 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
         const today = await getTodayAvailability(profile.id);
         if (today) {
           setTodayStatus(today.status as 'available' | 'full' | 'vacation');
+        } else {
+          setTodayStatus('available');
         }
       }
     } catch (error) {

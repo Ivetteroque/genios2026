@@ -84,6 +84,22 @@ export const saveBulkAvailability = async (
   }
 };
 
+export const deleteAvailabilityRecord = async (
+  geniusId: string,
+  date: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('genius_availability')
+    .delete()
+    .eq('genius_id', geniusId)
+    .eq('date', date);
+
+  if (error) {
+    console.error('Error deleting availability record:', error);
+    throw error;
+  }
+};
+
 export const getAvailabilitySummary = async (
   geniusId: string,
   year: number,
