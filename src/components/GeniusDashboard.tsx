@@ -199,15 +199,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
             <>
               {showCalendar ? (
                 <div className="max-w-4xl">
-                  <button
-                    onClick={() => setShowCalendar(false)}
-                    className="mb-4 text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    ← Volver
-                  </button>
-                  {geniusProfile && (
-                    <GeniusAvailabilityCalendar geniusId={geniusProfile.id} />
-                  )}
+                  <GeniusAvailabilityCalendar onClose={() => setShowCalendar(false)} />
                 </div>
               ) : (
                 <AvailabilitySection
