@@ -4,11 +4,14 @@ import { Link, useParams } from 'react-router-dom';
 import { handleWhatsAppContact } from '../utils/whatsappUtils';
 import FavoriteButton from '../components/FavoriteButton';
 import ReviewForm from '../components/ReviewForm';
-import { 
-  getReviewsForGenius, 
-  calculateGeniusRatingStats, 
+import GeniusAvailabilityBadge from '../components/GeniusAvailabilityBadge';
+import PublicAvailabilityCalendar from '../components/PublicAvailabilityCalendar';
+import { useGeniusAvailability } from '../hooks/useGeniusAvailability';
+import {
+  getReviewsForGenius,
+  calculateGeniusRatingStats,
   Review as ReviewType,
-  GeniusRatingStats 
+  GeniusRatingStats
 } from '../utils/reviewUtils';
 
 const Profile: React.FC = () => {
@@ -23,12 +26,13 @@ const Profile: React.FC = () => {
     ratingDistribution: { 5: 30, 4: 8, 3: 3, 2: 1, 1: 0 }
   });
 
+  const { isAvailableToday, getDisplayStatus } = useGeniusAvailability(id);
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
 
-  // Mock genius data - in a real app, this would be fetched based on the ID
   const geniusData = {
     id: id || 'carla-maquilladora',
     name: 'Carla Maquilladora',
@@ -38,7 +42,7 @@ const Profile: React.FC = () => {
     rating: ratingStats.averageRating,
     reviews: ratingStats.totalReviews,
     location: 'Tacna, Perú',
-    available: true,
+    available: isAvailableToday,
     verified: true,
     description: 'Hola, soy Carla, maquilladora profesional con más de 5 años de experiencia en eventos, novias y sesiones fotográficas. Amo resaltar la belleza natural de cada persona y hacer que cada ocasión se sienta especial. He trabajado con productoras, novias y artistas locales.',
     profileImage: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
@@ -180,10 +184,7 @@ const Profile: React.FC = () => {
               <MapPin className="w-5 h-5 mr-1" />
               {geniusData.location}
             </div>
-            <div className="flex items-center text-primary">
-              <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
-              {geniusData.available ? 'Disponible' : 'No disponible'}
-            </div>
+            <GeniusAvailabilityBadge geniusId={geniusData.id} showIcon={true} showNextDate={true} />
             <button
               onClick={handleContactClick}
               className="bg-primary text-white px-6 py-2 rounded-full hover:bg-primary-dark transition-colors flex items-center"
@@ -224,40 +225,48 @@ const Profile: React.FC = () => {
     </section>
   );
 
-  // Portfolio Section Component
   const PortfolioSection = () => (
     <section className="py-12 bg-white">
       <div className="container mx-auto px-4">
-        <h2 className="font-heading text-2xl font-bold mb-6">Trabajos realizados</h2>
-        <div className="relative max-w-5xl mx-auto">
-          <button
-            onClick={prevImage}
-            className="absolute -left-4 top-1/2 transform -translate-y-1/2 bg-white/80 p-2 rounded-full shadow-md z-10"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-          <div className="overflow-hidden">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {visibleImages.map((image, index) => (
-                <div key={index} className="relative group">
-                  <img
-                    src={image}
-                    alt={`Trabajo ${currentImageIndex + index + 1}`}
-                    className="w-full h-48 object-cover rounded-lg transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                    <span className="text-white text-sm">Ver más detalles</span>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          <div className="lg:col-span-2">
+            <h2 className="font-heading text-2xl font-bold mb-6">Trabajos realizados</h2>
+            <div className="relative">
+              <button
+                onClick={prevImage}
+                className="absolute -left-4 top-1/2 transform -translate-y-1/2 bg-white/80 p-2 rounded-full shadow-md z-10"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+              <div className="overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {visibleImages.map((image, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={image}
+                        alt={`Trabajo ${currentImageIndex + index + 1}`}
+                        className="w-full h-48 object-cover rounded-lg transition-transform duration-300 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
+                        <span className="text-white text-sm">Ver más detalles</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+              <button
+                onClick={nextImage}
+                className="absolute -right-4 top-1/2 transform -translate-y-1/2 bg-white/80 p-2 rounded-full shadow-md z-10"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
             </div>
           </div>
-          <button
-            onClick={nextImage}
-            className="absolute -right-4 top-1/2 transform -translate-y-1/2 bg-white/80 p-2 rounded-full shadow-md z-10"
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
+
+          <div className="lg:col-span-1">
+            <h2 className="font-heading text-2xl font-bold mb-6">Disponibilidad</h2>
+            <PublicAvailabilityCalendar geniusId={geniusData.id} compact={true} />
+          </div>
         </div>
       </div>
     </section>

@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Genius } from '../utils/geniusUtils';
+import { getGeniusAvailabilityStatus, GeniusAvailabilityStatus } from './supabaseAvailabilityService';
 
 export interface GeniusProfile {
   id: string;
@@ -23,6 +24,10 @@ export interface GeniusProfile {
   documents: any[];
   created_at: string;
   updated_at: string;
+}
+
+export interface GeniusProfileWithAvailability extends GeniusProfile {
+  availability_status?: GeniusAvailabilityStatus;
 }
 
 export interface GeniusProfileDraft {
@@ -189,4 +194,67 @@ export const calculateProfileCompleteness = (profileData: Partial<Genius>): numb
 
   const completedFields = requiredFields.filter(Boolean).length;
   return Math.round((completedFields / requiredFields.length) * 100);
+};
+
+export const getGeniusProfileWithAvailability = async (
+  geniusId: string
+): Promise<GeniusProfileWithAvailability | null> => {
+  const { data, error } = await supabase
+    .from('genius_profiles')
+    .select('*')
+    .eq('id', geniusId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching genius profile:', error);
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  try {
+    const availabilityStatus = await getGeniusAvailabilityStatus(geniusId);
+    return {
+      ...data,
+      availability_status: availabilityStatus
+    };
+  } catch (err) {
+    console.error('Error fetching availability status:', err);
+    return data;
+  }
+};
+
+export const getAllGeniusProfilesWithAvailability = async (): Promise<GeniusProfileWithAvailability[]> => {
+  const { data, error } = await supabase
+    .from('genius_profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching genius profiles:', error);
+    return [];
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  const profilesWithAvailability = await Promise.all(
+    data.map(async (profile) => {
+      try {
+        const availabilityStatus = await getGeniusAvailabilityStatus(profile.id);
+        return {
+          ...profile,
+          availability_status: availabilityStatus
+        };
+      } catch (err) {
+        console.error(`Error fetching availability for genius ${profile.id}:`, err);
+        return profile;
+      }
+    })
+  );
+
+  return profilesWithAvailability;
 };

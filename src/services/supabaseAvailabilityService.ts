@@ -141,3 +141,98 @@ export const getTodayAvailability = async (
 
   return data;
 };
+
+export const getGeniusAvailabilityForDate = async (
+  geniusId: string,
+  date: string
+): Promise<GeniusAvailability | null> => {
+  const { data, error } = await supabase
+    .from('genius_availability')
+    .select('*')
+    .eq('genius_id', geniusId)
+    .eq('date', date)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching genius availability:', error);
+    return null;
+  }
+
+  return data;
+};
+
+export const getGeniusAvailabilityRange = async (
+  geniusId: string,
+  startDate: string,
+  endDate: string
+): Promise<GeniusAvailability[]> => {
+  const { data, error } = await supabase
+    .from('genius_availability')
+    .select('*')
+    .eq('genius_id', geniusId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching genius availability range:', error);
+    return [];
+  }
+
+  return data || [];
+};
+
+export interface GeniusAvailabilityStatus {
+  isAvailableToday: boolean;
+  currentStatus: AvailabilityStatus | null;
+  nextAvailableDate: string | null;
+  upcomingAvailableDays: string[];
+}
+
+export const getGeniusAvailabilityStatus = async (
+  geniusId: string
+): Promise<GeniusAvailabilityStatus> => {
+  const today = new Date().toISOString().split('T')[0];
+  const nextMonth = new Date();
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const endDate = nextMonth.toISOString().split('T')[0];
+
+  const todayAvailability = await getGeniusAvailabilityForDate(geniusId, today);
+  const upcomingAvailability = await getGeniusAvailabilityRange(geniusId, today, endDate);
+
+  const availableDays = upcomingAvailability
+    .filter(a => a.status === 'available')
+    .map(a => a.date);
+
+  const nextAvailableDate = availableDays.length > 0
+    ? (availableDays[0] === today ? (availableDays[1] || null) : availableDays[0])
+    : null;
+
+  return {
+    isAvailableToday: todayAvailability?.status === 'available',
+    currentStatus: todayAvailability?.status || null,
+    nextAvailableDate,
+    upcomingAvailableDays: availableDays.slice(0, 14)
+  };
+};
+
+export const checkGeniusAvailability = async (geniusId: string): Promise<boolean> => {
+  const today = new Date().toISOString().split('T')[0];
+  const availability = await getGeniusAvailabilityForDate(geniusId, today);
+  return availability?.status === 'available';
+};
+
+export const getMultipleGeniusAvailability = async (
+  geniusIds: string[]
+): Promise<Map<string, GeniusAvailabilityStatus>> => {
+  const availabilityMap = new Map<string, GeniusAvailabilityStatus>();
+
+  await Promise.all(
+    geniusIds.map(async (geniusId) => {
+      const status = await getGeniusAvailabilityStatus(geniusId);
+      availabilityMap.set(geniusId, status);
+    })
+  );
+
+  return availabilityMap;
+};

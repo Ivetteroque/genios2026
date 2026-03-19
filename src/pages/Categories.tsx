@@ -7,6 +7,7 @@ import { getActiveDepartments, Department, Province, District, getActiveDistrict
 import { getCurrentUser, isAuthenticated } from '../utils/authUtils';
 import { handleWhatsAppContact } from '../utils/whatsappUtils';
 import FavoriteButton from '../components/FavoriteButton';
+import GeniusAvailabilityBadge from '../components/GeniusAvailabilityBadge';
 
 interface Professional {
   id: string;
@@ -732,11 +733,7 @@ const Categories: React.FC = () => {
                           ✓ Verificado
                         </div>
                       )}
-                      {!professional.available && (
-                        <div className="bg-red-500/80 text-white px-2 py-1 rounded-full text-sm backdrop-blur-sm">
-                          No disponible
-                        </div>
-                      )}
+                      <GeniusAvailabilityBadge geniusId={professional.id} />
                     </div>
 
                     {/* Favorite Button */}
