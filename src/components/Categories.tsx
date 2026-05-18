@@ -35,10 +35,10 @@ const Categories: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            🎯 ¿Qué necesitas hoy? Tenemos un genio para eso
+            🎯 ¿Qué necesitas hoy?
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Explora nuestras categorías y encuentra exactamente el tipo de ayuda que estás buscando.
+           Explora categorías y encuentra el genio que necesitas.
           </p>
         </div>
         
