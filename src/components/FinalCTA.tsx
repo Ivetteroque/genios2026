@@ -16,10 +16,11 @@ const FinalCTA: React.FC = () => {
           </h2>
         
           <p className="text-xl text-gray-700 opacity-90 mb-8">
-          Por un único pago de S/150 soles al año y 3 pasos sencillos tendrás 365 días de visibilidad y oportunidades 
+         Haz visible tu trabajo y empieza a recibir más clientes.
           </p>
           <p className="text-xl text-gray-700 opacity-90 mb-8">
-            Por menos de S/0.50 céntimos al día 🤯
+           Pago anual de S/150  
+Tu perfil estará activo durante 1 año.
           </p>
           {/* Steps Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-12 mb-12">
