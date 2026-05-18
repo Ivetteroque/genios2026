@@ -30,6 +30,7 @@ import LocationManagement from './LocationManagement';
 import GeniusManagement from './GeniusManagement';
 import DocumentManagement from './DocumentManagement';
 import PaymentManagement from './PaymentManagement';
+import PaymentSettings from './PaymentSettings';
 
 interface DashboardStats {
   totalUsers: number;
@@ -471,8 +472,11 @@ const AdminDashboard: React.FC = () => {
           {/* Payment Management Tab */}
           {activeTab === 'payments' && <PaymentManagement />}
 
+          {/* Settings Tab */}
+          {activeTab === 'settings' && <PaymentSettings />}
+
           {/* Other tabs content would go here */}
-          {activeTab !== 'overview' && activeTab !== 'categories' && activeTab !== 'locations' && activeTab !== 'genios' && activeTab !== 'documents' && activeTab !== 'payments' && (
+          {activeTab !== 'overview' && activeTab !== 'categories' && activeTab !== 'locations' && activeTab !== 'genios' && activeTab !== 'documents' && activeTab !== 'payments' && activeTab !== 'settings' && (
             <div className="bg-white rounded-xl shadow-sm p-8 text-center">
               <h2 className="font-heading text-2xl font-bold text-text mb-4">
                 {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
