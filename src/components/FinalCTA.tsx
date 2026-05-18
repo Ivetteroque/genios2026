@@ -19,8 +19,7 @@ const FinalCTA: React.FC = () => {
          Haz visible tu trabajo y empieza a recibir más clientes.
           </p>
           <p className="text-xl text-gray-700 opacity-90 mb-8">
-           Pago anual de S/150  
-Tu perfil estará activo durante 1 año.
+           Pago anual de S/150 soles y tu perfil estará activo durante 1 año.
           </p>
           {/* Steps Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-12 mb-12">
