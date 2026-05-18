@@ -211,13 +211,17 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
             </>
           )}
 
-          {activeSection === 'subscription' && subscription && (
+          {activeSection === 'subscription' && (
             <SubscriptionSection
-              price={subscription.price}
-              currency={subscription.currency}
+              price={subscription?.price}
+              currency={subscription?.currency}
               daysRemaining={daysRemaining}
-              isActive={subscription.is_active}
+              isActive={subscription?.is_active && daysRemaining > 0}
+              geniusEmail={geniusProfile?.email ?? currentUser?.email ?? ''}
+              geniusId={geniusProfile?.id ?? ''}
+              geniusName={geniusProfile?.full_name ?? currentUser?.name ?? ''}
               onManageSubscription={onManageSubscription}
+              onSubscriptionActivated={loadDashboardData}
             />
           )}
         </main>
