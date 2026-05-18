@@ -1,4 +1,4 @@
-// Favorites utility functions
+import { supabase } from '../lib/supabase';
 
 export interface FavoriteGenius {
   id: string;
@@ -12,179 +12,104 @@ export interface FavoriteGenius {
   addedAt: string;
 }
 
-// Get user's favorites from localStorage
-export const getUserFavorites = (userId: string): FavoriteGenius[] => {
-  try {
-    const favorites = localStorage.getItem(`favorites_${userId}`);
-    return favorites ? JSON.parse(favorites) : [];
-  } catch (error) {
+export const getUserFavorites = async (userId: string): Promise<FavoriteGenius[]> => {
+  const { data, error } = await supabase
+    .from('user_favorites')
+    .select('genius_snapshot, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
     console.error('Error loading favorites:', error);
     return [];
   }
+
+  return (data || []).map((row) => ({
+    ...(row.genius_snapshot as Omit<FavoriteGenius, 'addedAt'>),
+    addedAt: row.created_at,
+  }));
 };
 
-// Save user's favorites to localStorage
-export const saveUserFavorites = (userId: string, favorites: FavoriteGenius[]): void => {
-  try {
-    localStorage.setItem(`favorites_${userId}`, JSON.stringify(favorites));
-    
-    // Dispatch event to notify components of favorites change
-    window.dispatchEvent(new CustomEvent('favoritesChanged', { 
-      detail: { userId, favorites } 
-    }));
-  } catch (error) {
-    console.error('Error saving favorites:', error);
-  }
+export const isGeniusFavorite = async (userId: string, geniusId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('user_favorites')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('genius_id', geniusId)
+    .maybeSingle();
+
+  if (error) return false;
+  return data !== null;
 };
 
-// Check if genius is in user's favorites
-export const isGeniusFavorite = (userId: string, geniusId: string): boolean => {
-  const favorites = getUserFavorites(userId);
-  return favorites.some(fav => fav.id === geniusId);
-};
+export const addToFavorites = async (userId: string, genius: FavoriteGenius): Promise<boolean> => {
+  const snapshot = {
+    id: genius.id,
+    name: genius.name,
+    category: genius.category,
+    subcategory: genius.subcategory,
+    image: genius.image,
+    rating: genius.rating,
+    available: genius.available,
+    phone: genius.phone,
+  };
 
-// Add genius to favorites
-export const addToFavorites = (userId: string, genius: FavoriteGenius): boolean => {
-  try {
-    const favorites = getUserFavorites(userId);
-    
-    // Check if already in favorites
-    if (favorites.some(fav => fav.id === genius.id)) {
-      return false; // Already in favorites
-    }
-    
-    const newFavorite = {
-      ...genius,
-      addedAt: new Date().toISOString()
-    };
-    
-    const updatedFavorites = [...favorites, newFavorite];
-    saveUserFavorites(userId, updatedFavorites);
-    
-    // Update genius stats
-    try {
-      const { updateGeniusStats, getGeniusById } = require('./geniusUtils');
-      const geniusData = getGeniusById(genius.id);
-      if (geniusData) {
-        updateGeniusStats(genius.id, {
-          favoritesCount: geniusData.stats.favoritesCount + 1
-        });
-      }
-    } catch (error) {
-      console.error('Error updating genius favorites stats:', error);
-    }
+  const { error } = await supabase
+    .from('user_favorites')
+    .insert({ user_id: userId, genius_id: genius.id, genius_snapshot: snapshot });
 
-    console.log(`Added ${genius.name} to favorites`);
-    return true;
-  } catch (error) {
+  if (error) {
+    if (error.code === '23505') return false; // already exists
     console.error('Error adding to favorites:', error);
     return false;
   }
+
+  window.dispatchEvent(new CustomEvent('favoritesChanged', { detail: { userId } }));
+  return true;
 };
 
-// Remove genius from favorites
-export const removeFromFavorites = (userId: string, geniusId: string): boolean => {
-  try {
-    const favorites = getUserFavorites(userId);
-    const updatedFavorites = favorites.filter(fav => fav.id !== geniusId);
-    
-    if (updatedFavorites.length === favorites.length) {
-      return false; // Genius was not in favorites
-    }
-    
-    saveUserFavorites(userId, updatedFavorites);
-    
-    // Update genius stats
-    try {
-      const { updateGeniusStats, getGeniusById } = require('./geniusUtils');
-      const geniusData = getGeniusById(geniusId);
-      if (geniusData) {
-        updateGeniusStats(geniusId, {
-          favoritesCount: Math.max(0, geniusData.stats.favoritesCount - 1)
-        });
-      }
-    } catch (error) {
-      console.error('Error updating genius favorites stats:', error);
-    }
+export const removeFromFavorites = async (userId: string, geniusId: string): Promise<boolean> => {
+  const { error } = await supabase
+    .from('user_favorites')
+    .delete()
+    .eq('user_id', userId)
+    .eq('genius_id', geniusId);
 
-    console.log(`Removed genius ${geniusId} from favorites`);
-    return true;
-  } catch (error) {
+  if (error) {
     console.error('Error removing from favorites:', error);
     return false;
   }
+
+  window.dispatchEvent(new CustomEvent('favoritesChanged', { detail: { userId } }));
+  return true;
 };
 
-// Toggle genius favorite status
-export const toggleFavorite = (userId: string, genius: FavoriteGenius): boolean => {
-  const isFavorite = isGeniusFavorite(userId, genius.id);
-  
-  if (isFavorite) {
+export const toggleFavorite = async (userId: string, genius: FavoriteGenius): Promise<boolean> => {
+  const isFav = await isGeniusFavorite(userId, genius.id);
+  if (isFav) {
     return removeFromFavorites(userId, genius.id);
   } else {
     return addToFavorites(userId, genius);
   }
 };
 
-// Get favorites count for user
-export const getFavoritesCount = (userId: string): number => {
-  return getUserFavorites(userId).length;
+export const getFavoritesCount = async (userId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('user_favorites')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if (error) return 0;
+  return count ?? 0;
 };
 
-// Clear all favorites for user
-export const clearAllFavorites = (userId: string): void => {
-  try {
-    localStorage.removeItem(`favorites_${userId}`);
-    
-    // Dispatch event to notify components
-    window.dispatchEvent(new CustomEvent('favoritesChanged', { 
-      detail: { userId, favorites: [] } 
-    }));
-    
-    console.log(`Cleared all favorites for user ${userId}`);
-  } catch (error) {
-    console.error('Error clearing favorites:', error);
-  }
-};
-
-// Export favorites data
-export const exportFavorites = (userId: string): void => {
-  const favorites = getUserFavorites(userId);
-  
-  const exportData = {
-    userId,
-    favorites,
-    exportedAt: new Date().toISOString(),
-    totalCount: favorites.length
-  };
-  
-  const dataStr = JSON.stringify(exportData, null, 2);
-  const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-  
-  const exportFileDefaultName = `mis_favoritos_${new Date().toISOString().split('T')[0]}.json`;
-  
-  const linkElement = document.createElement('a');
-  linkElement.setAttribute('href', dataUri);
-  linkElement.setAttribute('download', exportFileDefaultName);
-  linkElement.click();
-};
-
-// Get recently added favorites
-export const getRecentFavorites = (userId: string, limit: number = 5): FavoriteGenius[] => {
-  const favorites = getUserFavorites(userId);
-  return favorites
-    .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
-    .slice(0, limit);
-};
-
-// Search favorites
-export const searchFavorites = (userId: string, query: string): FavoriteGenius[] => {
-  const favorites = getUserFavorites(userId);
-  const lowercaseQuery = query.toLowerCase();
-  
-  return favorites.filter(fav =>
-    fav.name.toLowerCase().includes(lowercaseQuery) ||
-    fav.category.toLowerCase().includes(lowercaseQuery) ||
-    fav.subcategory.toLowerCase().includes(lowercaseQuery)
+export const searchFavorites = async (userId: string, query: string): Promise<FavoriteGenius[]> => {
+  const favorites = await getUserFavorites(userId);
+  const q = query.toLowerCase();
+  return favorites.filter(
+    (fav) =>
+      fav.name.toLowerCase().includes(q) ||
+      fav.category.toLowerCase().includes(q) ||
+      fav.subcategory.toLowerCase().includes(q)
   );
 };

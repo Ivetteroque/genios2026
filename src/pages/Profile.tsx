@@ -6,6 +6,7 @@ import FavoriteButton from '../components/FavoriteButton';
 import ReviewForm from '../components/ReviewForm';
 import GeniusAvailabilityBadge from '../components/GeniusAvailabilityBadge';
 import PublicAvailabilityCalendar from '../components/PublicAvailabilityCalendar';
+import GeniusPeerReviews from '../components/GeniusPeerReviews';
 import { useGeniusAvailability } from '../hooks/useGeniusAvailability';
 import {
   getReviewsForGenius,
@@ -578,7 +579,8 @@ const Profile: React.FC = () => {
       <AboutSection />
       <PortfolioSection />
       <ReviewsSection />
-      
+      <GeniusPeerReviews reviewedGeniusId={id || ''} />
+
       {/* WhatsApp Float Button */}
       <button
         onClick={handleContactClick}

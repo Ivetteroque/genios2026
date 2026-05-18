@@ -25,6 +25,7 @@ import { getCurrentUser, logout, updateUser } from '../utils/authUtils';
 import { getUserFavorites, FavoriteGenius } from '../utils/favoritesUtils';
 import { getReviewsByClient, Review as ReviewType } from '../utils/reviewUtils';
 import EditProfileModal from '../components/EditProfileModal';
+import { handleWhatsAppContact } from '../utils/whatsappUtils';
 
 
 const ClientProfile: React.FC = () => {
@@ -46,7 +47,7 @@ const ClientProfile: React.FC = () => {
       return;
     }
 
-    // Load user's favorites
+      // Load user's favorites
     loadFavorites();
     // Load user's reviews
     loadClientReviews();
@@ -73,9 +74,9 @@ const ClientProfile: React.FC = () => {
     window.addEventListener('reviewsChanged', handleReviewsChange);
     return () => window.removeEventListener('reviewsChanged', handleReviewsChange);
   }, [currentUser]);
-  const loadFavorites = () => {
+  const loadFavorites = async () => {
     if (currentUser) {
-      const favorites = getUserFavorites(currentUser.id);
+      const favorites = await getUserFavorites(currentUser.id);
       setFavoriteGenios(favorites);
     }
   };

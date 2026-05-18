@@ -11,6 +11,7 @@ import AvailabilitySection from './AvailabilitySection';
 import SubscriptionSection from './SubscriptionSection';
 import GeniusAvailabilityCalendar from './GeniusAvailabilityCalendar';
 import GeniusProfileWizard from './GeniusProfileWizard';
+import GeniusFavoritesSection from './GeniusFavoritesSection';
 import Modal from './Modal';
 
 interface GeniusDashboardProps {
@@ -58,10 +59,10 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
   const [geniusProfile, setGeniusProfile] = useState<GeniusProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [todayStatus, setTodayStatus] = useState<'available' | 'full' | 'vacation'>('available');
-  const [activeSection, setActiveSection] = useState<'profile' | 'availability' | 'subscription'>('profile');
+  const [activeSection, setActiveSection] = useState<'profile' | 'availability' | 'subscription' | 'favorites'>('profile');
   const [showCalendar, setShowCalendar] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
-  const [pendingSection, setPendingSection] = useState<'profile' | 'availability' | 'subscription' | null>(null);
+  const [pendingSection, setPendingSection] = useState<'profile' | 'availability' | 'subscription' | 'favorites' | null>(null);
   const [showSectionChangeModal, setShowSectionChangeModal] = useState(false);
 
   useEffect(() => {
@@ -115,7 +116,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
     return Math.max(0, diffDays);
   };
 
-  const handleSectionChange = (section: 'profile' | 'availability' | 'subscription') => {
+  const handleSectionChange = (section: 'profile' | 'availability' | 'subscription' | 'favorites') => {
     if (showWizard) {
       setPendingSection(section);
       setShowSectionChangeModal(true);
@@ -217,6 +218,10 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
               onManageSubscription={onManageSubscription}
               onSubscriptionActivated={loadDashboardData}
             />
+          )}
+
+          {activeSection === 'favorites' && (
+            <GeniusFavoritesSection />
           )}
         </main>
       </div>

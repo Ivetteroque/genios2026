@@ -1,9 +1,9 @@
-import { User, Calendar, CreditCard } from 'lucide-react';
+import { User, Calendar, CreditCard, Heart } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DashboardSidebarProps {
-  activeSection: 'profile' | 'availability' | 'subscription';
-  onSectionChange: (section: 'profile' | 'availability' | 'subscription') => void;
+  activeSection: 'profile' | 'availability' | 'subscription' | 'favorites';
+  onSectionChange: (section: 'profile' | 'availability' | 'subscription' | 'favorites') => void;
   geniusProfile: {
     profile_photo: string;
     full_name: string;
@@ -16,6 +16,7 @@ export default function DashboardSidebar({ activeSection, onSectionChange, geniu
     { id: 'profile' as const, label: 'Mi perfil', icon: User },
     { id: 'availability' as const, label: 'Disponibilidad', icon: Calendar },
     { id: 'subscription' as const, label: 'Suscripción', icon: CreditCard },
+    { id: 'favorites' as const, label: 'Favoritos', icon: Heart },
   ];
 
   return (
