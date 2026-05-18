@@ -1,6 +1,5 @@
 import React from 'react';
-import { Sparkles, PenTool as Tool, Key, ClipboardCheck, CreditCard } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Sparkles, PenTool as Tool, Check } from 'lucide-react';
 
 const FinalCTA: React.FC = () => {
   return (
@@ -10,60 +9,31 @@ const FinalCTA: React.FC = () => {
           <div className="mb-4 inline-block bg-white p-4 rounded-full">
             <Tool className="w-8 h-8 text-primary" />
           </div>
-          
+
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-700 mb-4">
             ¿Quieres ser un Genio?
           </h2>
-        
-          <p className="text-xl text-gray-700 opacity-90 mb-8">
-         Haz visible tu trabajo y empieza a recibir más clientes.
+
+          <p className="text-xl text-gray-700 opacity-90 mb-4">
+            Haz visible tu trabajo y empieza a recibir más clientes.
           </p>
           <p className="text-xl text-gray-700 opacity-90 mb-8">
-           Pago anual de S/150 soles y tu perfil estará activo durante 1 año.
+            Pago anual de S/150 soles y tu perfil estará activo durante 1 año.
           </p>
-          {/* Steps Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mt-12 mb-12">
-            {/* Step 1 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center mx-auto mb-4">
-                <Key className="w-8 h-8 text-white" />
-              </div>
-              <p className="text-gray-800 font-medium text-lg">
-               Regístrate
-              </p>
-            </div>
-            
-            {/* Step 2 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center mx-auto mb-4">
-                <Sparkles className="w-8 h-8 text-white" />
-              </div>
-              <p className="text-gray-800 font-medium text-lg">
-                Elige tu rol
-              </p>
-            </div>
-            
-            {/* Step 3 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center mx-auto mb-4">
-                <ClipboardCheck className="w-8 h-8 text-white" />
-              </div>
-              <p className="text-gray-800 font-medium text-lg">
-                Completa tu perfil
-              </p>
-            </div>
-            
-            {/* Step 4 */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center mx-auto mb-4">
-                <CreditCard className="w-8 h-8 text-white" />
-              </div>
-              <p className="text-gray-800 font-medium text-lg">
-                Activa tu cuenta
-              </p>
-            </div>
+
+          {/* Benefit badges */}
+          <div className="flex flex-wrap justify-center gap-3 mb-10">
+            {['Más visibilidad', 'Más oportunidades', 'Clientes reales'].map((label) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-2 bg-white/25 border border-white/40 text-gray-800 font-medium px-5 py-2 rounded-full text-sm backdrop-blur-sm"
+              >
+                <Check className="w-4 h-4 text-green-700 flex-shrink-0" />
+                {label}
+              </span>
+            ))}
           </div>
-          
+
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('openLoginModal'))}
             className="bg-secondary text-gray-800 font-medium px-8 py-4 rounded-full hover:bg-secondary-dark transition-colors shadow-lg inline-flex items-center justify-center text-lg"
