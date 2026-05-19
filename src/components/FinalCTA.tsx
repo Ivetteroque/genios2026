@@ -15,7 +15,7 @@ const FinalCTA: React.FC = () => {
           </h2>
 
           <p className="text-xl text-gray-700 opacity-90 mb-4">
-            Haz visible tu trabajo y empieza a recibir más clientes.
+          Haz visible lo que sabes hacer y conecta con más personas en tu ciudad.
           </p>
           <p className="text-xl text-gray-700 opacity-90 mb-8">
             Pago anual de S/150 soles y tu perfil estará activo durante 1 año.
