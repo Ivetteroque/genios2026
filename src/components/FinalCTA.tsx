@@ -11,7 +11,7 @@ const FinalCTA: React.FC = () => {
           </div>
 
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-700 mb-4">
-            ¿Quieres ser un Genio?
+           ✨ Tu talento también merece ser descubierto
           </h2>
 
           <p className="text-xl text-gray-700 opacity-90 mb-4">
