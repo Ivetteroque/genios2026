@@ -7,28 +7,21 @@ const testimonials = [
     name: 'Maribel Rodríguez',
     service: 'Estilista',
     image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2',
-    quote: 'Ahora tengo agenda completa todos los días.',
+    quote: 'Ahora tengo agenda completa todos los días. Nunca imaginé que fuera tan fácil.',
   },
   {
     id: 2,
     name: 'Pedro Gutiérrez',
     service: 'Técnico',
     image: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2',
-    quote: 'Un cliente de emergencia se convirtió en mi mejor referido.',
+    quote: 'Un cliente de emergencia se convirtió en mi mejor referido. Eso no tiene precio.',
   },
   {
     id: 3,
     name: 'Carolina Mendoza',
     service: 'Organizadora de eventos',
     image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2',
-    quote: 'Descubrí un nicho que cambió mi negocio por completo.',
-  },
-  {
-    id: 4,
-    name: 'Rafael Torres',
-    service: 'Diseñador gráfico',
-    image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2',
-    quote: 'Mis primeros clientes locales llegaron en menos de una semana.',
+    quote: 'Descubrí un nicho que cambió mi negocio por completo. Me siento libre.',
   },
 ];
 
@@ -45,24 +38,29 @@ const SuccessStories: React.FC = () => {
           </p>
         </div>
 
-        <div className="max-w-3xl mx-auto flex flex-col gap-4">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
           {testimonials.map((t) => (
             <div
               key={t.id}
-              className="bg-white rounded-2xl px-6 py-5 flex items-center gap-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300"
+              className="bg-white rounded-2xl p-7 flex flex-col gap-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300"
             >
-              <img
-                src={t.image}
-                alt={t.name}
-                className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-              />
-              <div className="min-w-0">
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="font-heading font-semibold text-sm text-text">{t.name}</span>
-                  <span className="text-xs text-text/40">{t.service}</span>
+              {/* Avatar + name */}
+              <div className="flex items-center gap-3">
+                <img
+                  src={t.image}
+                  alt={t.name}
+                  className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                />
+                <div>
+                  <p className="font-heading font-semibold text-sm text-text leading-tight">{t.name}</p>
+                  <p className="text-xs text-text/40 mt-0.5">{t.service}</p>
                 </div>
-                <p className="text-sm text-text/65 italic leading-relaxed">"{t.quote}"</p>
               </div>
+
+              {/* Quote */}
+              <p className="text-sm text-text/65 italic leading-relaxed flex-1">
+                "{t.quote}"
+              </p>
             </div>
           ))}
         </div>
@@ -70,7 +68,7 @@ const SuccessStories: React.FC = () => {
         <div className="text-center mt-10">
           <a
             href="#leer-mas"
-            className="inline-flex items-center gap-1.5 text-sm text-text/45 hover:text-primary transition-colors duration-200"
+            className="inline-flex items-center gap-1.5 text-sm text-text/40 hover:text-primary transition-colors duration-200"
           >
             Ver más historias
             <ArrowRight className="w-3.5 h-3.5" />
