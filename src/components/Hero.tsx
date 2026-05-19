@@ -32,7 +32,7 @@ const Hero: React.FC = () => {
           <p className="text-xl md:text-2xl text-text/80 mb-10 leading-relaxed max-w-3xl mx-auto">
           El vecino que enseña, la amiga que diseña, o tú con tu habilidad ✨
             <br className="hidden md:block" />
-            Aquí encuentras un lugar para crecer, conectar y encontrar empleo en tu ciudad.
+            Conecta con personas de tu ciudad listas para ayudarte.
           </p>
           <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6 justify-center">
             <Link 
