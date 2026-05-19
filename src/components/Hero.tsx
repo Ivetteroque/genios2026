@@ -7,45 +7,57 @@ const Hero: React.FC = () => {
       id="inicio"
       className="relative min-h-screen flex items-center bg-background overflow-hidden"
     >
-      <div className="container mx-auto px-4 py-20">
-        <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-0">
+      {/* Right-side image with soft gradient fade */}
+      <div className="absolute inset-y-0 right-0 w-full lg:w-[58%] pointer-events-none select-none">
+        <img
+          src="/genios.png"
+          alt="Genios locales de tu ciudad"
+          className="w-full h-full object-cover object-left"
+          style={{ filter: 'drop-shadow(-8px 0 32px rgba(0,0,0,0.08))' }}
+        />
+        {/* Gradient overlay: fades image into white background on the left */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to right, #FDFDFD 0%, #FDFDFD 12%, rgba(253,253,253,0.85) 30%, rgba(253,253,253,0.4) 50%, rgba(253,253,253,0.0) 72%)',
+          }}
+        />
+        {/* Soft top + bottom vignette for organic blending */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to bottom, rgba(253,253,253,0.55) 0%, transparent 18%, transparent 82%, rgba(253,253,253,0.55) 100%)',
+          }}
+        />
+      </div>
 
-          {/* Text column */}
-          <div className="flex-1 text-center lg:text-left z-10">
-            <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-text mb-6 leading-tight">
-              ¡Aquí los genios no salen de las lámparas…{' '}
-              <br className="hidden sm:block" />
-              salen de tu ciudad!
-            </h1>
-            <p className="text-xl md:text-2xl text-text/70 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
-              El vecino que enseña, la amiga que diseña, o tú con tu habilidad.{' '}
-              Conecta con personas de tu ciudad listas para ayudarte.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Link
-                to="/categories"
-                className="bg-primary text-text font-medium px-8 py-4 rounded-full hover:bg-primary-dark transition-colors shadow-md text-center text-lg"
-              >
-                Buscar un Genio
-              </Link>
-              <a
-                href="#ser-genio"
-                className="bg-secondary text-text font-medium px-8 py-4 rounded-full hover:bg-secondary-dark transition-colors shadow-md text-center text-lg"
-              >
-                Quiero ser parte de los genios
-              </a>
-            </div>
+      {/* Content */}
+      <div className="relative container mx-auto px-6 py-24 z-10">
+        <div className="max-w-lg xl:max-w-xl">
+          <h1 className="font-heading text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold text-text mb-6 leading-tight">
+            ¡Aquí los genios no salen de las lámparas…{' '}
+            <span className="text-primary-dark">salen de tu ciudad!</span>
+          </h1>
+          <p className="text-lg md:text-xl text-text/70 mb-10 leading-relaxed">
+            El vecino que enseña, la amiga que diseña, o tú con tu habilidad.{' '}
+            Conecta con personas de tu ciudad listas para ayudarte.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link
+              to="/categories"
+              className="bg-primary text-text font-medium px-8 py-4 rounded-full hover:bg-primary-dark transition-colors shadow-md text-center text-lg"
+            >
+              Buscar un Genio
+            </Link>
+            <a
+              href="#ser-genio"
+              className="bg-secondary text-text font-medium px-8 py-4 rounded-full hover:bg-secondary-dark transition-colors shadow-md text-center text-lg"
+            >
+              Quiero ser un Genio
+            </a>
           </div>
-
-          {/* Image column */}
-          <div className="flex-1 flex justify-center lg:justify-end relative">
-            <img
-              src="/genios.png"
-              alt="Genios locales de tu ciudad"
-              className="w-full max-w-xl lg:max-w-2xl object-contain drop-shadow-xl"
-            />
-          </div>
-
         </div>
       </div>
     </section>
