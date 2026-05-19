@@ -37,7 +37,7 @@ const HowItWorks: React.FC = () => {
             ✨ Tu ciudad está llena de personas increíbles
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Conectarte con el talento local nunca fue tan sencillo. Estos son los pasos para resolver tu problema:
+             Y aquí puedes encontrarlas fácilmente.
           </p>
         </div>
         
