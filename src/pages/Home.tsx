@@ -11,8 +11,8 @@ const Home: React.FC = () => {
   return (
     <>
       <Hero />
-      <HowItWorks />
       <CategoriesSection />
+      <HowItWorks />
       <SuccessStories />
       <FAQ />
       <FinalCTA />
