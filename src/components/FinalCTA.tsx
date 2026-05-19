@@ -18,7 +18,7 @@ const FinalCTA: React.FC = () => {
           Haz visible lo que sabes hacer y conecta con más personas en tu ciudad.
           </p>
           <p className="text-xl text-gray-700 opacity-90 mb-8">
-            Pago anual de S/150 soles y tu perfil estará activo durante 1 año.
+            Todo esto por solo S/150 al año. Menos de S/0.50 al día
           </p>
 
           {/* Benefit badges */}
