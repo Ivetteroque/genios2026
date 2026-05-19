@@ -1,152 +1,79 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react';
+import React from 'react';
+import { ArrowRight } from 'lucide-react';
+
+const testimonials = [
+  {
+    id: 1,
+    name: 'Maribel Rodríguez',
+    service: 'Estilista',
+    image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2',
+    quote: 'Ahora tengo agenda completa todos los días.',
+  },
+  {
+    id: 2,
+    name: 'Pedro Gutiérrez',
+    service: 'Técnico',
+    image: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2',
+    quote: 'Un cliente de emergencia se convirtió en mi mejor referido.',
+  },
+  {
+    id: 3,
+    name: 'Carolina Mendoza',
+    service: 'Organizadora de eventos',
+    image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2',
+    quote: 'Descubrí un nicho que cambió mi negocio por completo.',
+  },
+  {
+    id: 4,
+    name: 'Rafael Torres',
+    service: 'Diseñador gráfico',
+    image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=200&h=200&dpr=2',
+    quote: 'Mis primeros clientes locales llegaron en menos de una semana.',
+  },
+];
 
 const SuccessStories: React.FC = () => {
-  const testimonials = [
-    {
-      id: 1,
-      name: "Maribel Rodríguez",
-      service: "Estilista profesional",
-      image: "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-      quote: "Logré ampliar mi clientela en un 40% gracias a la plataforma. Ahora tengo agenda completa todos los días."
-    },
-    {
-      id: 2,
-      name: "Pedro Gutiérrez",
-      service: "Técnico en refrigeración",
-      image: "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-      quote: "Un cliente me contactó un domingo a las 9 AM por una emergencia. Pude solucionar su problema y me recomendó con sus amigos."
-    },
-    {
-      id: 3,
-      name: "Carolina Mendoza",
-      service: "Organizadora de eventos",
-      image: "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-      quote: "Encontré un nicho para mis servicios de organización de eventos corporativos que no había explorado antes."
-    },
-    {
-      id: 4,
-      name: "Rafael Torres",
-      service: "Diseñador gráfico",
-      image: "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-      quote: "La plataforma me ayudó a conseguir clientes para proyectos de diseño de logos y branding para negocios locales."
-    }
-  ];
-
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState(0);
-
-  const nextTestimonial = () => {
-    setActiveIndex((prev) => (prev === testimonials.length - 1 ? 0 : prev + 1));
-  };
-
-  const prevTestimonial = () => {
-    setActiveIndex((prev) => (prev === 0 ? testimonials.length - 1 : prev - 1));
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.touches[0].clientX);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const touchEnd = e.changedTouches[0].clientX;
-    if (touchStart - touchEnd > 50) {
-      nextTestimonial();
-    } else if (touchStart - touchEnd < -50) {
-      prevTestimonial();
-    }
-  };
-
-  const displayTestimonials = () => {
-    return testimonials.map((testimonial, index) => (
-      <div 
-        key={testimonial.id}
-        className={`transition-opacity duration-300 ${
-          index === activeIndex ? 'opacity-100' : 'opacity-0 absolute top-0 left-0'
-        }`}
-      >
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <div className="flex items-center mb-4">
-            <img 
-              src={testimonial.image} 
-              alt={testimonial.name} 
-              className="w-16 h-16 rounded-full object-cover mr-4"
-            />
-            <div>
-              <h3 className="font-heading font-bold text-lg text-gray-800">{testimonial.name}</h3>
-              <p className="text-primary text-sm">{testimonial.service}</p>
-            </div>
-          </div>
-          <p className="text-gray-600 italic mb-4">"{testimonial.quote}"</p>
-        </div>
-      </div>
-    ));
-  };
-
   return (
-    <section id="historias" className="py-16 md:py-24 bg-white">
+    <section id="historias" className="py-20 md:py-28 bg-gray-50">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            💬 Historias reales de tu ciudad
+        <div className="text-center mb-14">
+          <h2 className="font-heading text-3xl md:text-4xl font-bold text-text mb-3">
+            Historias reales de tu ciudad
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+          <p className="text-base text-text/55 max-w-md mx-auto">
             Cada genio tiene una historia que merece ser contada.
           </p>
         </div>
-        
-        <div className="max-w-3xl mx-auto">
-          <div 
-            className="relative h-[250px] md:h-[200px]"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            {displayTestimonials()}
-          </div>
-          
-          <div className="flex justify-center mt-8 space-x-4">
-            <button 
-              onClick={prevTestimonial}
-              className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors"
-              aria-label="Testimonio anterior"
+
+        <div className="max-w-3xl mx-auto flex flex-col gap-4">
+          {testimonials.map((t) => (
+            <div
+              key={t.id}
+              className="bg-white rounded-2xl px-6 py-5 flex items-center gap-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300"
             >
-              <ChevronLeft className="text-gray-700" />
-            </button>
-            
-            {testimonials.map((_, index) => (
-              <button 
-                key={index}
-                className={`w-3 h-3 rounded-full transition-colors ${
-                  index === activeIndex ? 'bg-primary' : 'bg-gray-300'
-                }`}
-                onClick={() => setActiveIndex(index)}
-                aria-label={`Ver testimonio ${index + 1}`}
+              <img
+                src={t.image}
+                alt={t.name}
+                className="w-12 h-12 rounded-full object-cover flex-shrink-0"
               />
-            ))}
-            
-            <button 
-              onClick={nextTestimonial}
-              className="bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors"
-              aria-label="Siguiente testimonio"
-            >
-              <ChevronRight className="text-gray-700" />
-            </button>
-          </div>
+              <div className="min-w-0">
+                <div className="flex items-baseline gap-2 mb-1">
+                  <span className="font-heading font-semibold text-sm text-text">{t.name}</span>
+                  <span className="text-xs text-text/40">{t.service}</span>
+                </div>
+                <p className="text-sm text-text/65 italic leading-relaxed">"{t.quote}"</p>
+              </div>
+            </div>
+          ))}
         </div>
-        
-        <div className="text-center mt-12">
-          <a 
-            href="#leer-mas" 
-            className="inline-block bg-primary text-white font-medium px-6 py-3 rounded-full hover:bg-primary-dark transition-colors shadow-md mr-4"
+
+        <div className="text-center mt-10">
+          <a
+            href="#leer-mas"
+            className="inline-flex items-center gap-1.5 text-sm text-text/45 hover:text-primary transition-colors duration-200"
           >
-            Leer más historias
-          </a>
-          <a 
-            href="#compartir" 
-            className="inline-flex items-center text-primary font-medium hover:underline transition-colors"
-          >
-            <MessageSquare className="w-5 h-5 mr-2" />
-            Contar mi historia
+            Ver más historias
+            <ArrowRight className="w-3.5 h-3.5" />
           </a>
         </div>
       </div>
