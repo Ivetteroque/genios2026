@@ -91,7 +91,7 @@ const SuccessStories: React.FC = () => {
             💬 Historias reales de tu ciudad
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Conoce cómo Genios ha transformado la vida de profesionales y clientes en nuestra comunidad.
+            Cada genio tiene una historia que merece ser contada.
           </p>
         </div>
         
