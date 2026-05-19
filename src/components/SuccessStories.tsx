@@ -88,10 +88,10 @@ const SuccessStories: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            💬 Historias reales de tu ciudad
+            💬 Gente real. Cambios reales. Historias que inspiran
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-           Personas que hoy viven de lo que aman
+            Conoce cómo Genios ha transformado la vida de profesionales y clientes en nuestra comunidad.
           </p>
         </div>
         
