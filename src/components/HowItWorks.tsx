@@ -34,7 +34,7 @@ const HowItWorks: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            🪄 Tu problema + un genio local = ¡Solucionado!
+            ✨ Tu ciudad está llena de personas increíbles
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Conectarte con el talento local nunca fue tan sencillo. Estos son los pasos para resolver tu problema:
