@@ -38,7 +38,7 @@ const Categories: React.FC = () => {
             🎯 ¿Qué necesitas hoy?
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-           Explora categorías y encuentra el genio que necesitas.
+           Elige una categoría y encuentra al genio que necesitas.
           </p>
         </div>
         
