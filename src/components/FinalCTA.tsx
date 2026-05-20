@@ -6,28 +6,23 @@ const FinalCTA: React.FC = () => {
     <section
       id="ser-genio"
       className="relative overflow-hidden min-h-[580px] flex items-center"
+      style={{
+        /* background-size < 100% zooms OUT — shows more of the scene/workshop */
+        backgroundImage: 'url(/repoyartesano.png)',
+        backgroundSize: '68% auto',
+        backgroundPosition: '98% center',
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#fdf7ee',
+      }}
     >
-      {/* Full-bleed image — shifted right so faces land in the right 60% */}
-      <img
-        src="/repoyartesano.png"
-        alt="Genios artesanos"
-        className="absolute inset-0 w-full h-full object-cover"
+      {/* Warm background fill for left text zone */}
+      <div className="absolute inset-0 pointer-events-none"
         style={{
-          objectPosition: '82% center',
-          filter: 'saturate(1.15) contrast(1.08) brightness(1.03)',
+          background: 'linear-gradient(to right, #fdf7ee 0%, #fdf7ee 38%, rgba(253,247,238,0.70) 48%, rgba(253,247,238,0.15) 58%, transparent 68%)',
         }}
       />
 
-      {/* Left-only overlay: opaque cream behind text, gone by 42% */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(to right, rgba(253,247,238,0.92) 0%, rgba(253,247,238,0.80) 22%, rgba(253,247,238,0.45) 36%, rgba(253,247,238,0.08) 46%, transparent 54%)',
-        }}
-      />
-
-      {/* Content pinned to the left 38% */}
+      {/* Content pinned to the left ~38% */}
       <div className="relative z-10 w-full px-8 md:px-14 py-20">
         <div style={{ maxWidth: '38%' }} className="min-w-[280px]">
 
@@ -47,7 +42,7 @@ const FinalCTA: React.FC = () => {
             {['Más visibilidad', 'Más oportunidades', 'Clientes reales'].map((label) => (
               <span
                 key={label}
-                className="inline-flex items-center gap-1.5 bg-white/80 border border-white/90 text-gray-800 font-medium px-3 py-1.5 rounded-full text-xs backdrop-blur-sm shadow-sm"
+                className="inline-flex items-center gap-1.5 bg-white/90 border border-white text-gray-800 font-medium px-3 py-1.5 rounded-full text-xs shadow-sm"
               >
                 <Check className="w-3 h-3 text-green-600 flex-shrink-0" />
                 {label}
