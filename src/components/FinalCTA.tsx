@@ -13,7 +13,7 @@ const FinalCTA: React.FC = () => {
         alt="Genios artesanos"
         className="absolute inset-0 w-full h-full object-cover"
         style={{
-          objectPosition: '65% center',
+          objectPosition: '82% center',
           filter: 'saturate(1.15) contrast(1.08) brightness(1.03)',
         }}
       />
