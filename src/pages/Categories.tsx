@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { Search, Star, MapPin, MessageSquare, CheckCircle, ChevronDown, ChevronUp, ArrowLeft, Filter, X, ChevronRight } from 'lucide-react';
 import { createSlug } from '../utils/commonUtils';
 import { getActiveCategories, Category } from '../utils/categoryUtils';
@@ -28,7 +28,8 @@ interface Professional {
 
 const Categories: React.FC = () => {
   const { categorySlug } = useParams<{ categorySlug?: string }>();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [filteredProfessionals, setFilteredProfessionals] = useState<Professional[]>([]);
