@@ -5,40 +5,43 @@ const FinalCTA: React.FC = () => {
   return (
     <section
       id="ser-genio"
-      className="relative overflow-hidden min-h-[580px] flex items-center"
+      className="relative overflow-hidden flex items-center"
       style={{
-        /* background-size < 100% zooms OUT — shows more of the scene/workshop */
+        minHeight: '640px',
         backgroundImage: 'url(/repoyartesano.png)',
         backgroundSize: '68% auto',
-        backgroundPosition: '98% center',
+        backgroundPosition: '100% center',
         backgroundRepeat: 'no-repeat',
         backgroundColor: '#fdf7ee',
       }}
     >
-      {/* Warm background fill for left text zone */}
+      {/* Feather the photo edges — top, bottom, and the left seam */}
       <div className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(to right, #fdf7ee 0%, #fdf7ee 38%, rgba(253,247,238,0.70) 48%, rgba(253,247,238,0.15) 58%, transparent 68%)',
+          background: `
+            linear-gradient(to right,  #fdf7ee 0%, #fdf7ee 32%, rgba(253,247,238,0.55) 42%, rgba(253,247,238,0.08) 50%, transparent 58%),
+            linear-gradient(to bottom, rgba(253,247,238,0.55) 0%, transparent 12%, transparent 88%, rgba(253,247,238,0.55) 100%),
+            linear-gradient(to left,   rgba(253,247,238,0.30) 0%, transparent 8%)
+          `,
         }}
       />
 
-      {/* Content pinned to the left ~38% */}
-      <div className="relative z-10 w-full px-8 md:px-14 py-20">
-        <div style={{ maxWidth: '38%' }} className="min-w-[280px]">
+      {/* Content */}
+      <div className="relative z-10 w-full px-8 md:px-14 py-28">
+        <div style={{ maxWidth: '36%' }} className="min-w-[280px]">
 
-          <h2 className="font-heading text-3xl md:text-[2.6rem] font-bold text-gray-900 mb-4 leading-tight">
+          <h2 className="font-heading text-3xl md:text-[2.6rem] font-bold text-gray-900 mb-5 leading-tight">
             Tu talento también<br />merece ser descubierto
           </h2>
 
-          <p className="text-sm md:text-base text-gray-700 mb-1.5 leading-relaxed">
+          <p className="text-sm md:text-base text-gray-700 mb-2 leading-relaxed">
             Haz visible lo que sabes hacer y conecta con más personas en tu ciudad.
           </p>
-          <p className="text-xs md:text-sm text-gray-600 mb-7">
+          <p className="text-xs md:text-sm text-gray-600 mb-8">
             Todo esto por solo <strong className="text-gray-800">S/150 al año</strong>. Menos de S/0.50 al día.
           </p>
 
-          {/* Benefit badges */}
-          <div className="flex flex-wrap gap-2 mb-8">
+          <div className="flex flex-wrap gap-2 mb-10">
             {['Más visibilidad', 'Más oportunidades', 'Clientes reales'].map((label) => (
               <span
                 key={label}
