@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 
 const FAQ: React.FC = () => {
   const faqs = [
@@ -27,58 +27,61 @@ const FAQ: React.FC = () => {
 
   const [openItem, setOpenItem] = useState<number | null>(null);
 
-  const toggleItem = (id: number) => {
-    setOpenItem(openItem === id ? null : id);
-  };
-
   return (
     <section id="faq" className="py-16 md:py-24 bg-gray-50">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-           Todo claro desde el inicio
+        <div className="text-center mb-14">
+          <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-3">
+            Todo claro desde el inicio
           </h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-           Lo importante, explicado de manera simple.
+          <p className="text-base text-gray-500 max-w-xl mx-auto">
+            Lo importante, explicado de manera simple.
           </p>
         </div>
-        
-        <div className="max-w-3xl mx-auto">
-          {faqs.map((faq) => (
-            <div 
-              key={faq.id} 
-              className="mb-4 bg-white rounded-lg shadow-sm overflow-hidden"
-            >
-              <button
-                className="w-full text-left p-4 flex justify-between items-center focus:outline-none"
-                onClick={() => toggleItem(faq.id)}
-                aria-expanded={openItem === faq.id}
-              >
-                <span className="font-heading font-bold text-lg text-gray-800">{faq.question}</span>
-                {openItem === faq.id ? (
-                  <ChevronUp className="text-primary flex-shrink-0" />
-                ) : (
-                  <ChevronDown className="text-primary flex-shrink-0" />
+
+        <div className="max-w-2xl mx-auto">
+          {faqs.map((faq, i) => {
+            const isOpen = openItem === faq.id;
+            return (
+              <div key={faq.id}>
+                <button
+                  className="w-full text-left py-4 flex justify-between items-center gap-4 group focus:outline-none"
+                  onClick={() => setOpenItem(isOpen ? null : faq.id)}
+                  aria-expanded={isOpen}
+                >
+                  <span className="font-medium text-gray-800 text-[0.95rem] leading-snug group-hover:text-primary transition-colors duration-150">
+                    {faq.question}
+                  </span>
+                  <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors duration-150">
+                    {isOpen
+                      ? <Minus className="w-3.5 h-3.5" />
+                      : <Plus className="w-3.5 h-3.5" />
+                    }
+                  </span>
+                </button>
+
+                <div
+                  className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-in-out ${
+                    isOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
+                  }`}
+                >
+                  <p className="text-sm text-gray-500 leading-relaxed pb-4 pr-8">
+                    {faq.answer}
+                  </p>
+                </div>
+
+                {i < faqs.length - 1 && (
+                  <div className="border-t border-gray-200" />
                 )}
-              </button>
-              
-              <div 
-                className={`px-4 pb-4 transition-[max-height,opacity] duration-300 ease-in-out overflow-hidden ${
-                  openItem === faq.id 
-                    ? 'max-h-96 opacity-100' 
-                    : 'max-h-0 opacity-0'
-                }`}
-              >
-                <p className="text-gray-600">{faq.answer}</p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
-        
-        <div className="text-center mt-8">
-          <a 
-            href="#contacto" 
-            className="inline-block text-primary font-medium hover:underline transition-colors"
+
+        <div className="text-center mt-10">
+          <a
+            href="#contacto"
+            className="text-sm text-primary font-medium hover:underline transition-colors"
           >
             Tengo otra duda →
           </a>
