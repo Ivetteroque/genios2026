@@ -13,7 +13,7 @@ const ContactForm: React.FC = () => {
         <div className="max-w-xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-              📩 ¿Tienes una duda o propuesta? Escríbenos
+              📩 ¿Te ayudamos?
             </h2>
             <p className="text-lg text-gray-600">
               Estamos aquí para ayudarte con cualquier consulta que tengas sobre nuestra plataforma.
