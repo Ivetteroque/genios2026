@@ -16,7 +16,7 @@ const ContactForm: React.FC = () => {
               📩 ¿Te ayudamos?
             </h2>
             <p className="text-lg text-gray-600">
-              Estamos aquí para ayudarte con cualquier consulta que tengas sobre nuestra plataforma.
+              Queremos que te sientas acompañado desde el inicio.
             </p>
           </div>
           
