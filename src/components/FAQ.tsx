@@ -36,7 +36,7 @@ const FAQ: React.FC = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-            ¿Esto es muy bueno para ser verdad? ¡Te lo explicamos!
+           Todo claro desde el inicio
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Respondemos a las dudas más frecuentes sobre cómo funciona Genios.
