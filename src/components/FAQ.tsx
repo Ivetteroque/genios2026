@@ -39,7 +39,7 @@ const FAQ: React.FC = () => {
            Todo claro desde el inicio
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-            Respondemos a las dudas más frecuentes sobre cómo funciona Genios.
+           Lo importante, explicado de manera simple.
           </p>
         </div>
         
