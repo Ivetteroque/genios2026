@@ -5,18 +5,19 @@ const FinalCTA: React.FC = () => {
   return (
     <section id="ser-genio" className="relative overflow-hidden min-h-[580px] flex items-center">
 
-      {/* Full-bleed background image */}
+      {/* Full-bleed background image — warm, vivid, high-contrast */}
       <img
         src="/repoyartesano.png"
         alt="Genios artesanos"
         className="absolute inset-0 w-full h-full object-cover object-center"
+        style={{ filter: 'saturate(1.12) contrast(1.06) brightness(1.02)' }}
       />
 
-      {/* Warm cream overlay — very subtle, just enough for legibility */}
+      {/* Narrow left-side overlay ONLY behind the text — right side stays clean */}
       <div
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(120deg, rgba(253,248,240,0.82) 0%, rgba(253,248,240,0.65) 55%, rgba(253,248,240,0.18) 100%)',
+          background: 'linear-gradient(to right, rgba(253,248,240,0.78) 0%, rgba(253,248,240,0.60) 28%, rgba(253,248,240,0.18) 48%, transparent 62%)',
         }}
       />
 
