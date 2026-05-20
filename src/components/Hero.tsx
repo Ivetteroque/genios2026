@@ -1,7 +1,55 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+const PLACEHOLDERS = ['albañil', 'maquilladora', 'DJ', 'gasfitero', 'electricista', 'payaso'];
+const PILLS = ['Maquilladora', 'Albañil', 'DJ', 'Payaso', 'Electricista', 'Gasfitero'];
 
 const Hero: React.FC = () => {
+  const [query, setQuery] = useState('');
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [displayedPlaceholder, setDisplayedPlaceholder] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const current = PLACEHOLDERS[placeholderIndex];
+
+    if (!isDeleting && displayedPlaceholder.length < current.length) {
+      timeoutRef.current = setTimeout(() => {
+        setDisplayedPlaceholder(current.slice(0, displayedPlaceholder.length + 1));
+      }, 80);
+    } else if (!isDeleting && displayedPlaceholder.length === current.length) {
+      timeoutRef.current = setTimeout(() => setIsDeleting(true), 1800);
+    } else if (isDeleting && displayedPlaceholder.length > 0) {
+      timeoutRef.current = setTimeout(() => {
+        setDisplayedPlaceholder(current.slice(0, displayedPlaceholder.length - 1));
+      }, 45);
+    } else if (isDeleting && displayedPlaceholder.length === 0) {
+      setIsDeleting(false);
+      setPlaceholderIndex((i) => (i + 1) % PLACEHOLDERS.length);
+    }
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [displayedPlaceholder, isDeleting, placeholderIndex]);
+
+  const handleSearch = () => {
+    const term = query.trim();
+    if (!term) return;
+    navigate(`/categories?q=${encodeURIComponent(term)}`);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') handleSearch();
+  };
+
+  const handlePill = (term: string) => {
+    navigate(`/categories?q=${encodeURIComponent(term)}`);
+  };
+
   return (
     <section
       id="inicio"
@@ -15,7 +63,6 @@ const Hero: React.FC = () => {
           className="w-full h-full object-cover object-left"
           style={{ filter: 'drop-shadow(-8px 0 32px rgba(0,0,0,0.08))' }}
         />
-        {/* Gradient overlay: fades image into white background on the left */}
         <div
           className="absolute inset-0"
           style={{
@@ -23,7 +70,6 @@ const Hero: React.FC = () => {
               'linear-gradient(to right, #FDFDFD 0%, #FDFDFD 12%, rgba(253,253,253,0.85) 30%, rgba(253,253,253,0.4) 50%, rgba(253,253,253,0.0) 72%)',
           }}
         />
-        {/* Soft top + bottom vignette for organic blending */}
         <div
           className="absolute inset-0"
           style={{
@@ -40,23 +86,43 @@ const Hero: React.FC = () => {
             ¡Aquí los genios no salen de las lámparas…{' '}
             <span className="text-primary-dark">salen de tu ciudad!</span>
           </h1>
-          <p className="text-lg md:text-xl text-text/70 mb-10 leading-relaxed">
+          <p className="text-lg md:text-xl text-text/70 mb-8 leading-relaxed">
             El vecino que enseña, la amiga que diseña, o tú con tu habilidad.{' '}
             Conecta con personas de tu ciudad listas para ayudarte.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link
-              to="/categories"
-              className="bg-primary text-text font-medium px-8 py-4 rounded-full hover:bg-primary-dark transition-colors shadow-md text-center text-lg"
+
+          {/* Search bar */}
+          <div className="flex items-center border border-text/15 bg-white rounded-full px-4 py-3 gap-2 mb-4 focus-within:border-text/30 focus-within:shadow-md transition-all shadow-sm">
+            <Search className="w-5 h-5 text-text/35 flex-shrink-0" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={displayedPlaceholder}
+              className="flex-1 bg-transparent text-base text-text placeholder:text-text/35 outline-none"
+            />
+            <button
+              onClick={handleSearch}
+              disabled={!query.trim()}
+              className="flex-shrink-0 bg-secondary hover:bg-secondary-dark disabled:opacity-40 disabled:cursor-default text-gray-900 text-sm font-semibold px-5 py-2 rounded-full transition-colors"
             >
-              Buscar un Genio
-            </Link>
-            <a
-              href="#ser-genio"
-              className="bg-secondary text-text font-medium px-8 py-4 rounded-full hover:bg-secondary-dark transition-colors shadow-md text-center text-lg"
-            >
-              Quiero ser un Genio
-            </a>
+              Buscar
+            </button>
+          </div>
+
+          {/* Popular pills */}
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs text-text/40 self-center mr-1">Popular:</span>
+            {PILLS.map((pill) => (
+              <button
+                key={pill}
+                onClick={() => handlePill(pill)}
+                className="border border-text/12 bg-white/80 text-text/55 hover:text-text hover:border-text/25 text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
+              >
+                {pill}
+              </button>
+            ))}
           </div>
         </div>
       </div>
