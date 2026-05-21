@@ -61,7 +61,6 @@ const Hero: React.FC = () => {
     startAutoPlay();
   };
 
-  /* --- Search handlers --- */
   const handleSearch = () => {
     const term = query.trim();
     if (!term) return;
@@ -79,126 +78,121 @@ const Hero: React.FC = () => {
   return (
     <section
       id="inicio"
-      className="relative h-screen overflow-hidden bg-background"
+      className="relative h-screen bg-background overflow-hidden flex flex-col"
     >
+      {/* Slides area */}
+      <div className="flex-1 relative overflow-hidden">
 
-      {/* Slides wrapper */}
-      <div className="relative z-10 h-full flex flex-col">
-        <div className="flex-1 relative overflow-hidden">
+        {/* --- Slide 0: Search --- */}
+        <div
+          className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out ${
+            activeSlide === 0 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8 pointer-events-none'
+          }`}
+        >
+          <div className="container mx-auto px-4 -mt-8">
+            <div className="text-center max-w-2xl mx-auto">
+              <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-text mb-4 leading-tight">
+                Encuentra el genio que{' '}
+                <span className="text-primary-dark">necesitas.</span>
+              </h1>
+              <p className="text-base md:text-lg text-text/60 mb-10 max-w-md mx-auto leading-relaxed">
+                Busca por habilidad, oficio o nombre y conecta con alguien de tu ciudad hoy mismo.
+              </p>
 
-          {/* --- Slide 0: Search --- */}
-          <div
-            className={`absolute inset-0 flex items-center transition-all duration-700 ease-in-out ${
-              activeSlide === 0 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8 pointer-events-none'
-            }`}
-          >
-            <div className="container mx-auto px-6 -mt-8">
-              <div className="max-w-lg xl:max-w-xl">
-                <h1 className="font-heading text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold text-text mb-6 leading-tight">
-                  Encuentra el genio que{' '}
-                  <span className="text-primary-dark">necesitas.</span>
-                </h1>
-                <p className="text-lg md:text-xl text-text/70 mb-8 leading-relaxed">
-                  Busca por habilidad, oficio o nombre y conecta con alguien de tu ciudad hoy mismo.
-                </p>
+              {/* Search bar */}
+              <div className="flex items-center border border-gray-200 bg-white rounded-full px-4 py-3 gap-2 mb-5 max-w-lg mx-auto shadow-sm focus-within:border-primary/40 focus-within:shadow-md transition-all duration-200">
+                <Search className="w-4 h-4 text-text/35 flex-shrink-0" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={displayedPlaceholder || 'Busca un genio...'}
+                  className="flex-1 bg-transparent text-sm text-text placeholder:text-text/35 outline-none"
+                />
+                <button
+                  onClick={handleSearch}
+                  disabled={!query.trim()}
+                  className="flex-shrink-0 bg-secondary hover:bg-secondary-dark disabled:opacity-40 disabled:cursor-default text-gray-900 text-xs font-semibold px-5 py-2 rounded-full transition-colors duration-200"
+                >
+                  Buscar
+                </button>
+              </div>
 
-                {/* Search bar */}
-                <div className="flex items-center border border-text/15 bg-white rounded-full px-4 py-3 gap-2 mb-4 focus-within:border-text/30 focus-within:shadow-md transition-all shadow-sm">
-                  <Search className="w-5 h-5 text-text/35 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={displayedPlaceholder || 'Busca un genio...'}
-                    className="flex-1 bg-transparent text-base text-text placeholder:text-text/35 outline-none"
-                  />
+              {/* Popular pills */}
+              <div className="flex flex-wrap gap-2 justify-center items-center">
+                <span className="text-xs text-text/40 mr-1">Popular:</span>
+                {PILLS.map((pill) => (
                   <button
-                    onClick={handleSearch}
-                    disabled={!query.trim()}
-                    className="flex-shrink-0 bg-secondary hover:bg-secondary-dark disabled:opacity-40 disabled:cursor-default text-gray-900 text-sm font-semibold px-5 py-2 rounded-full transition-colors"
+                    key={pill}
+                    onClick={() => handlePill(pill)}
+                    className="inline-flex items-center px-4 py-2 rounded-full border border-gray-200 bg-white text-text/70 text-xs font-medium hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-200 shadow-sm hover:shadow"
                   >
-                    Buscar
+                    {pill}
                   </button>
-                </div>
-
-                {/* Popular pills */}
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-xs text-text/40 self-center mr-1">Popular:</span>
-                  {PILLS.map((pill) => (
-                    <button
-                      key={pill}
-                      onClick={() => handlePill(pill)}
-                      className="border border-text/12 bg-white/80 text-text/55 hover:text-text hover:border-text/25 text-xs font-medium px-3 py-1.5 rounded-full transition-colors"
-                    >
-                      {pill}
-                    </button>
-                  ))}
-                </div>
+                ))}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* --- Slide 1: Original CTA --- */}
-          <div
-            className={`absolute inset-0 flex items-center transition-all duration-700 ease-in-out ${
-              activeSlide === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'
+        {/* --- Slide 1: CTA --- */}
+        <div
+          className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out ${
+            activeSlide === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'
+          }`}
+        >
+          <div className="container mx-auto px-4 -mt-8">
+            <div className="text-center max-w-2xl mx-auto">
+              <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-text mb-4 leading-tight">
+                Los genios no salen de lámparas…{' '}
+                <span className="text-primary-dark">salen de tu ciudad.</span>
+              </h1>
+              <p className="text-base md:text-lg text-text/60 mb-10 max-w-md mx-auto leading-relaxed">
+                El vecino que enseña, la amiga que diseña, o tú con tu habilidad.
+                Conecta con personas reales listas para ayudarte.
+              </p>
+              <a
+                href="#ser-genio"
+                className="inline-flex items-center bg-secondary hover:bg-secondary-dark text-gray-900 font-semibold px-8 py-3.5 rounded-full transition-colors duration-200 shadow-sm hover:shadow text-sm"
+              >
+                Quiero ser un Genio
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Carousel controls */}
+      <div className="flex items-center justify-center gap-3 pb-10">
+        <button
+          onClick={() => goTo((activeSlide + 1) % 2)}
+          className="p-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-text/40 hover:text-text/70 shadow-sm"
+          aria-label="Anterior"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        {[0, 1].map((i) => (
+          <button
+            key={i}
+            onClick={() => goTo(i)}
+            className={`rounded-full transition-all duration-300 ${
+              activeSlide === i
+                ? 'w-6 h-2 bg-primary-dark'
+                : 'w-2 h-2 bg-text/15 hover:bg-text/30'
             }`}
-          >
-            <div className="container mx-auto px-6 -mt-8">
-              <div className="max-w-lg xl:max-w-xl">
-                <h1 className="font-heading text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold text-text mb-6 leading-tight">
-                  ¡Aquí los genios no salen de las lámparas…{' '}
-                  <span className="text-primary-dark">salen de tu ciudad!</span>
-                </h1>
-                <p className="text-lg md:text-xl text-text/70 mb-10 leading-relaxed">
-                  El vecino que enseña, la amiga que diseña, o tú con tu habilidad.{' '}
-                  Conecta con personas de tu ciudad listas para ayudarte.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <a
-                    href="#ser-genio"
-                    className="bg-secondary text-text font-medium px-8 py-4 rounded-full hover:bg-secondary-dark transition-colors shadow-md text-center text-lg"
-                  >
-                    Quiero ser un Genio
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+            aria-label={`Ir a slide ${i + 1}`}
+          />
+        ))}
 
-        {/* Carousel controls */}
-        <div className="relative z-20 flex items-center justify-center gap-4 pb-10">
-          <button
-            onClick={() => goTo((activeSlide + 1) % 2)}
-            className="p-2 rounded-full bg-white/60 hover:bg-white/90 border border-text/10 transition-colors text-text/50 hover:text-text"
-            aria-label="Anterior"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          {[0, 1].map((i) => (
-            <button
-              key={i}
-              onClick={() => goTo(i)}
-              className={`rounded-full transition-all duration-300 ${
-                activeSlide === i
-                  ? 'w-6 h-2.5 bg-primary-dark'
-                  : 'w-2.5 h-2.5 bg-text/20 hover:bg-text/40'
-              }`}
-              aria-label={`Ir a slide ${i + 1}`}
-            />
-          ))}
-
-          <button
-            onClick={() => goTo((activeSlide + 1) % 2)}
-            className="p-2 rounded-full bg-white/60 hover:bg-white/90 border border-text/10 transition-colors text-text/50 hover:text-text"
-            aria-label="Siguiente"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+        <button
+          onClick={() => goTo((activeSlide + 1) % 2)}
+          className="p-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-text/40 hover:text-text/70 shadow-sm"
+          aria-label="Siguiente"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
     </section>
   );
