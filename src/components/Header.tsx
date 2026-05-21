@@ -145,7 +145,6 @@ const Header: React.FC = () => {
                   Categorías
                 </Link>
                 <a href="#historias" className="text-text/80 hover:text-primary transition-colors">Historias</a>
-                <a href="#publicar" className="text-text/80 hover:text-primary transition-colors">Publicar servicio</a>
               </>
             )}
 
@@ -243,8 +242,7 @@ const Header: React.FC = () => {
                   <a href="#como-funciona" className="text-text/80 hover:text-primary transition-colors py-2">Cómo funciona</a>
                   <Link to="/categories" className="text-text/80 hover:text-primary transition-colors py-2">Categorías</Link>
                   <a href="#historias" className="text-text/80 hover:text-primary transition-colors py-2">Historias</a>
-                  <a href="#publicar" className="text-text/80 hover:text-primary transition-colors py-2">Publicar servicio</a>
-                  <a 
+                  <a
                     href="#login" 
                     onClick={handleLoginClick}
                     className="text-text/80 hover:text-primary transition-colors py-2 cursor-pointer"
