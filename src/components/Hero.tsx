@@ -89,7 +89,7 @@ const Hero: React.FC = () => {
             activeSlide === 0 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8 pointer-events-none'
           }`}
         >
-          <div className="container mx-auto px-4 -mt-8">
+          <div className="container mx-auto px-4 pt-16">
             <div className="text-center max-w-2xl mx-auto">
               <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-text mb-4 leading-tight">
                 Encuentra el genio que{' '}
@@ -142,7 +142,7 @@ const Hero: React.FC = () => {
             activeSlide === 1 ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8 pointer-events-none'
           }`}
         >
-          <div className="container mx-auto px-4 -mt-8">
+          <div className="container mx-auto px-4 pt-16">
             <div className="text-center max-w-2xl mx-auto">
               <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-text mb-4 leading-tight">
                 Los genios no salen de lámparas…{' '}
