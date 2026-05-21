@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const PLACEHOLDERS = ['albañil', 'maquilladora', 'DJ', 'gasfitero', 'electricista', 'payaso'];
@@ -164,35 +164,19 @@ const Hero: React.FC = () => {
       </div>
 
       {/* Carousel controls */}
-      <div className="flex items-center justify-center gap-3 pb-10">
-        <button
-          onClick={() => goTo((activeSlide + 1) % 2)}
-          className="p-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-text/40 hover:text-text/70 shadow-sm"
-          aria-label="Anterior"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-
+      <div className="flex items-center justify-center gap-2 pb-6">
         {[0, 1].map((i) => (
           <button
             key={i}
             onClick={() => goTo(i)}
             className={`rounded-full transition-all duration-300 ${
               activeSlide === i
-                ? 'w-6 h-2 bg-primary-dark'
-                : 'w-2 h-2 bg-text/15 hover:bg-text/30'
+                ? 'w-5 h-1.5 bg-text/30'
+                : 'w-1.5 h-1.5 bg-text/12 hover:bg-text/25'
             }`}
             aria-label={`Ir a slide ${i + 1}`}
           />
         ))}
-
-        <button
-          onClick={() => goTo((activeSlide + 1) % 2)}
-          className="p-2 rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-text/40 hover:text-text/70 shadow-sm"
-          aria-label="Siguiente"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
       </div>
     </section>
   );
