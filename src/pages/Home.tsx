@@ -4,7 +4,6 @@ import HowItWorks from '../components/HowItWorks';
 import CategoriesSection from '../components/Categories';
 import SuccessStories from '../components/SuccessStories';
 import FAQ from '../components/FAQ';
-import FinalCTA from '../components/FinalCTA';
 import ContactForm from '../components/ContactForm';
 
 const Home: React.FC = () => {
@@ -15,7 +14,6 @@ const Home: React.FC = () => {
       <HowItWorks />
       <SuccessStories />
       <FAQ />
-      <FinalCTA />
       <ContactForm />
     </>
   );
