@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Search, Star, MessageSquare, ExternalLink, Loader2 } from 'lucide-react';
+import { Heart, Search, Star, MessageSquare, ExternalLink, Loader2, X } from 'lucide-react';
 import { getCurrentUser } from '../utils/authUtils';
 import { getUserFavorites, removeFromFavorites, FavoriteGenius } from '../utils/favoritesUtils';
 
@@ -63,126 +63,114 @@ const GeniusFavoritesSection: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-5 h-5 text-text/30 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-5xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Genios Favoritos</h1>
-        <p className="text-gray-500 text-sm">
-          {favorites.length === 0
-            ? 'Aún no has guardado ningún genio favorito'
-            : `${favorites.length} genio${favorites.length !== 1 ? 's' : ''} guardado${favorites.length !== 1 ? 's' : ''}`}
-        </p>
+    <div className="max-w-3xl">
+      <div className="flex items-baseline justify-between mb-6">
+        <div>
+          <h1 className="font-heading text-lg font-semibold text-text">Genios favoritos</h1>
+          <p className="text-xs text-text/40 mt-0.5">
+            {favorites.length === 0
+              ? 'Aún no guardaste ningún genio'
+              : `${favorites.length} guardado${favorites.length !== 1 ? 's' : ''}`}
+          </p>
+        </div>
       </div>
 
       {favorites.length > 0 && (
-        <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <div className="relative mb-5">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/30" />
           <input
             type="text"
-            placeholder="Buscar por nombre, categoría..."
+            placeholder="Buscar por nombre o categoría..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-text/20 focus:border-text/30 bg-white text-text placeholder:text-text/30 transition-colors"
           />
         </div>
       )}
 
       {favorites.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Heart className="w-8 h-8 text-red-300" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">No tienes favoritos aún</h3>
-          <p className="text-gray-500 text-sm mb-6 max-w-xs mx-auto">
-            Explora perfiles de otros genios y guarda los que más te interesen para acceder rápidamente.
-          </p>
+        <div className="bg-white rounded-xl border border-gray-100 py-14 text-center">
+          <Heart className="w-8 h-8 text-text/15 mx-auto mb-3" />
+          <p className="text-sm text-text/40 mb-4">No tienes favoritos aún</p>
           <Link
             to="/categories"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-text/55 hover:text-text underline underline-offset-2 transition-colors"
           >
-            <ExternalLink className="w-4 h-4" />
-            Explorar Genios
+            <ExternalLink className="w-3 h-3" />
+            Explorar genios
           </Link>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <Search className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="font-medium">Sin resultados para "{query}"</p>
+        <div className="py-14 text-center">
+          <Search className="w-7 h-7 mx-auto mb-3 text-text/20" />
+          <p className="text-sm text-text/40">Sin resultados para "{query}"</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {filtered.map((genius) => (
             <div
               key={genius.id}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group"
+              className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden group"
             >
-              {/* Card image */}
               <div className="relative">
                 <img
                   src={genius.image}
                   alt={genius.name}
-                  className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300"
                 />
-                {/* Remove button */}
                 <button
                   onClick={() => handleRemove(genius.id)}
                   disabled={removingId === genius.id}
-                  className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full shadow flex items-center justify-center hover:bg-red-50 border border-white transition-colors"
+                  className="absolute top-2 right-2 w-7 h-7 bg-white/90 rounded-full shadow-sm flex items-center justify-center hover:bg-red-50 transition-colors"
                   title="Quitar de favoritos"
                 >
                   {removingId === genius.id ? (
-                    <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
+                    <Loader2 className="w-3.5 h-3.5 text-red-400 animate-spin" />
                   ) : (
-                    <Heart className="w-4 h-4 text-red-500 fill-current" />
+                    <X className="w-3 h-3 text-text/40" />
                   )}
                 </button>
-                {/* Availability badge */}
-                <div className="absolute bottom-3 left-3">
-                  <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                      genius.available ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {genius.available ? '● Disponible' : '● No disponible'}
-                  </span>
-                </div>
+                <span className={`absolute bottom-2 left-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                  genius.available ? 'bg-white/90 text-green-700' : 'bg-white/90 text-red-600'
+                }`}>
+                  {genius.available ? '● Disponible' : '● Ocupado'}
+                </span>
               </div>
 
-              {/* Card info */}
-              <div className="p-4">
-                <h3 className="font-semibold text-gray-900 mb-0.5 truncate">{genius.name}</h3>
-                <p className="text-gray-500 text-xs mb-2 truncate">{genius.subcategory}</p>
-
-                <div className="flex items-center gap-1 mb-3">
+              <div className="p-3">
+                <p className="text-sm font-medium text-text truncate leading-tight">{genius.name}</p>
+                <p className="text-xs text-text/40 truncate mb-1.5">{genius.subcategory}</p>
+                <div className="flex items-center gap-0.5 mb-3">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-3.5 h-3.5 ${i < Math.floor(genius.rating) ? 'text-amber-400' : 'text-gray-200'}`}
+                      className={`w-3 h-3 ${i < Math.floor(genius.rating) ? 'text-amber-400' : 'text-gray-200'}`}
                       fill={i < Math.floor(genius.rating) ? 'currentColor' : 'none'}
                     />
                   ))}
-                  <span className="text-xs text-gray-400 ml-1">({genius.rating})</span>
+                  <span className="text-[10px] text-text/35 ml-1">{genius.rating}</span>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <Link
                     to={`/profile/${genius.id}`}
-                    className="flex-1 text-center text-xs font-medium py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                    className="flex-1 text-center text-xs font-medium py-1.5 rounded-lg bg-text text-white hover:bg-text/85 transition-colors"
                   >
                     Ver perfil
                   </Link>
                   <button
                     onClick={(e) => handleWhatsApp(e, genius.phone, genius.name)}
-                    className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors"
+                    className="flex items-center justify-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-gray-100 text-text/60 hover:bg-gray-200 transition-colors"
+                    title="Contactar por WhatsApp"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    Contactar
+                    <MessageSquare className="w-3 h-3" />
                   </button>
                 </div>
               </div>
