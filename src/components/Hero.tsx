@@ -43,12 +43,6 @@ const Hero: React.FC = () => {
             Conecta con personas de tu ciudad listas para ayudarte.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Link
-              to="/categories"
-              className="bg-primary text-text font-medium px-8 py-4 rounded-full hover:bg-primary-dark transition-colors shadow-md text-center text-lg"
-            >
-              Buscar un Genio
-            </Link>
             <a
               href="#ser-genio"
               className="bg-secondary text-text font-medium px-8 py-4 rounded-full hover:bg-secondary-dark transition-colors shadow-md text-center text-lg"
