@@ -81,29 +81,6 @@ const Hero: React.FC = () => {
       id="inicio"
       className="relative min-h-screen overflow-hidden bg-background"
     >
-      {/* Shared background image (always visible) */}
-      <div className="absolute inset-0 pointer-events-none select-none">
-        <img
-          src="/genios.png"
-          alt="Genios locales de tu ciudad"
-          className="w-full h-full object-cover object-left lg:object-right"
-          style={{ filter: 'drop-shadow(-8px 0 32px rgba(0,0,0,0.08))' }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to right, #FDFDFD 0%, #FDFDFD 12%, rgba(253,253,253,0.85) 30%, rgba(253,253,253,0.4) 50%, rgba(253,253,253,0.0) 72%)',
-          }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(to bottom, rgba(253,253,253,0.55) 0%, transparent 18%, transparent 82%, rgba(253,253,253,0.55) 100%)',
-          }}
-        />
-      </div>
 
       {/* Slides wrapper */}
       <div className="relative z-10 min-h-screen flex flex-col">
