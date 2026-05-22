@@ -175,40 +175,38 @@ const AdminDashboard: React.FC = () => {
         {/* Main content */}
         <main className="flex-1 p-6 overflow-y-auto min-w-0">
           {activeTab === 'overview' && (
-            <div className="space-y-6 max-w-4xl">
+            <div className="space-y-5 max-w-3xl">
               {/* Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 {statCards.map(({ label, value, change, icon: Icon }) => (
-                  <div key={label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <p className="text-xs text-text/40 leading-tight">{label}</p>
-                      <Icon style={{ width: '15px', height: '15px' }} className="text-text/20 flex-shrink-0 mt-0.5" />
+                  <div key={label} className="bg-white rounded-xl border border-gray-100 p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-xs text-text/35 whitespace-nowrap">{label}</p>
+                      <Icon style={{ width: '14px', height: '14px' }} className="text-text/15 flex-shrink-0" />
                     </div>
-                    <p className="font-heading text-xl font-semibold text-text">{value}</p>
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <TrendingUp style={{ width: '11px', height: '11px' }} className="text-green-500" />
+                    <p className="font-heading text-2xl font-semibold text-text leading-none">{value}</p>
+                    <div className="flex items-center gap-1 mt-2.5">
+                      <TrendingUp style={{ width: '10px', height: '10px' }} className="text-green-500 flex-shrink-0" />
                       <span className="text-xs text-green-600 font-medium">{change}</span>
-                      <span className="text-xs text-text/30">vs mes ant.</span>
+                      <span className="text-xs text-text/25 whitespace-nowrap">vs mes ant.</span>
                     </div>
                   </div>
                 ))}
               </div>
 
               {/* Recent activity */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="font-heading text-sm font-semibold text-text">Actividad reciente</h2>
-                  <button className="text-xs text-text/40 hover:text-text/65 transition-colors">Ver todo</button>
+              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="text-sm font-medium text-text">Actividad reciente</h2>
+                  <button className="text-xs text-text/35 hover:text-text/60 transition-colors">Ver todo</button>
                 </div>
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-gray-50">
                   {recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-center justify-between px-5 py-3.5">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <ActivityDot status={activity.status} />
-                        <div className="min-w-0">
-                          <p className="text-sm text-text truncate">{activity.description}</p>
-                          <p className="text-xs text-text/35 mt-0.5">{activity.timestamp}</p>
-                        </div>
+                    <div key={activity.id} className="flex items-center gap-4 px-5 py-3.5">
+                      <ActivityDot status={activity.status} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-text truncate">{activity.description}</p>
+                        <p className="text-xs text-text/30 mt-0.5">{activity.timestamp}</p>
                       </div>
                       <StatusIcon status={activity.status} />
                     </div>
