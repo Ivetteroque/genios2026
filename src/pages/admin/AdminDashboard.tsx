@@ -40,6 +40,7 @@ import PaymentSettings from './PaymentSettings';
 import ReportsManagement from './ReportsManagement';
 import CommentsManagement from './CommentsManagement';
 import ClientsManagement from './ClientsManagement';
+import StatsManagement from './StatsManagement';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -221,6 +222,7 @@ const AdminDashboard: React.FC = () => {
 
   const navItems = [
     { id: 'overview', label: 'Resumen', icon: BarChart3, show: true },
+    { id: 'stats', label: 'Estadisticas', icon: TrendingUp, show: true },
     { id: 'genios', label: 'Genios', icon: UserCheck, show: hasPermission('genios'), badge: liveStats.pendingPayments || 0 },
     { id: 'clients', label: 'Clientes', icon: Users, show: true },
     { id: 'documents', label: 'Documentos', icon: FileText, show: true },
@@ -333,8 +335,9 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'reports' && <ReportsManagement />}
           {activeTab === 'comments' && <CommentsManagement />}
           {activeTab === 'clients' && <ClientsManagement />}
+          {activeTab === 'stats' && <StatsManagement />}
 
-          {!['overview', 'categories', 'locations', 'genios', 'clients', 'documents', 'payments', 'settings', 'reports', 'comments'].includes(activeTab) && (
+          {!['overview', 'stats', 'categories', 'locations', 'genios', 'clients', 'documents', 'payments', 'settings', 'reports', 'comments'].includes(activeTab) && (
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10 text-center max-w-md">
               <p className="text-sm font-medium text-text capitalize mb-1">{activeTab}</p>
               <p className="text-sm text-text/40">Esta sección estará disponible próximamente.</p>

@@ -1,5 +1,7 @@
 // WhatsApp contact utility functions
 
+import { supabase } from '../lib/supabase';
+
 export interface WhatsAppClick {
   id: string;
   geniusId: string;
@@ -28,7 +30,7 @@ export const generateWhatsAppURL = (phone: string, geniusName: string, category:
   return `https://wa.me/${formattedPhone}?text=${message}`;
 };
 
-// Register WhatsApp click for analytics
+// Register WhatsApp click for analytics — writes to both localStorage and Supabase
 export const registerWhatsAppClick = (geniusId: string, geniusName: string, category: string): void => {
   try {
     const clickData: WhatsAppClick = {
@@ -38,29 +40,25 @@ export const registerWhatsAppClick = (geniusId: string, geniusName: string, cate
       category,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
-      referrer: document.referrer || 'direct'
+      referrer: document.referrer || 'direct',
     };
 
-    // Get existing clicks from localStorage
     const existingClicks = getWhatsAppClicks();
     existingClicks.push(clickData);
-
-    // Save to localStorage (in production, this would be sent to a database)
     localStorage.setItem('whatsappClicks', JSON.stringify(existingClicks));
 
-    // Update genius stats
-    try {
-      const { updateGeniusStats } = require('./geniusUtils');
-      const genius = require('./geniusUtils').getGeniusById(geniusId);
-      if (genius) {
-        updateGeniusStats(geniusId, {
-          whatsappClicks: genius.stats.whatsappClicks + 1
-        });
-      }
-    } catch (error) {
-      console.error('Error updating genius WhatsApp stats:', error);
-    }
-    console.log('WhatsApp click registered:', clickData);
+    // Sync to Supabase (fire-and-forget)
+    supabase.from('whatsapp_clicks').insert({
+      genius_id: geniusId,
+      genius_name: geniusName,
+      category,
+      clicked_at: clickData.timestamp,
+      referrer: clickData.referrer,
+    }).then(() => {});
+
+    // Increment whatsapp_clicks counter on genius_profiles
+    supabase.rpc('increment_genius_whatsapp_clicks', { p_genius_id: geniusId })
+      .then(() => {});
   } catch (error) {
     console.error('Error registering WhatsApp click:', error);
   }
