@@ -345,7 +345,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
               {/* Account Type Selection */}
               <div className="pt-2">
                 <p className="text-[#2F2F2F] font-medium mb-3 text-sm">
-                  🧩 ¿Cómo usarás Genios a la Obra?
+                  🧩 ¿Cómo usarás la plataforma?
                 </p>
                 <div className="space-y-2">
                   <label className="flex items-center space-x-3 cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors">
