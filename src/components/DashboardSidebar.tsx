@@ -11,69 +11,60 @@ interface DashboardSidebarProps {
   } | null;
 }
 
+const menuItems = [
+  { id: 'profile' as const, label: 'Mi perfil', icon: User },
+  { id: 'availability' as const, label: 'Disponibilidad', icon: Calendar },
+  { id: 'subscription' as const, label: 'Suscripción', icon: CreditCard },
+  { id: 'favorites' as const, label: 'Favoritos', icon: Heart },
+];
+
 export default function DashboardSidebar({ activeSection, onSectionChange, geniusProfile }: DashboardSidebarProps) {
-  const menuItems = [
-    { id: 'profile' as const, label: 'Mi perfil', icon: User },
-    { id: 'availability' as const, label: 'Disponibilidad', icon: Calendar },
-    { id: 'subscription' as const, label: 'Suscripción', icon: CreditCard },
-    { id: 'favorites' as const, label: 'Favoritos', icon: Heart },
-  ];
-
   return (
-    <div className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
-      <nav className="p-3 pt-5 pb-6">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
-
+    <div className="w-52 bg-white border-r border-gray-100 flex flex-col overflow-y-auto">
+      <nav className="p-3 pt-4">
+        {menuItems.map(({ id, label, icon: Icon }) => {
+          const active = activeSection === id;
           return (
             <button
-              key={item.id}
-              onClick={() => onSectionChange(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1.5 transition-colors ${
-                isActive
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-gray-700 hover:bg-gray-50'
+              key={id}
+              onClick={() => onSectionChange(id)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-0.5 text-sm transition-colors ${
+                active
+                  ? 'bg-gray-100 text-text font-medium'
+                  : 'text-text/50 hover:bg-gray-50 hover:text-text/75'
               }`}
             >
-              <Icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
+              <Icon style={{ width: '15px', height: '15px', flexShrink: 0 }} />
+              <span>{label}</span>
             </button>
           );
         })}
       </nav>
 
-      <div className="flex-1"></div>
+      <div className="flex-1" />
 
       {geniusProfile && (
-        <div className="p-4 border-t border-gray-200 bg-white">
-          <div className="flex items-start gap-2.5">
-            <div className="relative flex-shrink-0">
-              {geniusProfile.profile_photo ? (
-                <img
-                  src={geniusProfile.profile_photo}
-                  alt={geniusProfile.full_name}
-                  className="w-12 h-12 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User className="w-6 h-6 text-gray-400" />
-                </div>
-              )}
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
-            </div>
+        <div className="p-4 border-t border-gray-100">
+          <div className="flex items-center gap-2.5">
+            {geniusProfile.profile_photo ? (
+              <img
+                src={geniusProfile.profile_photo}
+                alt={geniusProfile.full_name}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-gray-100 flex-shrink-0 flex items-center justify-center">
+                <User style={{ width: '14px', height: '14px' }} className="text-text/30" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 truncate text-sm">
-                {geniusProfile.full_name || 'Usuario'}
-              </h3>
-              <p className="text-xs text-gray-600 truncate">
-                {geniusProfile.category || 'Profesional'}
-              </p>
+              <p className="text-xs font-medium text-text truncate">{geniusProfile.full_name || 'Usuario'}</p>
+              <p className="text-[10px] text-text/40 truncate">{geniusProfile.category || 'Profesional'}</p>
               <Link
                 to="/genius-profile"
-                className="text-xs text-blue-600 hover:text-blue-700 mt-0.5 inline-block"
+                className="text-[10px] text-text/40 hover:text-text/65 transition-colors mt-0.5 inline-block underline underline-offset-1"
               >
-                Ver perfil público →
+                Ver perfil
               </Link>
             </div>
           </div>
