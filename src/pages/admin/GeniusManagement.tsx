@@ -1,19 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, MoreVertical, MessageCircle, Eye, FileText, UserCheck, Star, Activity, StickyNote, Download } from 'lucide-react';
-import { 
-  getGenios, 
-  updateGeniusStatus, 
-  markGeniusAsNew, 
-  markGeniusAsFeatured, 
+import {
+  Search,
+  Plus,
+  MoreVertical,
+  MessageCircle,
+  Eye,
+  FileText,
+  UserCheck,
+  Star,
+  Activity,
+  StickyNote,
+  Download,
+  MapPin,
+  X,
+  ChevronDown,
+} from 'lucide-react';
+import {
+  getGenios,
+  updateGeniusStatus,
+  markGeniusAsNew,
+  markGeniusAsFeatured,
   updateGeniusInternalNotes,
   exportGeniosData,
-  type Genius 
+  type Genius,
 } from '../../utils/geniusUtils';
 import { getSubscriptionByGenius } from '../../utils/paymentUtils';
 import { handleWhatsAppContact } from '../../utils/whatsappUtils';
 import { formatDateToSpanish } from '../../utils/commonUtils';
-import StatusBadge from '../../components/StatusBadge';
 import GeniusProfilePreviewModal from '../../components/GeniusProfilePreviewModal';
+
+const DEFAULT_AVATAR = 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop';
+
+const STATUS_CONFIG: Record<string, { label: string; classes: string; dot: string }> = {
+  active:    { label: 'Activo',     classes: 'bg-green-50 text-green-700',  dot: 'bg-green-400' },
+  inactive:  { label: 'Inactivo',   classes: 'bg-gray-100 text-text/50',    dot: 'bg-gray-300' },
+  suspended: { label: 'Suspendido', classes: 'bg-red-50 text-red-600',      dot: 'bg-red-400' },
+};
 
 const GeniusManagement: React.FC = () => {
   const [genios, setGenios] = useState<Genius[]>([]);
@@ -28,498 +50,379 @@ const GeniusManagement: React.FC = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [notesText, setNotesText] = useState('');
 
-  useEffect(() => {
-    loadGenios();
-  }, []);
+  useEffect(() => { loadGenios(); }, []);
+  useEffect(() => { filterGenios(); }, [genios, searchTerm, statusFilter, tagFilter]);
 
-  useEffect(() => {
-    filterGenios();
-  }, [genios, searchTerm, statusFilter, tagFilter]);
-
-  const loadGenios = () => {
-    const geniusData = getGenios();
-    setGenios(geniusData);
-  };
+  const loadGenios = () => setGenios(getGenios());
 
   const filterGenios = () => {
     let filtered = genios;
-
-    // Filtro de búsqueda
     if (searchTerm) {
-      filtered = filtered.filter(genius =>
-        genius.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        genius.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        genius.location.district.toLowerCase().includes(searchTerm.toLowerCase())
+      const q = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (g) => g.name.toLowerCase().includes(q) || g.category.toLowerCase().includes(q) || g.location.district.toLowerCase().includes(q)
       );
     }
-
-    // Filtro de estado
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(genius => genius.status === statusFilter);
-    }
-
-    // Filtro de etiquetas
+    if (statusFilter !== 'all') filtered = filtered.filter((g) => g.status === statusFilter);
     if (tagFilter !== 'all') {
-      filtered = filtered.filter(genius => {
-        switch (tagFilter) {
-          case 'new':
-            return genius.isNew;
-          case 'verified':
-            return genius.isVerified;
-          case 'featured':
-            return genius.isFeatured;
-          default:
-            return true;
-        }
+      filtered = filtered.filter((g) => {
+        if (tagFilter === 'new') return g.isNew;
+        if (tagFilter === 'verified') return g.isVerified;
+        if (tagFilter === 'featured') return g.isFeatured;
+        return true;
       });
     }
-
     setFilteredGenios(filtered);
   };
 
-  const handleStatusChange = async (geniusId: string, newStatus: 'active' | 'inactive' | 'suspended') => {
-    try {
-      await updateGeniusStatus(geniusId, newStatus);
-      loadGenios();
-      setActiveDropdown(null);
-    } catch (error) {
-      console.error('Error updating genius status:', error);
-    }
+  const handleStatusChange = async (id: string, status: 'active' | 'inactive' | 'suspended') => {
+    await updateGeniusStatus(id, status).catch(console.error);
+    loadGenios();
+    setActiveDropdown(null);
   };
 
-  const handleToggleNew = async (geniusId: string, isNew: boolean) => {
-    try {
-      await markGeniusAsNew(geniusId, !isNew);
-      loadGenios();
-      setActiveDropdown(null);
-    } catch (error) {
-      console.error('Error toggling new status:', error);
-    }
+  const handleToggleNew = async (id: string, isNew: boolean) => {
+    await markGeniusAsNew(id, !isNew).catch(console.error);
+    loadGenios();
+    setActiveDropdown(null);
   };
 
-  const handleToggleFeatured = async (geniusId: string, isFeatured: boolean) => {
-    try {
-      await markGeniusAsFeatured(geniusId, !isFeatured);
-      loadGenios();
-      setActiveDropdown(null);
-    } catch (error) {
-      console.error('Error toggling featured status:', error);
-    }
+  const handleToggleFeatured = async (id: string, isFeatured: boolean) => {
+    await markGeniusAsFeatured(id, !isFeatured).catch(console.error);
+    loadGenios();
+    setActiveDropdown(null);
   };
 
   const handleNotesSubmit = async () => {
     if (!selectedGenius) return;
-    
-    try {
-      await updateGeniusInternalNotes(selectedGenius.id, notesText);
-      loadGenios();
-      setShowNotesModal(false);
-      setSelectedGenius(null);
-      setNotesText('');
-    } catch (error) {
-      console.error('Error updating notes:', error);
-    }
+    await updateGeniusInternalNotes(selectedGenius.id, notesText).catch(console.error);
+    loadGenios();
+    setShowNotesModal(false);
+    setSelectedGenius(null);
+    setNotesText('');
   };
 
-  const getSubscriptionInfo = (geniusId: string) => {
-    const subscription = getSubscriptionByGenius(geniusId);
-    if (!subscription) return 'Sin suscripción';
-    
-    if (subscription.type === 'trial') {
-      return 'En prueba';
-    }
-    
-    return `Vence el ${formatDateToSpanish(subscription.endDate)}`;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800';
-      case 'suspended': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return 'Activo';
-      case 'inactive': return 'Inactivo';
-      case 'suspended': return 'Suspendido';
-      default: return status;
-    }
+  const getSubscriptionInfo = (id: string) => {
+    const sub = getSubscriptionByGenius(id);
+    if (!sub) return { label: 'Sin plan', classes: 'bg-gray-100 text-text/40' };
+    if (sub.type === 'trial') return { label: 'Beta', classes: 'bg-[#A0C4FF]/30 text-blue-700' };
+    return { label: `Vence ${formatDateToSpanish(sub.endDate)}`, classes: 'bg-[#C0FDFB]/50 text-teal-700' };
   };
 
   const handleExportData = () => {
     try {
       exportGeniosData('csv');
-      alert('✅ Datos exportados exitosamente\n\nEl archivo CSV se ha descargado y está listo para usar en tus campañas de mailing.');
-    } catch (error) {
-      console.error('Error exporting genius data:', error);
-      alert('❌ Error al exportar los datos. Por favor, intenta nuevamente.');
+    } catch {
+      alert('Error al exportar los datos.');
     }
   };
 
+  // Summary metrics
+  const total = genios.length;
+  const activos = genios.filter((g) => g.status === 'active').length;
+  const beta = genios.filter((g) => {
+    const sub = getSubscriptionByGenius(g.id);
+    return sub?.type === 'trial';
+  }).length;
+  const pendientes = genios.filter((g) => g.status === 'inactive').length;
+  const suspendidos = genios.filter((g) => g.status === 'suspended').length;
+
+  const metrics = [
+    { label: 'Total', value: total, bg: 'bg-white', border: 'border-gray-100' },
+    { label: 'Activos', value: activos, bg: 'bg-[#C0FDFB]/30', border: 'border-[#C0FDFB]' },
+    { label: 'Beta', value: beta, bg: 'bg-[#A0C4FF]/20', border: 'border-[#A0C4FF]/60' },
+    { label: 'Inactivos', value: pendientes, bg: 'bg-gray-50', border: 'border-gray-200' },
+    { label: 'Suspendidos', value: suspendidos, bg: 'bg-[#FFADAD]/20', border: 'border-[#FFADAD]/60' },
+  ];
+
   return (
     <>
-      <div className="space-y-6">
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleExportData}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text rounded-lg transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            <span>Exportar CSV</span>
-          </button>
-          
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Añadir Genio</span>
-          </button>
+      <div className="space-y-5 max-w-3xl">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-heading text-lg font-semibold text-text">Genios</h1>
+            <p className="text-sm text-text/40 mt-0.5">Gestiona los profesionales registrados en la plataforma</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={handleExportData}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text/55 bg-white border border-gray-200 hover:border-gray-300 hover:text-text transition-colors"
+            >
+              <Download style={{ width: '14px', height: '14px' }} />
+              Exportar CSV
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Filtros */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Búsqueda */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        {/* Metrics */}
+        <div className="grid grid-cols-5 gap-2.5">
+          {metrics.map(({ label, value, bg, border }) => (
+            <div key={label} className={`${bg} border ${border} rounded-xl px-3 py-3 text-center`}>
+              <p className="font-heading text-xl font-semibold text-text">{value}</p>
+              <p className="text-[11px] text-text/40 mt-0.5">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Search + filters */}
+        <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[160px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/25" />
             <input
               type="text"
               placeholder="Buscar genios..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-text/15 focus:border-text/25 placeholder:text-text/25 transition-colors"
             />
           </div>
-
-          {/* Filtro de Estado */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-text/15 text-text/60 transition-colors"
           >
             <option value="all">Todos los estados</option>
             <option value="active">Activo</option>
             <option value="inactive">Inactivo</option>
             <option value="suspended">Suspendido</option>
           </select>
-
-          {/* Filtro de Etiquetas */}
           <select
             value={tagFilter}
             onChange={(e) => setTagFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-text/15 text-text/60 transition-colors"
           >
             <option value="all">Todas las etiquetas</option>
             <option value="new">Nuevo</option>
             <option value="verified">Verificado</option>
             <option value="featured">Destacado</option>
           </select>
-
-          {/* Estadísticas */}
-          <div className="text-sm text-gray-600">
-            Total: {filteredGenios.length} genios
-          </div>
+          <span className="text-xs text-text/30 ml-auto whitespace-nowrap">
+            {filteredGenios.length} de {genios.length}
+          </span>
         </div>
-      </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Nombre</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Categoría</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Estado</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Suscripción</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">WhatsApp</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-900">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredGenios.map((genius) => (
-                <tr key={genius.id} className="hover:bg-gray-50">
-                  {/* Nombre + Foto + Etiquetas */}
-                  <td className="py-4 px-4">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={genius.profileImage || `https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop`}
-                        alt={genius.name}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                      <div>
-                        <div className="font-medium text-gray-900">{genius.name}</div>
-                        <div className="flex gap-1 mt-1">
-                          {genius.isNew && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              NUEVO
-                            </span>
-                          )}
-                          {genius.isVerified && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                              VERIFICADO
-                            </span>
-                          )}
-                          {genius.isFeatured && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                              DESTACADO
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
+        {/* Cards list */}
+        {filteredGenios.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 py-16 text-center">
+            <div className="text-3xl mb-3">👋</div>
+            <p className="text-sm font-medium text-text mb-1">Aún no tienes genios registrados</p>
+            <p className="text-sm text-text/40 mb-5">Comienza agregando tu primer genio a la plataforma.</p>
+            <button className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-white bg-text hover:bg-text/85 transition-colors">
+              <Plus style={{ width: '14px', height: '14px' }} />
+              Añadir Genio
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredGenios.map((genius) => {
+              const sub = getSubscriptionInfo(genius.id);
+              const statusCfg = STATUS_CONFIG[genius.status] || STATUS_CONFIG.inactive;
+              const isOpen = activeDropdown === genius.id;
 
-                  {/* Categoría */}
-                  <td className="py-4 px-4 text-gray-900">{genius.category}</td>
+              return (
+                <div
+                  key={genius.id}
+                  className="bg-white rounded-xl border border-gray-100 px-5 py-4 flex items-center gap-4 hover:border-gray-200 hover:shadow-sm transition-all duration-150"
+                >
+                  {/* Avatar */}
+                  <img
+                    src={genius.profileImage || DEFAULT_AVATAR}
+                    alt={genius.name}
+                    className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                  />
 
-                  {/* Estado */}
-                  <td className="py-4 px-4">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(genius.status)}`}>
-                      {getStatusText(genius.status)}
-                    </span>
-                  </td>
-
-                  {/* Suscripción */}
-                  <td className="py-4 px-4 text-sm text-gray-600">
-                    {getSubscriptionInfo(genius.id)}
-                  </td>
-
-                  {/* WhatsApp */}
-                  <td className="py-4 px-4">
-                    <button
-                      onClick={() => handleWhatsAppContact(genius.phone, genius.name)}
-                      className="text-green-600 hover:text-green-700 p-1 rounded"
-                      title="Contactar por WhatsApp"
-                    >
-                      <MessageCircle className="w-5 h-5" />
-                    </button>
-                  </td>
-
-                  {/* Acciones */}
-                  <td className="py-4 px-4">
-                    <div className="relative">
-                      <button
-                        onClick={() => setActiveDropdown(activeDropdown === genius.id ? null : genius.id)}
-                        className="text-gray-400 hover:text-gray-600 p-1 rounded"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </button>
-
-                      {activeDropdown === genius.id && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border z-10">
-                          <div className="py-1">
-                            <button
-                              onClick={() => {
-                                setSelectedGenius(genius);
-                                setShowProfileModal(true);
-                                setActiveDropdown(null);
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              <Eye className="w-4 h-4" />
-                              Ver perfil completo
-                            </button>
-                            
-                            <button
-                              onClick={() => {
-                                // Navegar a documentos del genio
-                                setActiveDropdown(null);
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              <FileText className="w-4 h-4" />
-                              Documentos
-                            </button>
-
-                            <div className="border-t border-gray-100 my-1"></div>
-
-                            {/* Cambiar Estado */}
-                            <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                              Cambiar Estado
-                            </div>
-                            <button
-                              onClick={() => handleStatusChange(genius.id, 'active')}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              Activo
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(genius.id, 'inactive')}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              Inactivo
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(genius.id, 'suspended')}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              Suspendido
-                            </button>
-
-                            <div className="border-t border-gray-100 my-1"></div>
-
-                            {/* Marcar como */}
-                            <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
-                              Marcar como
-                            </div>
-                            <button
-                              onClick={() => handleToggleNew(genius.id, genius.isNew)}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              <UserCheck className="w-4 h-4" />
-                              {genius.isNew ? 'Quitar "Nuevo"' : 'Marcar "Nuevo"'}
-                            </button>
-                            <button
-                              onClick={() => handleToggleFeatured(genius.id, genius.isFeatured)}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              <Star className="w-4 h-4" />
-                              {genius.isFeatured ? 'Quitar "Destacado"' : 'Marcar "Destacado"'}
-                            </button>
-
-                            <div className="border-t border-gray-100 my-1"></div>
-
-                            <button
-                              onClick={() => {
-                                setSelectedGenius(genius);
-                                setShowActivityModal(true);
-                                setActiveDropdown(null);
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              <Activity className="w-4 h-4" />
-                              Ver actividad
-                            </button>
-                            
-                            <button
-                              onClick={() => {
-                                setSelectedGenius(genius);
-                                setNotesText(genius.internalNotes || '');
-                                setShowNotesModal(true);
-                                setActiveDropdown(null);
-                              }}
-                              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                            >
-                              <StickyNote className="w-4 h-4" />
-                              Añadir nota interna
-                            </button>
-                          </div>
-                        </div>
+                  {/* Main info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-text">{genius.name}</p>
+                      {genius.isNew && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#A0C4FF]/30 text-blue-700">Nuevo</span>
+                      )}
+                      {genius.isVerified && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#C0FDFB]/50 text-teal-700">Verificado</span>
+                      )}
+                      {genius.isFeatured && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">Destacado</span>
                       )}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    <p className="text-xs text-text/45 mt-0.5 truncate">{genius.category}</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <MapPin style={{ width: '10px', height: '10px' }} className="text-text/25 flex-shrink-0" />
+                      <p className="text-[10px] text-text/30 truncate">{genius.location?.district}</p>
+                    </div>
+                  </div>
 
-        {filteredGenios.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No se encontraron genios con los filtros aplicados.</p>
+                  {/* Quick metrics */}
+                  <div className="hidden sm:flex items-center gap-4 text-center flex-shrink-0">
+                    <div>
+                      <p className="text-xs font-medium text-text">{genius.stats?.profileViews ?? 0}</p>
+                      <p className="text-[10px] text-text/30">Visitas</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-text">{genius.stats?.whatsappClicks ?? 0}</p>
+                      <p className="text-[10px] text-text/30">WhatsApp</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-text">{genius.stats?.favoritesCount ?? 0}</p>
+                      <p className="text-[10px] text-text/30">Favoritos</p>
+                    </div>
+                  </div>
+
+                  {/* Subscription */}
+                  <span className={`hidden md:inline-flex text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${sub.classes}`}>
+                    {sub.label}
+                  </span>
+
+                  {/* Status badge */}
+                  <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${statusCfg.classes}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${statusCfg.dot}`} />
+                    {statusCfg.label}
+                  </span>
+
+                  {/* WhatsApp */}
+                  <button
+                    onClick={() => handleWhatsAppContact(genius.phone, genius.name)}
+                    className="p-1.5 text-text/25 hover:text-green-500 hover:bg-green-50 rounded-lg transition-colors flex-shrink-0"
+                    title="Contactar por WhatsApp"
+                  >
+                    <MessageCircle style={{ width: '15px', height: '15px' }} />
+                  </button>
+
+                  {/* View profile */}
+                  <button
+                    onClick={() => { setSelectedGenius(genius); setShowProfileModal(true); }}
+                    className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 text-xs text-text/55 border border-gray-200 rounded-lg hover:border-gray-300 hover:text-text transition-colors flex-shrink-0"
+                  >
+                    <Eye style={{ width: '12px', height: '12px' }} />
+                    Ver perfil
+                  </button>
+
+                  {/* Actions menu */}
+                  <div className="relative flex-shrink-0">
+                    <button
+                      onClick={() => setActiveDropdown(isOpen ? null : genius.id)}
+                      className="p-1.5 text-text/25 hover:text-text/55 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <MoreVertical style={{ width: '15px', height: '15px' }} />
+                    </button>
+
+                    {isOpen && (
+                      <div className="absolute right-0 mt-1.5 w-52 bg-white rounded-xl border border-gray-100 shadow-lg z-20 overflow-hidden">
+                        <div className="py-1.5">
+                          <DropdownItem icon={Eye} label="Ver perfil completo" onClick={() => { setSelectedGenius(genius); setShowProfileModal(true); setActiveDropdown(null); }} />
+                          <DropdownItem icon={FileText} label="Documentos" onClick={() => setActiveDropdown(null)} />
+
+                          <DropdownDivider label="Cambiar estado" />
+                          <DropdownItem label="Activo" onClick={() => handleStatusChange(genius.id, 'active')} dot="bg-green-400" />
+                          <DropdownItem label="Inactivo" onClick={() => handleStatusChange(genius.id, 'inactive')} dot="bg-gray-300" />
+                          <DropdownItem label="Suspendido" onClick={() => handleStatusChange(genius.id, 'suspended')} dot="bg-red-400" />
+
+                          <DropdownDivider label="Etiquetas" />
+                          <DropdownItem icon={UserCheck} label={genius.isNew ? 'Quitar "Nuevo"' : 'Marcar "Nuevo"'} onClick={() => handleToggleNew(genius.id, genius.isNew)} />
+                          <DropdownItem icon={Star} label={genius.isFeatured ? 'Quitar "Destacado"' : 'Marcar "Destacado"'} onClick={() => handleToggleFeatured(genius.id, genius.isFeatured)} />
+
+                          <DropdownDivider />
+                          <DropdownItem icon={Activity} label="Ver actividad" onClick={() => { setSelectedGenius(genius); setShowActivityModal(true); setActiveDropdown(null); }} />
+                          <DropdownItem icon={StickyNote} label="Nota interna" onClick={() => { setSelectedGenius(genius); setNotesText(genius.internalNotes || ''); setShowNotesModal(true); setActiveDropdown(null); }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Modal de Perfil */}
+      {/* Profile Modal */}
       {showProfileModal && selectedGenius && (
         <GeniusProfilePreviewModal
           isOpen={showProfileModal}
           geniusData={selectedGenius}
-          onClose={() => {
-            setShowProfileModal(false);
-            setSelectedGenius(null);
-          }}
+          onClose={() => { setShowProfileModal(false); setSelectedGenius(null); }}
         />
       )}
 
-      {/* Modal de Notas */}
+      {/* Notes Modal */}
       {showNotesModal && selectedGenius && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Notas Internas - {selectedGenius.name}</h3>
-            <textarea
-              value={notesText}
-              onChange={(e) => setNotesText(e.target.value)}
-              placeholder="Añadir notas internas sobre este genio..."
-              className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            />
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={() => {
-                  setShowNotesModal(false);
-                  setSelectedGenius(null);
-                  setNotesText('');
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleNotesSubmit}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Guardar
-              </button>
-            </div>
+        <MiniModal title={`Nota interna — ${selectedGenius.name}`} onClose={() => { setShowNotesModal(false); setSelectedGenius(null); setNotesText(''); }}>
+          <textarea
+            value={notesText}
+            onChange={(e) => setNotesText(e.target.value)}
+            placeholder="Añadir notas internas sobre este genio..."
+            className="w-full h-28 p-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-text/15 resize-none placeholder:text-text/25"
+          />
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleNotesSubmit} className="flex-1 py-2 text-sm font-medium text-white bg-text hover:bg-text/85 rounded-lg transition-colors">Guardar</button>
+            <button onClick={() => { setShowNotesModal(false); setSelectedGenius(null); setNotesText(''); }} className="flex-1 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
           </div>
-        </div>
+        </MiniModal>
       )}
 
-      {/* Modal de Actividad */}
+      {/* Activity Modal */}
       {showActivityModal && selectedGenius && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Actividad - {selectedGenius.name}</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Visitas al perfil:</span>
-                <span className="font-semibold">{selectedGenius.stats?.profileViews || 0}</span>
+        <MiniModal title={`Actividad — ${selectedGenius.name}`} onClose={() => { setShowActivityModal(false); setSelectedGenius(null); }}>
+          <div className="space-y-2.5">
+            {[
+              { label: 'Visitas al perfil', value: selectedGenius.stats?.profileViews ?? 0 },
+              { label: 'Clicks en WhatsApp', value: selectedGenius.stats?.whatsappClicks ?? 0 },
+              { label: 'Veces en favoritos', value: selectedGenius.stats?.favoritesCount ?? 0 },
+              { label: 'Registrado', value: formatDateToSpanish(selectedGenius.registeredAt) },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                <span className="text-sm text-text/45">{label}</span>
+                <span className="text-sm font-medium text-text">{value}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Clicks en WhatsApp:</span>
-                <span className="font-semibold">{selectedGenius.stats?.whatsappClicks || 0}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Veces marcado como favorito:</span>
-                <span className="font-semibold">{selectedGenius.stats?.favoritesCount || 0}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Fecha de registro:</span>
-                <span className="font-semibold">{formatDateToSpanish(selectedGenius.registeredAt)}</span>
-              </div>
-            </div>
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={() => {
-                  setShowActivityModal(false);
-                  setSelectedGenius(null);
-                }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-              >
-                Cerrar
-              </button>
-            </div>
+            ))}
           </div>
-        </div>
+          <button onClick={() => { setShowActivityModal(false); setSelectedGenius(null); }} className="w-full mt-4 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cerrar</button>
+        </MiniModal>
       )}
 
-      {/* Click outside to close dropdown */}
-      {activeDropdown && (
-        <div
-          className="fixed inset-0 z-0"
-          onClick={() => setActiveDropdown(null)}
-        />
-      )}
+      {/* Backdrop for dropdown */}
+      {activeDropdown && <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)} />}
     </>
   );
 };
+
+/* ── Helpers ── */
+
+const DropdownItem: React.FC<{
+  icon?: React.FC<any>;
+  label: string;
+  onClick: () => void;
+  dot?: string;
+}> = ({ icon: Icon, label, onClick, dot }) => (
+  <button
+    onClick={onClick}
+    className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-text/60 hover:bg-gray-50 hover:text-text w-full text-left transition-colors"
+  >
+    {dot && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />}
+    {Icon && !dot && <Icon style={{ width: '13px', height: '13px', flexShrink: 0 }} />}
+    {label}
+  </button>
+);
+
+const DropdownDivider: React.FC<{ label?: string }> = ({ label }) => (
+  <div className="border-t border-gray-50 my-1">
+    {label && <p className="px-3.5 pt-2 pb-0.5 text-[10px] font-medium text-text/30 uppercase tracking-wide">{label}</p>}
+  </div>
+);
+
+const MiniModal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
+  <div className="fixed inset-0 bg-black/25 z-50 flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <h3 className="text-sm font-semibold text-text">{title}</h3>
+        <button onClick={onClose} className="p-1 text-text/30 hover:text-text/60 rounded-lg hover:bg-gray-50 transition-colors">
+          <X style={{ width: '15px', height: '15px' }} />
+        </button>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  </div>
+);
 
 export default GeniusManagement;
