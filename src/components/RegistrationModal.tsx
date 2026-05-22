@@ -190,39 +190,35 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
 
   if (!isOpen) return null;
 
+  const inputCls = "w-full px-3.5 py-2 rounded-lg border border-gray-200 focus:outline-none focus:border-[#A0C4FF] transition-colors text-sm text-[#2F2F2F] placeholder-[#2F2F2F]/40 bg-white";
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Background Overlay */}
-        <div 
-          className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-          onClick={onClose}
-        />
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
 
-        {/* Registration Modal Card - Increased height for all fields */}
-        <div className="relative bg-[#FDFDFD] rounded-2xl shadow-xl w-full max-w-[380px] mx-4 transform transition-all duration-300 scale-100 animate-in fade-in slide-in-from-bottom-4 overflow-hidden">
-          {/* Close Button */}
+        <div className="relative bg-[#FDFDFD] rounded-2xl shadow-xl w-full max-w-[340px] mx-4 animate-in fade-in slide-in-from-bottom-4 duration-300 max-h-[90vh] flex flex-col">
+          {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 text-[#2F2F2F]/40 hover:text-[#2F2F2F]/60 transition-colors z-10"
+            className="absolute top-4 right-4 text-[#2F2F2F]/30 hover:text-[#2F2F2F]/55 transition-colors z-10"
           >
-            <X className="w-6 h-6" />
+            <X className="w-4 h-4" />
           </button>
 
-          <div className="px-8 py-8 h-full flex flex-col overflow-y-auto">
+          {/* Scrollable body */}
+          <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">
             {/* Header */}
-            <div className="text-center mb-6">
-              <h1 className="font-heading text-2xl font-bold text-[#2F2F2F] leading-tight mb-2">
-                🌟Crea tu cuenta
+            <div className="text-center pt-1">
+              <h1 className="font-heading text-xl font-semibold text-[#2F2F2F] tracking-tight">
+                Crea tu cuenta
               </h1>
-              <p className="text-[#2F2F2F]/60 text-sm font-body">
-               Empecemos algo increíble.
-              </p>
+              <p className="text-[#2F2F2F]/40 text-xs mt-1">Empecemos algo increíble.</p>
             </div>
 
-            {/* Registration Form */}
-            <form onSubmit={handleSubmit} className="flex-1 space-y-4">
-              {/* DNI Field */}
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+              {/* DNI */}
               <div>
                 <div className="relative">
                   <input
@@ -231,40 +227,34 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
                     value={formData.dni}
                     onChange={handleInputChange}
                     maxLength={8}
-                    className="w-full px-6 py-3 rounded-2xl border-2 border-gray-200 focus:outline-none focus:border-[#A0C4FF] transition-colors font-body text-[#2F2F2F] placeholder-[#2F2F2F]/50"
-                    placeholder="📛 DNI (verificación automática)"
-                    style={{ fontFamily: 'Roboto, sans-serif', fontWeight: '300' }}
+                    className={inputCls}
+                    placeholder="DNI"
                     required
                   />
                   {dniVerified && (
-                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                      <Check className="w-5 h-5 text-green-500" />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <Check className="w-3.5 h-3.5 text-green-500" />
                     </div>
                   )}
                 </div>
-                {errors.dni && (
-                  <p className="text-red-500 text-sm mt-1 ml-2">{errors.dni}</p>
-                )}
+                {errors.dni && <p className="text-red-400 text-xs mt-0.5 ml-1">{errors.dni}</p>}
               </div>
 
-              {/* Email Field */}
+              {/* Email */}
               <div>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-6 py-3 rounded-2xl border-2 border-gray-200 focus:outline-none focus:border-[#A0C4FF] transition-colors font-body text-[#2F2F2F] placeholder-[#2F2F2F]/50"
-                  placeholder="📧 Correo electrónico"
-                  style={{ fontFamily: 'Roboto, sans-serif', fontWeight: '300' }}
+                  className={inputCls}
+                  placeholder="Correo electrónico"
                   required
                 />
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-1 ml-2">{errors.email}</p>
-                )}
+                {errors.email && <p className="text-red-400 text-xs mt-0.5 ml-1">{errors.email}</p>}
               </div>
 
-              {/* Phone Field */}
+              {/* Phone */}
               <div>
                 <input
                   type="tel"
@@ -272,17 +262,14 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
                   value={formData.phone}
                   onChange={handleInputChange}
                   maxLength={9}
-                  className="w-full px-6 py-3 rounded-2xl border-2 border-gray-200 focus:outline-none focus:border-[#A0C4FF] transition-colors font-body text-[#2F2F2F] placeholder-[#2F2F2F]/50"
-                  placeholder="📱 Número de celular"
-                  style={{ fontFamily: 'Roboto, sans-serif', fontWeight: '300' }}
+                  className={inputCls}
+                  placeholder="Número de celular"
                   required
                 />
-                {errors.phone && (
-                  <p className="text-red-500 text-sm mt-1 ml-2">{errors.phone}</p>
-                )}
+                {errors.phone && <p className="text-red-400 text-xs mt-0.5 ml-1">{errors.phone}</p>}
               </div>
 
-              {/* Password Field */}
+              {/* Password */}
               <div>
                 <div className="relative">
                   <input
@@ -290,29 +277,22 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="w-full px-6 py-3 pr-14 rounded-2xl border-2 border-gray-200 focus:outline-none focus:border-[#A0C4FF] transition-colors font-body text-[#2F2F2F] placeholder-[#2F2F2F]/50"
-                    placeholder="🔑 Crear contraseña"
-                    style={{ fontFamily: 'Roboto, sans-serif', fontWeight: '300' }}
+                    className={`${inputCls} pr-9`}
+                    placeholder="Contraseña"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#2F2F2F]/40 hover:text-[#2F2F2F]/60 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2F2F2F]/35 hover:text-[#2F2F2F]/60 transition-colors"
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="text-red-500 text-sm mt-1 ml-2">{errors.password}</p>
-                )}
+                {errors.password && <p className="text-red-400 text-xs mt-0.5 ml-1">{errors.password}</p>}
               </div>
 
-              {/* Confirm Password Field */}
+              {/* Confirm Password */}
               <div>
                 <div className="relative">
                   <input
@@ -320,66 +300,49 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className="w-full px-6 py-3 pr-14 rounded-2xl border-2 border-gray-200 focus:outline-none focus:border-[#A0C4FF] transition-colors font-body text-[#2F2F2F] placeholder-[#2F2F2F]/50"
-                    placeholder="🔁 Confirmar contraseña"
-                    style={{ fontFamily: 'Roboto, sans-serif', fontWeight: '300' }}
+                    className={`${inputCls} pr-9`}
+                    placeholder="Confirmar contraseña"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#2F2F2F]/40 hover:text-[#2F2F2F]/60 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2F2F2F]/35 hover:text-[#2F2F2F]/60 transition-colors"
                   >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
+                    {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                {errors.confirmPassword && (
-                  <p className="text-red-500 text-sm mt-1 ml-2">{errors.confirmPassword}</p>
-                )}
+                {errors.confirmPassword && <p className="text-red-400 text-xs mt-0.5 ml-1">{errors.confirmPassword}</p>}
               </div>
 
-              {/* Account Type Selection */}
-              <div className="pt-2">
-                <p className="text-[#2F2F2F] font-medium mb-3 text-sm">
-                  🧩 ¿Cómo usarás la plataforma?
-                </p>
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-3 cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors">
-                    <input
-                      type="radio"
-                      name="accountType"
-                      value="client"
-                      checked={formData.accountType === 'client'}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 text-[#A0C4FF] focus:ring-[#A0C4FF] focus:ring-2"
-                    />
-                    <span className="text-[#2F2F2F] font-body text-sm">
-                      Quiero contratar servicios (Cliente)
-                    </span>
-                  </label>
-                  <label className="flex items-center space-x-3 cursor-pointer p-3 rounded-xl hover:bg-gray-50 transition-colors">
-                    <input
-                      type="radio"
-                      name="accountType"
-                      value="genius"
-                      checked={formData.accountType === 'genius'}
-                      onChange={handleInputChange}
-                      className="w-4 h-4 text-[#A0C4FF] focus:ring-[#A0C4FF] focus:ring-2"
-                    />
-                    <span className="text-[#2F2F2F] font-body text-sm">
-                      Quiero ofrecer mis servicios (Genio)
-                    </span>
-                  </label>
+              {/* Role selector — compact cards */}
+              <div className="pt-1">
+                <p className="text-[#2F2F2F]/50 text-xs mb-2">¿Cómo usarás la plataforma?</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'client', label: 'Cliente', sub: 'Contratar servicios' },
+                    { value: 'genius', label: 'Genio', sub: 'Ofrecer servicios' },
+                  ].map(({ value, label, sub }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, accountType: value }))}
+                      className={`text-left px-3 py-2.5 rounded-xl border transition-all duration-150 ${
+                        formData.accountType === value
+                          ? 'border-[#A0C4FF] bg-[#A0C4FF]/8 text-[#2F2F2F]'
+                          : 'border-gray-200 bg-white text-[#2F2F2F]/60 hover:border-gray-300'
+                      }`}
+                    >
+                      <p className={`text-xs font-medium ${formData.accountType === value ? 'text-[#2F2F2F]' : ''}`}>{label}</p>
+                      <p className="text-[10px] text-[#2F2F2F]/40 mt-0.5 leading-tight">{sub}</p>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Genius public profile consent */}
+              {/* Genius consent */}
               {formData.accountType === 'genius' && (
-                <label className="flex items-start gap-3 cursor-pointer px-3 py-3 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-gray-50 transition-colors">
+                <label className="flex items-start gap-2.5 cursor-pointer px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-gray-50 transition-colors">
                   <div className="relative flex-shrink-0 mt-0.5">
                     <input
                       type="checkbox"
@@ -387,63 +350,54 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
                       onChange={(e) => setGeniusConsent(e.target.checked)}
                       className="sr-only"
                     />
-                    <div
-                      className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                        geniusConsent ? 'bg-[#A0C4FF] border-[#A0C4FF]' : 'bg-white border-gray-300'
-                      }`}
-                    >
-                      {geniusConsent && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                    <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${geniusConsent ? 'bg-[#A0C4FF] border-[#A0C4FF]' : 'bg-white border-gray-300'}`}>
+                      {geniusConsent && <Check className="w-2 h-2 text-white" strokeWidth={3} />}
                     </div>
                   </div>
-                  <span className="text-xs text-[#2F2F2F]/55 leading-relaxed">
+                  <span className="text-[11px] text-[#2F2F2F]/50 leading-relaxed">
                     Acepto que mi perfil profesional y datos de contacto sean visibles públicamente dentro de la plataforma.
                   </span>
                 </label>
               )}
 
-              {/* Action Buttons */}
-              <div className="pt-2 space-y-2">
+              {/* Submit */}
+              <div className="pt-1">
                 <button
                   type="submit"
                   disabled={isLoading || (formData.accountType === 'genius' && !geniusConsent)}
-                  className={`w-full py-2.5 rounded-xl font-body font-medium transition-all duration-200 text-white text-sm shadow-sm ${
+                  className={`w-full py-2.5 rounded-xl font-medium text-sm transition-all duration-200 text-white ${
                     isLoading || (formData.accountType === 'genius' && !geniusConsent)
-                      ? 'bg-gray-300 cursor-not-allowed'
+                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       : 'bg-[#FFADAD] hover:bg-[#FF9D9D]'
                   }`}
                 >
                   {isLoading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white/70"></span>
                       Creando cuenta...
-                    </div>
+                    </span>
                   ) : (
                     'Crear mi cuenta'
                   )}
                 </button>
-
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="w-full py-2.5 rounded-xl font-body font-medium transition-all duration-200 text-[#2F2F2F]/55 text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                >
-                  Volver al inicio
-                </button>
               </div>
             </form>
 
-            {/* Bottom Message */}
-            <div className="mt-3 mb-1 text-center">
-              <p className="text-[#2F2F2F]/30 text-[11px] font-body italic">
-                "Genios o clientes, todos son bienvenidos."
-              </p>
+            {/* Secondary action + legal */}
+            <div className="text-center space-y-2 pb-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-xs text-[#2F2F2F]/40 hover:text-[#2F2F2F]/65 transition-colors underline underline-offset-2 decoration-[#2F2F2F]/20"
+              >
+                Volver al inicio
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Registration Confirmation Modal */}
-      <RegistrationConfirmationModal 
+      <RegistrationConfirmationModal
         isOpen={showConfirmationModal}
         onClose={handleCloseConfirmation}
         accountType={formData.accountType as 'client' | 'genius'}
