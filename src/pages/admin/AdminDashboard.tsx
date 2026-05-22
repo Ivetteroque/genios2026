@@ -18,6 +18,7 @@ import {
   Tag,
   MapPin,
   FileText,
+  MessageCircle,
 } from 'lucide-react';
 import { getCurrentAdmin, logoutAdmin, hasPermission } from '../../utils/adminAuthUtils';
 import CategoryManagement from './CategoryManagement';
@@ -27,6 +28,7 @@ import DocumentManagement from './DocumentManagement';
 import PaymentManagement from './PaymentManagement';
 import PaymentSettings from './PaymentSettings';
 import ReportsManagement from './ReportsManagement';
+import CommentsManagement from './CommentsManagement';
 
 interface DashboardStats {
   totalUsers: number;
@@ -91,6 +93,7 @@ const AdminDashboard: React.FC = () => {
     { id: 'categories', label: 'Categorías', icon: Tag, show: true },
     { id: 'locations', label: 'Ubicaciones', icon: MapPin, show: true },
     { id: 'reports', label: 'Reportes', icon: Flag, show: hasPermission('reports') },
+    { id: 'comments', label: 'Comentarios', icon: MessageCircle, show: true },
     { id: 'payments', label: 'Pagos', icon: DollarSign, show: hasPermission('payments') },
     { id: 'messages', label: 'Mensajes', icon: MessageSquare, show: true, badge: stats.newMessages },
     { id: 'settings', label: 'Configuración', icon: Settings, show: hasPermission('settings') },
@@ -224,8 +227,9 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'payments' && <PaymentManagement />}
           {activeTab === 'settings' && <PaymentSettings />}
           {activeTab === 'reports' && <ReportsManagement />}
+          {activeTab === 'comments' && <CommentsManagement />}
 
-          {!['overview', 'categories', 'locations', 'genios', 'documents', 'payments', 'settings', 'reports'].includes(activeTab) && (
+          {!['overview', 'categories', 'locations', 'genios', 'documents', 'payments', 'settings', 'reports', 'comments'].includes(activeTab) && (
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10 text-center max-w-md">
               <p className="text-sm font-medium text-text capitalize mb-1">{activeTab}</p>
               <p className="text-sm text-text/40">Esta sección estará disponible próximamente.</p>
