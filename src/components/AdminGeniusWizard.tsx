@@ -1,0 +1,768 @@
+import React, { useState, useEffect } from 'react';
+import {
+  ArrowLeft, ArrowRight, X, Check, User, MessageSquare, Briefcase, Camera,
+  FileCheck, ShieldCheck, Star, MapPin, Instagram, Facebook, Home, Eye, EyeOff,
+  ChevronLeft, ChevronRight,
+} from 'lucide-react';
+import ImageUploadField from './ImageUploadField';
+import MultiImageUploadField from './MultiImageUploadField';
+import DocumentUploadField from './DocumentUploadField';
+import HierarchicalLocationSelector from './HierarchicalLocationSelector';
+import WorkZoneSelector from './WorkZoneSelector';
+import LocationChips from './LocationChips';
+import { Genius, Document } from '../utils/geniusUtils';
+import { getActiveCategories, Category } from '../utils/categoryUtils';
+import { saveGeniusProfile } from '../services/supabaseGeniusService';
+import { calculateProfileCompletion } from '../utils/profileCompletionUtils';
+import { expandCoverageToDistricts } from '../utils/locationUtils';
+
+export interface AdminGeniusData extends Partial<Genius> {
+  // Admin-only fields
+  adminStatus?: 'active' | 'inactive' | 'suspended' | 'pending';
+  membershipType?: 'free' | 'beta' | 'paid';
+  betaCode?: string;
+  activationMethod?: 'manual' | 'auto' | 'beta_code';
+  membershipExpiry?: string;
+  isVerified?: boolean;
+  isSuspended?: boolean;
+  suspensionReason?: string;
+  internalNotes?: string;
+}
+
+interface AdminGeniusWizardProps {
+  initialData?: AdminGeniusData;
+  onComplete: (data: AdminGeniusData) => void;
+  onCancel: () => void;
+}
+
+const WIZARD_STEPS = [
+  { number: 1, label: 'Personal', icon: User },
+  { number: 2, label: 'Sobre mí', icon: MessageSquare },
+  { number: 3, label: 'Servicio', icon: Briefcase },
+  { number: 4, label: 'Portafolio', icon: Camera },
+  { number: 5, label: 'Verificación', icon: FileCheck },
+  { number: 6, label: 'Admin', icon: ShieldCheck },
+];
+
+const STATUS_OPTS = [
+  { value: 'active', label: 'Activo', dot: 'bg-green-400' },
+  { value: 'inactive', label: 'Inactivo', dot: 'bg-gray-300' },
+  { value: 'suspended', label: 'Suspendido', dot: 'bg-red-400' },
+  { value: 'pending', label: 'Pendiente', dot: 'bg-amber-400' },
+];
+
+const MEMBERSHIP_OPTS = [
+  { value: 'free', label: 'Gratuito' },
+  { value: 'beta', label: 'Beta' },
+  { value: 'paid', label: 'Pago' },
+];
+
+const ACTIVATION_OPTS = [
+  { value: 'manual', label: 'Manual (admin)' },
+  { value: 'auto', label: 'Automático' },
+  { value: 'beta_code', label: 'Código beta' },
+];
+
+const DEFAULT_PROFILE_IMG = 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop';
+
+const AdminGeniusWizard: React.FC<AdminGeniusWizardProps> = ({ initialData, onComplete, onCancel }) => {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [activeCategories, setActiveCategories] = useState<Category[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
+  const [previewImageIndex, setPreviewImageIndex] = useState(0);
+
+  const [formData, setFormData] = useState<AdminGeniusData>({
+    id: '',
+    profilePhoto: '',
+    fullName: '',
+    dni: '',
+    phone: '',
+    email: '',
+    description: '',
+    instagram: '',
+    facebook: '',
+    tiktok: '',
+    portfolio: [],
+    category: '',
+    subcategories: [],
+    serviceName: '',
+    homeLocation: null,
+    coverageType: 'my-district',
+    workLocations: [],
+    documents: [],
+    status: 'pending',
+    // Admin fields
+    adminStatus: 'active',
+    membershipType: 'free',
+    betaCode: '',
+    activationMethod: 'manual',
+    membershipExpiry: '',
+    isVerified: false,
+    isSuspended: false,
+    suspensionReason: '',
+    internalNotes: '',
+    ...(initialData || {}),
+  });
+
+  useEffect(() => {
+    setActiveCategories(getActiveCategories());
+  }, []);
+
+  const set = (field: keyof AdminGeniusData, value: any) =>
+    setFormData(prev => ({ ...prev, [field]: value }));
+
+  const validateStep = (step: number): boolean => {
+    switch (step) {
+      case 1:
+        return !!(formData.profilePhoto && formData.fullName?.trim() && formData.dni?.length === 8 && formData.email?.trim() && formData.phone?.length === 9 && formData.homeLocation);
+      case 2:
+        return (formData.description?.length ?? 0) >= 20;
+      case 3:
+        return !!(formData.category && (formData.subcategories?.length ?? 0) > 0 && formData.serviceName?.trim());
+      case 4:
+        return true; // portfolio optional for admin
+      case 5:
+        return true; // docs optional for admin
+      case 6:
+        return !!(formData.adminStatus && formData.membershipType && formData.activationMethod);
+      default:
+        return false;
+    }
+  };
+
+  const handleNext = () => {
+    if (validateStep(currentStep) && !completedSteps.includes(currentStep)) {
+      setCompletedSteps(prev => [...prev, currentStep]);
+    }
+    if (currentStep < 6) setCurrentStep(currentStep + 1);
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) setCurrentStep(currentStep - 1);
+  };
+
+  const handleStepClick = (step: number) => setCurrentStep(step);
+
+  const handleSubcategoryToggle = (name: string) => {
+    const subs = formData.subcategories ?? [];
+    if (subs.includes(name)) {
+      set('subcategories', subs.filter(s => s !== name));
+    } else if (subs.length < 4) {
+      set('subcategories', [...subs, name]);
+    }
+  };
+
+  const handleDocumentChange = (type: 'dni' | 'certificate', doc: any) => {
+    const newDoc: Document = { id: Date.now().toString(), name: doc.name, type, url: doc.url, uploadedAt: doc.uploadedAt, verified: doc.verified };
+    const updated = (formData.documents ?? []).filter(d => d.type !== type);
+    updated.push(newDoc);
+    set('documents', updated);
+  };
+
+  const handleDocumentRemove = (type: 'dni' | 'certificate') => {
+    set('documents', (formData.documents ?? []).filter(d => d.type !== type));
+  };
+
+  const getDocument = (type: 'dni' | 'certificate') =>
+    (formData.documents ?? []).find(d => d.type === type);
+
+  const getAvailableSubcategories = () => {
+    if (!formData.category) return [];
+    return activeCategories.find(c => c.name === formData.category)?.subcategories ?? [];
+  };
+
+  const handleFinish = async () => {
+    setIsSaving(true);
+    try {
+      const adminUserId = `admin_created_${Date.now()}`;
+      const expanded = expandCoverageToDistricts(
+        formData.homeLocation!,
+        formData.coverageType ?? 'my-district',
+        formData.workLocations ?? []
+      );
+      const profileData = {
+        ...formData,
+        workLocations: expanded,
+        location: formData.homeLocation
+          ? `${formData.homeLocation.districtName}, ${formData.homeLocation.provinceName}`
+          : '',
+      };
+      const pct = calculateProfileCompletion({
+        profile_photo: profileData.profilePhoto,
+        full_name: profileData.fullName,
+        dni: profileData.dni,
+        email: profileData.email,
+        phone: profileData.phone,
+        description: profileData.description,
+        category: profileData.category,
+        subcategories: profileData.subcategories,
+        service_name: profileData.serviceName,
+        home_location: profileData.homeLocation,
+        coverage_type: profileData.coverageType,
+        work_locations: profileData.workLocations,
+        portfolio: profileData.portfolio,
+        documents: profileData.documents,
+      });
+      await saveGeniusProfile(adminUserId, profileData, pct, 6);
+      onComplete(formData);
+    } catch (err: any) {
+      alert(`Error al guardar: ${err?.message ?? 'Intenta nuevamente.'}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ─── Step Renderers ────────────────────────────────────────────────────────
+
+  const inputCls = 'w-full px-3.5 py-2 rounded-lg border border-gray-200 focus:border-blue-400 focus:outline-none text-sm text-gray-800 placeholder-gray-400 bg-white transition-colors';
+  const labelCls = 'block text-xs font-medium text-gray-600 mb-1.5';
+
+  const renderStep1 = () => (
+    <div className="space-y-5">
+      <StepHeader title="Información personal" sub="Datos básicos del genio." />
+      <ImageUploadField
+        label="Foto de perfil"
+        currentImage={formData.profilePhoto}
+        onImageChange={v => set('profilePhoto', v)}
+        onImageRemove={() => set('profilePhoto', '')}
+        required
+        helpText="Foto clara y profesional"
+      />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Nombre completo *">
+          <input type="text" value={formData.fullName} onChange={e => set('fullName', e.target.value)} className={inputCls} placeholder="Nombre completo" />
+        </Field>
+        <Field label={`DNI * (${formData.dni?.length ?? 0}/8)`}>
+          <input type="text" value={formData.dni} onChange={e => set('dni', e.target.value.replace(/\D/g, '').slice(0, 8))} className={`${inputCls} ${formData.dni?.length === 8 ? 'border-green-300' : ''}`} placeholder="12345678" maxLength={8} />
+        </Field>
+        <Field label="Email *">
+          <input type="email" value={formData.email} onChange={e => set('email', e.target.value)} className={inputCls} placeholder="correo@ejemplo.com" />
+        </Field>
+        <Field label={`Teléfono * (${formData.phone?.length ?? 0}/9)`}>
+          <div className="flex">
+            <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-200 bg-gray-50 text-gray-500 text-sm">+51</span>
+            <input type="tel" value={formData.phone} onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 9))} className={`${inputCls} rounded-l-none ${formData.phone?.length === 9 ? 'border-green-300' : ''}`} placeholder="987654321" maxLength={9} />
+          </div>
+        </Field>
+      </div>
+      <HierarchicalLocationSelector value={formData.homeLocation} onChange={v => set('homeLocation', v)} />
+    </div>
+  );
+
+  const renderStep2 = () => (
+    <div className="space-y-5">
+      <StepHeader title="Sobre el genio" sub="Descripción y redes sociales." />
+      <Field label={`Descripción * (${formData.description?.length ?? 0}/500, mín 20)`}>
+        <textarea
+          value={formData.description}
+          onChange={e => { if (e.target.value.length <= 500) set('description', e.target.value); }}
+          rows={5}
+          className={`${inputCls} resize-none ${(formData.description?.length ?? 0) >= 20 ? 'border-green-300' : ''}`}
+          placeholder="Experiencia, especialidad y qué hace único a este genio..."
+        />
+      </Field>
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Instagram">
+          <input type="url" value={formData.instagram} onChange={e => set('instagram', e.target.value)} className={inputCls} placeholder="instagram.com/usuario" />
+        </Field>
+        <Field label="Facebook">
+          <input type="url" value={formData.facebook} onChange={e => set('facebook', e.target.value)} className={inputCls} placeholder="facebook.com/pagina" />
+        </Field>
+        <Field label="TikTok">
+          <input type="url" value={formData.tiktok} onChange={e => set('tiktok', e.target.value)} className={inputCls} placeholder="tiktok.com/@usuario" />
+        </Field>
+      </div>
+    </div>
+  );
+
+  const renderStep3 = () => (
+    <div className="space-y-5">
+      <StepHeader title="Detalles del servicio" sub="Categoría, especialidades y zona de cobertura." />
+      <Field label="Categoría principal *">
+        <select value={formData.category} onChange={e => { set('category', e.target.value); set('subcategories', []); }} className={inputCls}>
+          <option value="">Selecciona una categoría</option>
+          {activeCategories.map(c => <option key={c.id} value={c.name}>{c.emoji} {c.name}</option>)}
+        </select>
+      </Field>
+      {formData.category && (
+        <Field label={`Subcategorías * (${formData.subcategories?.length ?? 0}/4)`}>
+          <div className="grid grid-cols-2 gap-2">
+            {getAvailableSubcategories().map(sub => {
+              const active = (formData.subcategories ?? []).includes(sub.name);
+              return (
+                <label key={sub.id} className={`flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-colors ${active ? 'border-blue-400 bg-blue-50/60' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <input type="checkbox" checked={active} onChange={() => handleSubcategoryToggle(sub.name)} className="w-4 h-4 rounded text-blue-600 focus:ring-blue-400" />
+                  <span className="text-sm text-gray-700">{sub.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </Field>
+      )}
+      <Field label="Nombre del servicio *">
+        <input type="text" value={formData.serviceName} onChange={e => set('serviceName', e.target.value)} className={inputCls} placeholder="Ej: Maquillaje profesional para eventos" />
+      </Field>
+      {formData.homeLocation && (
+        <WorkZoneSelector
+          homeLocation={formData.homeLocation}
+          coverageType={formData.coverageType ?? 'my-district'}
+          customDistricts={formData.workLocations ?? []}
+          onCoverageTypeChange={v => set('coverageType', v)}
+          onCustomDistrictsChange={v => set('workLocations', v)}
+        />
+      )}
+    </div>
+  );
+
+  const renderStep4 = () => (
+    <div className="space-y-5">
+      <StepHeader title="Portafolio" sub="Fotos de trabajos realizados (opcional)." />
+      <MultiImageUploadField
+        label="Fotos de trabajos"
+        currentImages={formData.portfolio ?? []}
+        onImagesChange={v => set('portfolio', v)}
+        maxImages={6}
+        helpText="Hasta 6 imágenes. Puedes completar esto después."
+      />
+    </div>
+  );
+
+  const renderStep5 = () => (
+    <div className="space-y-5">
+      <StepHeader title="Verificación de identidad" sub="Documentos del genio (opcionales)." />
+      <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-sm text-blue-800">
+        Los documentos serán revisados para verificar la identidad. Pueden subirse después.
+      </div>
+      <DocumentUploadField
+        label="DNI"
+        documentType="dni"
+        currentDocument={getDocument('dni')}
+        onDocumentChange={doc => handleDocumentChange('dni', doc)}
+        onDocumentRemove={() => handleDocumentRemove('dni')}
+        helpText="Foto de ambos lados del DNI"
+      />
+      <DocumentUploadField
+        label="Certificado de trabajo (opcional)"
+        documentType="certificate"
+        currentDocument={getDocument('certificate')}
+        onDocumentChange={doc => handleDocumentChange('certificate', doc)}
+        onDocumentRemove={() => handleDocumentRemove('certificate')}
+        helpText="Acredita experiencia laboral"
+      />
+    </div>
+  );
+
+  const renderStep6 = () => (
+    <div className="space-y-5">
+      <StepHeader title="Configuración administrativa" sub="Campos exclusivos del panel de administración." />
+
+      <div className="grid grid-cols-2 gap-3">
+        {/* Status */}
+        <Field label="Estado del genio *">
+          <div className="grid grid-cols-2 gap-2">
+            {STATUS_OPTS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => set('adminStatus', opt.value as any)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                  formData.adminStatus === opt.value
+                    ? 'border-gray-800 bg-gray-800 text-white'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${opt.dot}`} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {/* Membership */}
+        <Field label="Tipo de membresía *">
+          <div className="grid grid-cols-3 gap-2">
+            {MEMBERSHIP_OPTS.map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => set('membershipType', opt.value as any)}
+                className={`py-2 px-2 rounded-lg border text-sm transition-colors ${
+                  formData.membershipType === opt.value
+                    ? 'border-[#A0C4FF] bg-[#A0C4FF]/15 text-blue-700 font-medium'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </Field>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Método de activación *">
+          <select value={formData.activationMethod} onChange={e => set('activationMethod', e.target.value as any)} className={inputCls}>
+            {ACTIVATION_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Código beta">
+          <input type="text" value={formData.betaCode} onChange={e => set('betaCode', e.target.value)} className={inputCls} placeholder="Ej: BETA2024" />
+        </Field>
+        <Field label="Fecha vencimiento membresía">
+          <input type="date" value={formData.membershipExpiry} onChange={e => set('membershipExpiry', e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+
+      {/* Verification & Suspension toggles */}
+      <div className="grid grid-cols-2 gap-3">
+        <ToggleField
+          label="Verificado"
+          sub="El perfil ha sido verificado"
+          checked={!!formData.isVerified}
+          onChange={v => set('isVerified', v)}
+          activeColor="text-teal-700 bg-[#C0FDFB]/40 border-[#C0FDFB]"
+        />
+        <ToggleField
+          label="Suspendido"
+          sub="Cuenta temporalmente inactiva"
+          checked={!!formData.isSuspended}
+          onChange={v => set('isSuspended', v)}
+          activeColor="text-red-600 bg-red-50 border-red-200"
+        />
+      </div>
+
+      {formData.isSuspended && (
+        <Field label="Razón de suspensión">
+          <input type="text" value={formData.suspensionReason} onChange={e => set('suspensionReason', e.target.value)} className={inputCls} placeholder="Motivo de la suspensión..." />
+        </Field>
+      )}
+
+      <Field label="Observaciones internas">
+        <textarea
+          value={formData.internalNotes}
+          onChange={e => set('internalNotes', e.target.value)}
+          rows={3}
+          className={`${inputCls} resize-none`}
+          placeholder="Notas visibles solo para el equipo admin..."
+        />
+      </Field>
+    </div>
+  );
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 1: return renderStep1();
+      case 2: return renderStep2();
+      case 3: return renderStep3();
+      case 4: return renderStep4();
+      case 5: return renderStep5();
+      case 6: return renderStep6();
+      default: return null;
+    }
+  };
+
+  // ─── Inline Preview Panel ──────────────────────────────────────────────────
+
+  const portfolio = formData.portfolio ?? [];
+  const visibleImages = portfolio.slice(previewImageIndex, previewImageIndex + 2);
+
+  const renderPreview = () => (
+    <div className="flex flex-col h-full overflow-y-auto">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white z-10">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Vista previa pública</p>
+        <button onClick={() => setShowPreview(false)} className="text-gray-300 hover:text-gray-500 transition-colors p-1 rounded">
+          <EyeOff className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div className="px-4 py-4 space-y-4">
+        {/* Hero mini */}
+        <div className="flex flex-col items-center text-center gap-2">
+          <img
+            src={formData.profilePhoto || DEFAULT_PROFILE_IMG}
+            alt="preview"
+            className="w-16 h-16 rounded-full object-cover border-2 border-white shadow"
+          />
+          <div>
+            <p className="text-sm font-semibold text-gray-900">{formData.fullName || 'Nombre del Genio'}</p>
+            {formData.subcategories && formData.subcategories.length > 0 && (
+              <p className="text-[11px] text-gray-400 mt-0.5">{formData.subcategories.slice(0, 2).join(' · ')}</p>
+            )}
+          </div>
+          <div className="flex gap-1">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-3 h-3 text-gray-200" fill="currentColor" />
+            ))}
+          </div>
+          {formData.homeLocation && (
+            <div className="flex items-center gap-1 text-[11px] text-gray-400">
+              <MapPin className="w-3 h-3" />
+              <span>{formData.homeLocation.districtName}, {formData.homeLocation.provinceName}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Status badges */}
+        <div className="flex flex-wrap gap-1 justify-center">
+          {formData.isVerified && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#C0FDFB]/50 text-teal-700 font-medium">Verificado</span>
+          )}
+          {formData.adminStatus && (
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+              formData.adminStatus === 'active' ? 'bg-green-50 text-green-700' :
+              formData.adminStatus === 'suspended' ? 'bg-red-50 text-red-600' :
+              'bg-gray-100 text-gray-500'
+            }`}>
+              {STATUS_OPTS.find(s => s.value === formData.adminStatus)?.label}
+            </span>
+          )}
+          {formData.membershipType && formData.membershipType !== 'free' && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#A0C4FF]/20 text-blue-700 font-medium capitalize">
+              {MEMBERSHIP_OPTS.find(m => m.value === formData.membershipType)?.label}
+            </span>
+          )}
+        </div>
+
+        {/* Description */}
+        {formData.description && (
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-4">
+              "{formData.description}"
+            </p>
+          </div>
+        )}
+
+        {/* Socials */}
+        {(formData.instagram || formData.facebook || formData.tiktok) && (
+          <div className="flex items-center justify-center gap-2">
+            {formData.instagram && <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center"><Instagram className="w-3 h-3 text-pink-500" /></div>}
+            {formData.facebook && <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center"><Facebook className="w-3 h-3 text-blue-500" /></div>}
+            {formData.tiktok && <div className="w-5 h-5 rounded-full bg-gray-900 flex items-center justify-center text-white text-[7px] font-bold">TT</div>}
+          </div>
+        )}
+
+        {/* Category */}
+        {formData.category && (
+          <div className="text-center">
+            <span className="text-[10px] font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-600">
+              {formData.category}
+            </span>
+            {(formData.subcategories ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1 justify-center mt-1.5">
+                {formData.subcategories!.map(s => (
+                  <span key={s} className="text-[9px] px-1.5 py-0.5 rounded-full border border-gray-200 text-gray-500">{s}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Portfolio preview */}
+        {portfolio.length > 0 && (
+          <div>
+            <p className="text-[10px] font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Portafolio</p>
+            <div className="relative">
+              <div className="grid grid-cols-2 gap-1">
+                {visibleImages.map((img, i) => (
+                  <img key={i} src={img} alt="" className="w-full h-16 object-cover rounded-lg" />
+                ))}
+              </div>
+              {portfolio.length > 2 && (
+                <div className="flex items-center justify-between mt-1.5">
+                  <button onClick={() => setPreviewImageIndex(Math.max(0, previewImageIndex - 2))} className="p-1 rounded text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-30" disabled={previewImageIndex === 0}>
+                    <ChevronLeft className="w-3 h-3" />
+                  </button>
+                  <span className="text-[10px] text-gray-400">{previewImageIndex / 2 + 1} / {Math.ceil(portfolio.length / 2)}</span>
+                  <button onClick={() => setPreviewImageIndex(Math.min(portfolio.length - 2, previewImageIndex + 2))} className="p-1 rounded text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-30" disabled={previewImageIndex + 2 >= portfolio.length}>
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Location */}
+        {formData.homeLocation && (
+          <div>
+            <p className="text-[10px] font-medium text-gray-400 mb-1.5 uppercase tracking-wide">Zonas de atención</p>
+            <div className="bg-gray-50 rounded-lg p-2">
+              <LocationChips
+                coverageType={formData.coverageType ?? 'my-district'}
+                homeLocation={formData.homeLocation}
+                customDistricts={formData.workLocations ?? []}
+                showRemoveButton={false}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ─── Stepper ───────────────────────────────────────────────────────────────
+
+  const renderStepper = () => (
+    <div className="flex items-center gap-0 mb-6 overflow-x-auto pb-1">
+      {WIZARD_STEPS.map((step, idx) => {
+        const done = completedSteps.includes(step.number);
+        const current = currentStep === step.number;
+        const Icon = step.icon;
+        return (
+          <React.Fragment key={step.number}>
+            <button
+              onClick={() => handleStepClick(step.number)}
+              className={`flex flex-col items-center gap-1 min-w-[52px] group transition-all`}
+            >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${
+                done ? 'border-green-400 bg-green-400 text-white' :
+                current ? 'border-gray-800 bg-gray-800 text-white' :
+                'border-gray-200 bg-white text-gray-400 group-hover:border-gray-300'
+              }`}>
+                {done ? <Check className="w-4 h-4" /> : <Icon className="w-3.5 h-3.5" />}
+              </div>
+              <span className={`text-[10px] font-medium transition-colors ${
+                current ? 'text-gray-800' : done ? 'text-green-600' : 'text-gray-400'
+              }`}>{step.label}</span>
+            </button>
+            {idx < WIZARD_STEPS.length - 1 && (
+              <div className={`flex-1 h-0.5 mx-1 mb-5 transition-colors ${done ? 'bg-green-300' : 'bg-gray-200'}`} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+
+  // ─── Main Render ───────────────────────────────────────────────────────────
+
+  return (
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div>
+            <h2 className="font-heading text-base font-semibold text-gray-900">Añadir Genio</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Completa el perfil en 6 pasos</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {!showPreview && (
+              <button onClick={() => setShowPreview(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:border-gray-300 hover:text-gray-700 transition-colors">
+                <Eye className="w-3.5 h-3.5" />
+                Preview
+              </button>
+            )}
+            <button onClick={onCancel} className="p-1.5 text-gray-300 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-1 min-h-0">
+          {/* Form side */}
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {renderStepper()}
+              {renderCurrentStep()}
+            </div>
+
+            {/* Footer nav */}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-shrink-0 bg-white">
+              <button
+                onClick={handleBack}
+                disabled={currentStep === 1}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-gray-500 border border-gray-200 hover:border-gray-300 hover:text-gray-700 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Atrás
+              </button>
+
+              <span className="text-xs text-gray-400">Paso {currentStep} de 6</span>
+
+              {currentStep < 6 ? (
+                <button
+                  onClick={handleNext}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-gray-800 hover:bg-gray-700 transition-colors"
+                >
+                  Siguiente
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleFinish}
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <>
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white/70" />
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Crear Genio
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Preview panel */}
+          {showPreview && (
+            <div className="w-56 border-l border-gray-100 flex-shrink-0 overflow-hidden flex flex-col">
+              {renderPreview()}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const StepHeader: React.FC<{ title: string; sub: string }> = ({ title, sub }) => (
+  <div className="mb-2">
+    <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+    <p className="text-sm text-gray-400 mt-0.5">{sub}</p>
+  </div>
+);
+
+const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div>
+    <label className="block text-xs font-medium text-gray-600 mb-1.5">{label}</label>
+    {children}
+  </div>
+);
+
+const ToggleField: React.FC<{
+  label: string;
+  sub: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  activeColor: string;
+}> = ({ label, sub, checked, onChange, activeColor }) => (
+  <button
+    type="button"
+    onClick={() => onChange(!checked)}
+    className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all ${checked ? activeColor : 'border-gray-200 bg-white text-gray-600'}`}
+  >
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-xs font-medium">{label}</p>
+        <p className="text-[10px] mt-0.5 opacity-60">{sub}</p>
+      </div>
+      <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${checked ? 'bg-current' : 'bg-gray-200'}`}>
+        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
+      </div>
+    </div>
+  </button>
+);
+
+export default AdminGeniusWizard;
