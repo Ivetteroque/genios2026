@@ -41,6 +41,7 @@ import ReportsManagement from './ReportsManagement';
 import CommentsManagement from './CommentsManagement';
 import ClientsManagement from './ClientsManagement';
 import StatsManagement from './StatsManagement';
+import ConfigSettings from './ConfigSettings';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -232,7 +233,7 @@ const AdminDashboard: React.FC = () => {
     { id: 'comments', label: 'Comentarios', icon: MessageCircle, show: true, badge: liveStats.pendingComments || 0 },
     { id: 'payments', label: 'Pagos', icon: DollarSign, show: hasPermission('payments'), badge: liveStats.pendingPayments || 0 },
     { id: 'messages', label: 'Mensajes', icon: MessageSquare, show: true },
-    { id: 'settings', label: 'Configuración', icon: Settings, show: hasPermission('settings') },
+    { id: 'config', label: 'Configuracion', icon: Settings, show: hasPermission('settings') },
   ].filter(i => i.show);
 
   return (
@@ -331,13 +332,13 @@ const AdminDashboard: React.FC = () => {
           {activeTab === 'genios' && <GeniusManagement />}
           {activeTab === 'documents' && <DocumentManagement />}
           {activeTab === 'payments' && <PaymentManagement />}
-          {activeTab === 'settings' && <PaymentSettings />}
           {activeTab === 'reports' && <ReportsManagement />}
           {activeTab === 'comments' && <CommentsManagement />}
           {activeTab === 'clients' && <ClientsManagement />}
           {activeTab === 'stats' && <StatsManagement />}
+          {activeTab === 'config' && <ConfigSettings />}
 
-          {!['overview', 'stats', 'categories', 'locations', 'genios', 'clients', 'documents', 'payments', 'settings', 'reports', 'comments'].includes(activeTab) && (
+          {!['overview', 'stats', 'categories', 'locations', 'genios', 'clients', 'documents', 'payments', 'config', 'reports', 'comments'].includes(activeTab) && (
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-10 text-center max-w-md">
               <p className="text-sm font-medium text-text capitalize mb-1">{activeTab}</p>
               <p className="text-sm text-text/40">Esta sección estará disponible próximamente.</p>
