@@ -200,7 +200,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
         />
 
         {/* Registration Modal Card - Increased height for all fields */}
-        <div className="relative bg-[#FDFDFD] rounded-3xl shadow-2xl w-full max-w-[400px] mx-4 transform transition-all duration-300 scale-100 animate-in fade-in slide-in-from-bottom-4 h-[680px] overflow-hidden">
+        <div className="relative bg-[#FDFDFD] rounded-2xl shadow-xl w-full max-w-[380px] mx-4 transform transition-all duration-300 scale-100 animate-in fade-in slide-in-from-bottom-4 overflow-hidden">
           {/* Close Button */}
           <button
             onClick={onClose}
@@ -402,41 +402,39 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
               )}
 
               {/* Action Buttons */}
-              <div className="pt-4 space-y-3">
+              <div className="pt-2 space-y-2">
                 <button
                   type="submit"
                   disabled={isLoading || (formData.accountType === 'genius' && !geniusConsent)}
-                  className={`w-full py-3.5 rounded-2xl font-body font-semibold transition-all duration-300 text-white text-lg shadow-md hover:shadow-lg transform hover:scale-[1.02] ${
+                  className={`w-full py-2.5 rounded-xl font-body font-medium transition-all duration-200 text-white text-sm shadow-sm ${
                     isLoading || (formData.accountType === 'genius' && !geniusConsent)
                       ? 'bg-gray-300 cursor-not-allowed'
                       : 'bg-[#FFADAD] hover:bg-[#FF9D9D]'
                   }`}
-                  style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
                 >
                   {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                       Creando cuenta...
                     </div>
                   ) : (
-                    '🔴 Crear mi cuenta'
+                    'Crear mi cuenta'
                   )}
                 </button>
 
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full py-3.5 rounded-2xl font-body font-semibold transition-all duration-300 text-[#2F2F2F] text-lg border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
+                  className="w-full py-2.5 rounded-xl font-body font-medium transition-all duration-200 text-[#2F2F2F]/55 text-sm border border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                 >
-                  🔙 Volver al inicio
+                  Volver al inicio
                 </button>
               </div>
             </form>
 
             {/* Bottom Message */}
-            <div className="mt-4 text-center">
-              <p className="text-[#2F2F2F]/60 text-xs font-body italic">
+            <div className="mt-3 mb-1 text-center">
+              <p className="text-[#2F2F2F]/30 text-[11px] font-body italic">
                 "Genios o clientes, todos son bienvenidos."
               </p>
             </div>
