@@ -260,8 +260,15 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
               {/* Footer Text */}
               <div className="text-center">
-                <p className="text-[#2F2F2F]/40 text-xs font-body">
-                  Al continuar, aceptas nuestros términos y condiciones
+                <p className="text-[#2F2F2F]/35 text-xs font-body leading-relaxed">
+                  Al continuar aceptas los{' '}
+                  <a href="/terminos" className="underline underline-offset-2 text-[#2F2F2F]/50 hover:text-[#2F2F2F]/70 transition-colors">
+                    Términos y Condiciones
+                  </a>{' '}
+                  y la{' '}
+                  <a href="/privacidad" className="underline underline-offset-2 text-[#2F2F2F]/50 hover:text-[#2F2F2F]/70 transition-colors">
+                    Política de Privacidad
+                  </a>.
                 </p>
               </div>
             </div>

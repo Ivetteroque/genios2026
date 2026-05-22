@@ -22,6 +22,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [dniVerified, setDniVerified] = useState(false);
+  const [geniusConsent, setGeniusConsent] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [errors, setErrors] = useState({
     dni: '',
@@ -177,6 +178,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
       accountType: 'client'
     });
     setDniVerified(false);
+    setGeniusConsent(false);
     setErrors({
       dni: '',
       email: '',
@@ -375,13 +377,37 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
                 </div>
               </div>
 
+              {/* Genius public profile consent */}
+              {formData.accountType === 'genius' && (
+                <label className="flex items-start gap-3 cursor-pointer px-3 py-3 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-gray-50 transition-colors">
+                  <div className="relative flex-shrink-0 mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={geniusConsent}
+                      onChange={(e) => setGeniusConsent(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div
+                      className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                        geniusConsent ? 'bg-[#A0C4FF] border-[#A0C4FF]' : 'bg-white border-gray-300'
+                      }`}
+                    >
+                      {geniusConsent && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+                    </div>
+                  </div>
+                  <span className="text-xs text-[#2F2F2F]/55 leading-relaxed">
+                    Acepto que mi perfil profesional y datos de contacto sean visibles públicamente dentro de la plataforma.
+                  </span>
+                </label>
+              )}
+
               {/* Action Buttons */}
               <div className="pt-4 space-y-3">
                 <button
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoading || (formData.accountType === 'genius' && !geniusConsent)}
                   className={`w-full py-3.5 rounded-2xl font-body font-semibold transition-all duration-300 text-white text-lg shadow-md hover:shadow-lg transform hover:scale-[1.02] ${
-                    isLoading
+                    isLoading || (formData.accountType === 'genius' && !geniusConsent)
                       ? 'bg-gray-300 cursor-not-allowed'
                       : 'bg-[#FFADAD] hover:bg-[#FF9D9D]'
                   }`}
