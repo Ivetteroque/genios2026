@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Star, MapPin, MessageSquare, Globe, Instagram, Facebook, Video, ChevronLeft, ChevronRight, Calendar, Upload, X, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Star, MapPin, MessageSquare, Globe, Instagram, Facebook, Video, ChevronLeft, ChevronRight, Calendar, Upload, X, Check, MoreVertical, Share2, Copy, Flag } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { handleWhatsAppContact } from '../utils/whatsappUtils';
 import FavoriteButton from '../components/FavoriteButton';
@@ -7,6 +7,7 @@ import ReviewForm from '../components/ReviewForm';
 import GeniusAvailabilityBadge from '../components/GeniusAvailabilityBadge';
 import PublicAvailabilityCalendar from '../components/PublicAvailabilityCalendar';
 import GeniusPeerReviews from '../components/GeniusPeerReviews';
+import ReportModal from '../components/ReportModal';
 import { useGeniusAvailability } from '../hooks/useGeniusAvailability';
 import {
   getReviewsForGenius,
@@ -20,6 +21,10 @@ const Profile: React.FC = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const [reviews, setReviews] = useState<ReviewType[]>([]);
   const [ratingStats, setRatingStats] = useState<GeniusRatingStats>({
     averageRating: 4.9,
@@ -28,6 +33,33 @@ const Profile: React.FC = () => {
   });
 
   const { isAvailableToday, getDisplayStatus } = useGeniusAvailability(id);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setShowContextMenu(false);
+      }
+    };
+    if (showContextMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showContextMenu]);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 1800);
+    });
+    setShowContextMenu(false);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      await navigator.share({ title: geniusData.name, url: window.location.href }).catch(() => {});
+    } else {
+      handleCopyLink();
+    }
+    setShowContextMenu(false);
+  };
 
   // Scroll to top when component mounts
   useEffect(() => {
@@ -121,15 +153,53 @@ const Profile: React.FC = () => {
   const HeroSection = () => (
     <section className="bg-white shadow-sm">
       <div className="container mx-auto px-4 py-8">
-        {/* Back Button */}
-        <div className="mb-6">
-          <Link 
+        {/* Back Button + Context Menu */}
+        <div className="mb-6 flex items-center justify-between">
+          <Link
             to="/categories"
             className="inline-flex items-center text-primary hover:text-primary-dark transition-colors"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
             Volver a categorías
           </Link>
+
+          {/* Context menu */}
+          <div className="relative" ref={contextMenuRef}>
+            <button
+              onClick={() => setShowContextMenu(v => !v)}
+              className="p-2 rounded-lg text-text/35 hover:text-text/60 hover:bg-gray-50 transition-colors"
+              title="Más opciones"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {showContextMenu && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-gray-100 shadow-lg z-30 py-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                <button
+                  onClick={handleShare}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-[#2F2F2F]/70 hover:bg-gray-50 hover:text-[#2F2F2F] transition-colors"
+                >
+                  <Share2 className="w-3.5 h-3.5 flex-shrink-0" />
+                  Compartir perfil
+                </button>
+                <button
+                  onClick={handleCopyLink}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-[#2F2F2F]/70 hover:bg-gray-50 hover:text-[#2F2F2F] transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5 flex-shrink-0" />
+                  {copySuccess ? 'Enlace copiado' : 'Copiar enlace'}
+                </button>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  onClick={() => { setShowContextMenu(false); setShowReportModal(true); }}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-400 hover:bg-red-50/60 hover:text-red-500 transition-colors"
+                >
+                  <Flag className="w-3.5 h-3.5 flex-shrink-0" />
+                  Reportar perfil
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col items-center relative">
@@ -588,6 +658,15 @@ const Profile: React.FC = () => {
       >
         <MessageSquare className="w-6 h-6" />
       </button>
+
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetType="profile"
+        targetId={geniusData.id}
+        geniusProfileId={geniusData.id}
+        targetLabel={geniusData.name}
+      />
     </div>
   );
 };
