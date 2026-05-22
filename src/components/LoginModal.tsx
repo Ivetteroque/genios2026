@@ -141,48 +141,47 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         />
 
         {/* Login Modal Card */}
-        <div className="relative bg-[#FDFDFD] rounded-3xl shadow-2xl w-full max-w-[400px] mx-4 transform transition-all duration-300 scale-100 animate-in fade-in slide-in-from-bottom-4 h-[480px] overflow-hidden">
+        <div className="relative bg-[#FDFDFD] rounded-2xl shadow-xl w-full max-w-[360px] mx-4 transform transition-all duration-300 scale-100 animate-in fade-in slide-in-from-bottom-4 overflow-hidden">
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 text-[#2F2F2F]/40 hover:text-[#2F2F2F]/60 transition-colors z-10"
+            className="absolute top-5 right-5 text-[#2F2F2F]/30 hover:text-[#2F2F2F]/55 transition-colors z-10"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
 
-          <div className="px-8 py-8 h-full flex flex-col">
+          <div className="px-7 py-7 flex flex-col gap-5">
             {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="font-heading text-3xl font-bold text-[#2F2F2F] leading-tight">
-                Bienvenido 👋<br />
+            <div className="text-center">
+              <h1 className="font-heading text-2xl font-semibold text-[#2F2F2F] leading-snug tracking-tight">
+                Bienvenido 👋
               </h1>
-              <p className="text-[#2F2F2F]/60 text-sm font-body mt-3">
+              <p className="text-[#2F2F2F]/45 text-sm font-body mt-1.5">
                 Conecta con personas increíbles cerca de ti
               </p>
             </div>
 
             {/* Social Login Buttons */}
-            <div className="flex-1 space-y-4">
+            <div className="space-y-2.5">
               {/* Google Button */}
               <button
                 type="button"
                 onClick={() => handleSocialLoginClick('google')}
                 disabled={isLoading}
-                className="social-login-button w-full py-3.5 rounded-2xl font-body font-semibold transition-all duration-300 text-[#2F2F2F] text-lg shadow-md hover:shadow-lg transform hover:scale-[1.02] bg-white border-2 border-gray-200 hover:border-[#A0C4FF] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
+                className="social-login-button w-full py-3 rounded-xl font-body transition-all duration-200 text-[#2F2F2F]/80 text-sm bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5"
               >
                 {isLoading && loadingProvider === 'google' ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2F2F2F] mr-2"></div>
-                    Conectando...
-                  </div>
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#2F2F2F]/40"></div>
+                    <span>Conectando...</span>
+                  </>
                 ) : (
-                  <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 mr-3 bg-red-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-xs">G</span>
+                  <>
+                    <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold" style={{ fontSize: '9px' }}>G</span>
                     </div>
-                    Continuar con Google
-                  </div>
+                    <span className="font-medium">Continuar con Google</span>
+                  </>
                 )}
               </button>
 
@@ -191,21 +190,20 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 type="button"
                 onClick={() => handleSocialLoginClick('facebook')}
                 disabled={isLoading}
-                className="social-login-button w-full py-3.5 rounded-2xl font-body font-semibold transition-all duration-300 text-[#2F2F2F] text-lg shadow-md hover:shadow-lg transform hover:scale-[1.02] bg-white border-2 border-gray-200 hover:border-[#A0C4FF] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
+                className="social-login-button w-full py-3 rounded-xl font-body transition-all duration-200 text-[#2F2F2F]/80 text-sm bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5"
               >
                 {isLoading && loadingProvider === 'facebook' ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2F2F2F] mr-2"></div>
-                    Conectando...
-                  </div>
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#2F2F2F]/40"></div>
+                    <span>Conectando...</span>
+                  </>
                 ) : (
-                  <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 mr-3 bg-blue-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-xs">f</span>
+                  <>
+                    <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold" style={{ fontSize: '9px' }}>f</span>
                     </div>
-                    Continuar con Facebook
-                  </div>
+                    <span className="font-medium">Continuar con Facebook</span>
+                  </>
                 )}
               </button>
 
@@ -214,63 +212,55 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 type="button"
                 onClick={() => handleSocialLoginClick('apple')}
                 disabled={isLoading}
-                className="social-login-button w-full py-3.5 rounded-2xl font-body font-semibold transition-all duration-300 text-[#2F2F2F] text-lg shadow-md hover:shadow-lg transform hover:scale-[1.02] bg-white border-2 border-gray-200 hover:border-[#A0C4FF] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
+                className="social-login-button w-full py-3 rounded-xl font-body transition-all duration-200 text-[#2F2F2F]/80 text-sm bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2.5"
               >
                 {isLoading && loadingProvider === 'apple' ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2F2F2F] mr-2"></div>
-                    Conectando...
-                  </div>
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#2F2F2F]/40"></div>
+                    <span>Conectando...</span>
+                  </>
                 ) : (
-                  <div className="flex items-center justify-center">
-                    <div className="w-5 h-5 mr-3 bg-black rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">🍎</span>
+                  <>
+                    <div className="w-4 h-4 bg-[#1a1a1a] rounded-full flex items-center justify-center flex-shrink-0">
+                      <span style={{ fontSize: '9px' }}>🍎</span>
                     </div>
-                    Continuar con Apple
-                  </div>
+                    <span className="font-medium">Continuar con Apple</span>
+                  </>
                 )}
               </button>
             </div>
 
-            {/* Bottom Section */}
-            <div className="mt-6 space-y-4">
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-[#FDFDFD] text-[#2F2F2F]/60">o</span>
-                </div>
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-100"></div>
               </div>
+              <div className="relative flex justify-center">
+                <span className="px-3 bg-[#FDFDFD] text-[#2F2F2F]/30 text-xs">o</span>
+              </div>
+            </div>
 
-              {/* Email Registration Link */}
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleCreateAccount}
-                  disabled={isLoading}
-                  className="text-[#A0C4FF] hover:text-[#8AB4FF] transition-colors font-semibold text-sm underline disabled:opacity-50"
-                  style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: '600' }}
-                >
-                  Registrarse con email
-                </button>
-              </div>
+            {/* Email Registration + Legal */}
+            <div className="text-center space-y-3 pb-1">
+              <button
+                type="button"
+                onClick={handleCreateAccount}
+                disabled={isLoading}
+                className="text-[#2F2F2F]/55 hover:text-[#2F2F2F]/80 transition-colors text-sm underline underline-offset-2 decoration-[#2F2F2F]/25 hover:decoration-[#2F2F2F]/50 disabled:opacity-50"
+              >
+                Registrarse con email
+              </button>
 
-              {/* Footer Text */}
-              <div className="text-center">
-                <p className="text-[#2F2F2F]/35 text-xs font-body leading-relaxed">
-                  Al continuar aceptas los{' '}
-                  <a href="/terminos" className="underline underline-offset-2 text-[#2F2F2F]/50 hover:text-[#2F2F2F]/70 transition-colors">
-                    Términos y Condiciones
-                  </a>{' '}
-                  y la{' '}
-                  <a href="/privacidad" className="underline underline-offset-2 text-[#2F2F2F]/50 hover:text-[#2F2F2F]/70 transition-colors">
-                    Política de Privacidad
-                  </a>.
-                </p>
-              </div>
+              <p className="text-[#2F2F2F]/30 text-[11px] font-body leading-relaxed">
+                Al continuar aceptas los{' '}
+                <a href="/terminos" className="underline underline-offset-1 text-[#2F2F2F]/45 hover:text-[#2F2F2F]/60 transition-colors">
+                  Términos y Condiciones
+                </a>{' '}
+                y la{' '}
+                <a href="/privacidad" className="underline underline-offset-1 text-[#2F2F2F]/45 hover:text-[#2F2F2F]/60 transition-colors">
+                  Política de Privacidad
+                </a>.
+              </p>
             </div>
           </div>
         </div>
