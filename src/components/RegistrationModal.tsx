@@ -213,7 +213,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose }
             {/* Header */}
             <div className="text-center mb-6">
               <h1 className="font-heading text-2xl font-bold text-[#2F2F2F] leading-tight mb-2">
-                🌟 ¡Bienvenido a Genios a la Obra!
+                🌟 ¡Bienvenido a la comunidad!
               </h1>
               <p className="text-[#2F2F2F]/60 text-sm font-body">
                 Crea tu cuenta y empieza a conectar talentos
