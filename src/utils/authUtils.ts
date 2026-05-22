@@ -1,6 +1,7 @@
 // Authentication utility functions
 
 import { isValidEmail, isValidPhone, isValidDNI, simulateApiDelay, getFirstName } from './commonUtils';
+import { supabase } from '../lib/supabase';
 
 export interface User {
   id: string;
@@ -42,11 +43,28 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
+// Sync a client user to Supabase (fire-and-forget, best-effort)
+const syncClientProfile = (user: User): void => {
+  if (user.role !== 'client') return;
+  supabase.from('client_profiles').upsert({
+    id: user.id,
+    email: user.email,
+    full_name: user.name,
+    phone: user.phone ?? '',
+    dni: user.dni ?? '',
+    profile_image: user.profileImage ?? '',
+    location: user.location ?? null,
+    login_method: user.loginMethod,
+    last_seen_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' }).then(() => {});
+};
+
 // Set current user
 export const setCurrentUser = (user: User): void => {
   localStorage.setItem('currentUser', JSON.stringify(user));
   localStorage.setItem('isAuthenticated', 'true');
-  
+  syncClientProfile(user);
   // Dispatch custom event to notify components of auth state change
   window.dispatchEvent(new Event('authStateChanged'));
 };
