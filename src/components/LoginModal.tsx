@@ -157,7 +157,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 Bienvenido 👋<br />
               </h1>
               <p className="text-[#2F2F2F]/60 text-sm font-body mt-3">
-                Inicia sesión para conectar con los mejores genios
+                Conecta con personas increíbles cerca de ti
               </p>
             </div>
 
