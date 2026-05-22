@@ -154,8 +154,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="font-heading text-3xl font-bold text-[#2F2F2F] leading-tight">
-                Estamos a<br />
-                tus órdenes
+                Bienvenido 👋<br />
               </h1>
               <p className="text-[#2F2F2F]/60 text-sm font-body mt-3">
                 Inicia sesión para conectar con los mejores genios
