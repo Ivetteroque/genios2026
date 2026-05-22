@@ -1,969 +1,889 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  DollarSign, 
-  CreditCard, 
-  Clock, 
-  CheckCircle, 
-  XCircle, 
-  Eye, 
-  Download, 
-  Search, 
-  Filter, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  MoreVertical,
-  Calendar,
-  User,
-  MapPin,
-  Gift,
-  ToggleLeft,
-  ToggleRight,
-  RefreshCw,
-  AlertTriangle,
-  TrendingUp,
-  FileText,
-  X,
-  Save
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  PaymentVoucher,
-  TrialCode,
-  GeniusSubscription,
-  getPaymentVouchers,
-  getTrialCodes,
-  getGeniusSubscriptions,
-  approvePaymentVoucher,
-  rejectPaymentVoucher,
-  generateTrialCode,
-  activateTrialCode,
-  deactivateTrialCode,
-  getPaymentStatistics,
-  exportPaymentData,
-  getPaymentMethodDisplayName,
-  getSubscriptionTypeDisplayName,
-  isTrialCodeUnique,
-  getSubscriptionsByTrialCode
-} from '../../utils/paymentUtils';
-import { getActiveDepartments } from '../../utils/locationUtils';
+  Search, Plus, MoreVertical, MessageCircle, Eye, Download, X,
+  Check, CheckCircle, XCircle, Clock, AlertCircle, Gift,
+  Calendar, RefreshCw, Ban, ArrowUpRight, Copy, Zap,
+} from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { getCurrentAdmin } from '../../utils/adminAuthUtils';
-import StatusBadge from '../../components/StatusBadge';
+import { formatDateToSpanish } from '../../utils/commonUtils';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface PaymentRequest {
+  id: string;
+  genius_profile_id: string | null;
+  genius_name: string;
+  genius_email: string;
+  genius_phone: string;
+  activation_type: 'annual_payment' | 'beta_code' | 'pending_payment';
+  payment_method: 'yape' | 'plin' | 'transfer';
+  amount: number;
+  operation_reference: string;
+  voucher_url: string;
+  status: 'pending' | 'approved' | 'rejected' | 'observed';
+  internal_notes: string;
+  reviewed_by: string;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface BetaCode {
+  id: string;
+  code: string;
+  description: string;
+  duration_days: number;
+  max_uses: number;
+  used_count: number;
+  scope_department: string;
+  scope_province: string;
+  scope_district: string;
+  expires_at: string | null;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+}
+
+interface Membership {
+  id: string;
+  genius_profile_id: string | null;
+  genius_name: string;
+  genius_email: string;
+  genius_phone: string;
+  type: 'beta' | 'annual';
+  starts_at: string;
+  ends_at: string;
+  status: 'active' | 'expiring_soon' | 'expired' | 'suspended';
+  extended_by: string;
+  extended_at: string | null;
+  created_at: string;
+}
+
+interface PaymentHistory {
+  id: string;
+  genius_name: string;
+  genius_email: string;
+  amount: number;
+  payment_method: string;
+  operation_reference: string;
+  voucher_url: string;
+  status: string;
+  approved_by: string;
+  approved_at: string | null;
+  rejected_by: string;
+  rejected_at: string | null;
+  rejection_reason: string;
+  internal_notes: string;
+  created_at: string;
+}
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+type Tab = 'pending' | 'beta' | 'memberships' | 'history';
+
+const TABS: { id: Tab; label: string; badge?: number }[] = [
+  { id: 'pending', label: 'Pagos pendientes' },
+  { id: 'beta', label: 'Códigos beta' },
+  { id: 'memberships', label: 'Membresías activas' },
+  { id: 'history', label: 'Historial' },
+];
+
+const STATUS_CFG: Record<string, { label: string; cls: string; dot: string }> = {
+  pending:  { label: 'Pendiente',  cls: 'bg-amber-50 text-amber-700',  dot: 'bg-amber-400' },
+  approved: { label: 'Aprobado',   cls: 'bg-green-50 text-green-700',  dot: 'bg-green-400' },
+  rejected: { label: 'Rechazado',  cls: 'bg-red-50 text-red-600',      dot: 'bg-red-400' },
+  observed: { label: 'Observado',  cls: 'bg-blue-50 text-blue-700',    dot: 'bg-blue-400' },
+  active:   { label: 'Activo',     cls: 'bg-green-50 text-green-700',  dot: 'bg-green-400' },
+  expiring_soon: { label: 'Por vencer', cls: 'bg-amber-50 text-amber-700', dot: 'bg-amber-400' },
+  expired:  { label: 'Vencido',    cls: 'bg-gray-100 text-text/45',    dot: 'bg-gray-300' },
+  suspended:{ label: 'Suspendido', cls: 'bg-red-50 text-red-600',      dot: 'bg-red-400' },
+};
+
+const METHOD_LABEL: Record<string, string> = {
+  yape: 'Yape', plin: 'Plin', transfer: 'Transferencia',
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  annual_payment: 'Pago anual', beta_code: 'Código beta', pending_payment: 'Pendiente pago',
+};
+
+const daysRemaining = (endsAt: string): number => {
+  const diff = new Date(endsAt).getTime() - Date.now();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+};
+
+const fmtDate = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const PaymentManagement: React.FC = () => {
-  const [currentAdmin, setCurrentAdmin] = useState(getCurrentAdmin());
-  const [activeTab, setActiveTab] = useState<'vouchers' | 'subscriptions' | 'trial-codes'>('vouchers');
-  const [vouchers, setVouchers] = useState<PaymentVoucher[]>([]);
-  const [trialCodes, setTrialCodes] = useState<TrialCode[]>([]);
-  const [subscriptions, setSubscriptions] = useState<GeniusSubscription[]>([]);
-  const [activeDepartments, setActiveDepartments] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [showVoucherModal, setShowVoucherModal] = useState(false);
-  const [showTrialCodeModal, setShowTrialCodeModal] = useState(false);
-  const [selectedVoucher, setSelectedVoucher] = useState<PaymentVoucher | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const admin = getCurrentAdmin();
+  const [tab, setTab] = useState<Tab>('pending');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
-  // Trial code generation state
-  const [newTrialCode, setNewTrialCode] = useState('');
-  const [newTrialDays, setNewTrialDays] = useState<string>('7');
-  const [customTrialDays, setCustomTrialDays] = useState<number | ''>('');
-  const [newTrialDepartment, setNewTrialDepartment] = useState('');
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  // Data
+  const [requests, setRequests] = useState<PaymentRequest[]>([]);
+  const [betaCodes, setBetaCodes] = useState<BetaCode[]>([]);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+  const [history, setHistory] = useState<PaymentHistory[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Load data on component mount
-  useEffect(() => {
-    loadAllData();
-  }, []);
+  // Modals
+  const [detailRequest, setDetailRequest] = useState<PaymentRequest | null>(null);
+  const [showBetaModal, setShowBetaModal] = useState(false);
+  const [showObsModal, setShowObsModal] = useState<{ id: string; current: string } | null>(null);
+  const [showExtendModal, setShowExtendModal] = useState<Membership | null>(null);
+  const [obsText, setObsText] = useState('');
+  const [extendDays, setExtendDays] = useState('30');
+  const [processing, setProcessing] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
 
-  // Listen for payment-related changes
-  useEffect(() => {
-    const handlePaymentsChange = () => loadAllData();
-    const handleTrialCodesChange = () => loadAllData();
-    const handleSubscriptionsChange = () => loadAllData();
-
-    window.addEventListener('paymentsChanged', handlePaymentsChange);
-    window.addEventListener('trialCodesChanged', handleTrialCodesChange);
-    window.addEventListener('subscriptionsChanged', handleSubscriptionsChange);
-
-    return () => {
-      window.removeEventListener('paymentsChanged', handlePaymentsChange);
-      window.removeEventListener('trialCodesChanged', handleTrialCodesChange);
-      window.removeEventListener('subscriptionsChanged', handleSubscriptionsChange);
-    };
-  }, []);
-
-  const loadAllData = () => {
-    setVouchers(getPaymentVouchers());
-    setTrialCodes(getTrialCodes());
-    setSubscriptions(getGeniusSubscriptions());
-    setActiveDepartments(getActiveDepartments());
-  };
-
-  const statistics = getPaymentStatistics();
-
-  // Filter vouchers
-  const filteredVouchers = vouchers.filter(voucher => {
-    const matchesSearch = voucher.geniusName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         voucher.operationNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || voucher.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  // Beta code form
+  const [betaForm, setBetaForm] = useState({
+    code: '', description: '', duration_days: '30', max_uses: '10',
+    scope_department: '', expires_at: '',
   });
 
-  // Filter trial codes
-  const filteredTrialCodes = trialCodes.filter(code => {
-    return code.code.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  // ─── Loaders ───────────────────────────────────────────────────────────────
 
-  const handleApproveVoucher = async (voucherId: string) => {
-    if (!currentAdmin) return;
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [r, b, m, h] = await Promise.all([
+      supabase.from('payment_requests').select('*').order('created_at', { ascending: false }),
+      supabase.from('beta_codes').select('*').order('created_at', { ascending: false }),
+      supabase.from('memberships').select('*').order('ends_at', { ascending: true }),
+      supabase.from('payment_history').select('*').order('created_at', { ascending: false }),
+    ]);
+    setRequests(r.data ?? []);
+    setBetaCodes(b.data ?? []);
+    setMemberships((m.data ?? []).map(computeMembershipStatus));
+    setHistory(h.data ?? []);
+    setLoading(false);
+  }, []);
 
-    const confirmApprove = window.confirm('¿Estás seguro de que quieres aprobar este pago?\n\nEsto activará la suscripción del genio.');
-    if (!confirmApprove) return;
+  useEffect(() => { load(); }, [load]);
 
-    setIsProcessing(true);
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const success = approvePaymentVoucher(voucherId, currentAdmin.email);
-      
-      if (success) {
-        loadAllData();
-        alert('✅ Pago aprobado exitosamente\n\nLa suscripción del genio ha sido activada.');
-      } else {
-        alert('❌ Error al aprobar el pago');
-      }
-    } catch (error) {
-      console.error('Error approving voucher:', error);
-      alert('❌ Error al procesar la aprobación');
-    } finally {
-      setIsProcessing(false);
-    }
+  const computeMembershipStatus = (m: any): Membership => {
+    const days = daysRemaining(m.ends_at);
+    let status: Membership['status'] = 'active';
+    if (m.status === 'suspended') status = 'suspended';
+    else if (days === 0) status = 'expired';
+    else if (days <= 14) status = 'expiring_soon';
+    return { ...m, status };
   };
 
-  const handleRejectVoucher = async (voucherId: string) => {
-    if (!currentAdmin || !rejectionReason.trim()) {
-      alert('Por favor, proporciona una razón para el rechazo');
-      return;
-    }
+  // ─── Metrics ───────────────────────────────────────────────────────────────
 
-    setIsProcessing(true);
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const activeMemCount = memberships.filter(m => m.status === 'active' || m.status === 'expiring_soon').length;
+  const activeBetaCount = betaCodes.filter(b => b.is_active).length;
+  const revenue = history.filter(h => h.status === 'approved').reduce((s, h) => s + (h.amount || 0), 0);
 
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const success = rejectPaymentVoucher(voucherId, rejectionReason, currentAdmin.email);
-      
-      if (success) {
-        loadAllData();
-        setShowVoucherModal(false);
-        setSelectedVoucher(null);
-        setRejectionReason('');
-        alert('❌ Pago rechazado\n\nEl genio será notificado sobre el rechazo.');
-      } else {
-        alert('❌ Error al rechazar el pago');
-      }
-    } catch (error) {
-      console.error('Error rejecting voucher:', error);
-      alert('❌ Error al procesar el rechazo');
-    } finally {
-      setIsProcessing(false);
-    }
+  const metrics = [
+    { label: 'Pendientes', value: pendingCount, bg: 'bg-amber-50', border: 'border-amber-100', warn: pendingCount > 0 },
+    { label: 'Membresías activas', value: activeMemCount, bg: 'bg-[#C0FDFB]/30', border: 'border-[#C0FDFB]' },
+    { label: 'Códigos beta activos', value: activeBetaCount, bg: 'bg-[#A0C4FF]/15', border: 'border-[#A0C4FF]/50' },
+    { label: 'Ingresos aprobados', value: `S/ ${revenue.toLocaleString()}`, bg: 'bg-white', border: 'border-gray-100' },
+  ];
+
+  // ─── Actions ───────────────────────────────────────────────────────────────
+
+  const approveRequest = async (req: PaymentRequest) => {
+    if (!window.confirm(`¿Aprobar pago de ${req.genius_name}?\nEsto activará su membresía por 365 días.`)) return;
+    setProcessing(true);
+    const now = new Date().toISOString();
+    const endsAt = new Date(Date.now() + 365 * 86400000).toISOString();
+    await supabase.from('payment_requests').update({
+      status: 'approved', reviewed_by: admin?.email ?? '', reviewed_at: now, updated_at: now,
+    }).eq('id', req.id);
+    await supabase.from('memberships').upsert({
+      genius_profile_id: req.genius_profile_id,
+      genius_name: req.genius_name,
+      genius_email: req.genius_email,
+      genius_phone: req.genius_phone,
+      type: 'annual',
+      starts_at: now,
+      ends_at: endsAt,
+      status: 'active',
+      payment_request_id: req.id,
+    }, { onConflict: 'genius_profile_id' });
+    await supabase.from('payment_history').insert({
+      genius_profile_id: req.genius_profile_id,
+      genius_name: req.genius_name,
+      genius_email: req.genius_email,
+      amount: req.amount,
+      payment_method: req.payment_method,
+      operation_reference: req.operation_reference,
+      voucher_url: req.voucher_url,
+      status: 'approved',
+      approved_by: admin?.email ?? '',
+      approved_at: now,
+    });
+    setProcessing(false);
+    setDetailRequest(null);
+    load();
   };
 
-  const handleGenerateTrialCode = async () => {
-    if (!currentAdmin) return;
-
-    // Determine the final days value
-    let finalDays: number;
-    if (newTrialDays === 'custom') {
-      if (!customTrialDays || customTrialDays <= 0 || customTrialDays > 365) {
-        alert('Por favor, ingresa un número válido de días (1-365)');
-        return;
-      }
-      finalDays = Number(customTrialDays);
-    } else {
-      finalDays = Number(newTrialDays);
-    }
-
-    // Validate custom code if provided
-    if (newTrialCode.trim()) {
-      const cleanCode = newTrialCode.trim().toUpperCase();
-      
-      if (cleanCode.length < 3 || cleanCode.length > 20) {
-        alert('El código personalizado debe tener entre 3 y 20 caracteres');
-        return;
-      }
-      
-      if (!/^[A-Z0-9]+$/.test(cleanCode)) {
-        alert('El código solo puede contener letras y números');
-        return;
-      }
-      
-      if (!isTrialCodeUnique(cleanCode)) {
-        alert('Este código ya existe. Por favor, elige otro.');
-        return;
-      }
-    }
-
-    setIsGeneratingCode(true);
-
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const trialCode = generateTrialCode(
-        finalDays,
-        currentAdmin.email,
-        newTrialDepartment || undefined,
-        newTrialCode.trim() || undefined
-      );
-
-      if (trialCode) {
-        loadAllData();
-        
-        // Reset form
-        setNewTrialCode('');
-        setNewTrialDays('7');
-        setCustomTrialDays('');
-        setNewTrialDepartment('');
-        setShowTrialCodeModal(false);
-        
-        alert(`✅ Código de prueba generado exitosamente!\n\nCódigo: ${trialCode.code}\nDuración: ${finalDays} días\nAlcance: ${trialCode.departmentId ? activeDepartments.find(d => d.id === trialCode.departmentId)?.name : 'Global'}`);
-      } else {
-        alert('❌ Error al generar el código de prueba');
-      }
-    } catch (error) {
-      console.error('Error generating trial code:', error);
-      alert('❌ Error al generar el código');
-    } finally {
-      setIsGeneratingCode(false);
-    }
+  const rejectRequest = async (req: PaymentRequest, reason: string) => {
+    const now = new Date().toISOString();
+    await supabase.from('payment_requests').update({
+      status: 'rejected', reviewed_by: admin?.email ?? '', reviewed_at: now,
+      internal_notes: reason, updated_at: now,
+    }).eq('id', req.id);
+    await supabase.from('payment_history').insert({
+      genius_profile_id: req.genius_profile_id, genius_name: req.genius_name,
+      genius_email: req.genius_email, amount: req.amount,
+      payment_method: req.payment_method, operation_reference: req.operation_reference,
+      status: 'rejected', rejected_by: admin?.email ?? '',
+      rejected_at: now, rejection_reason: reason,
+    });
+    setDetailRequest(null);
+    load();
   };
 
-  const handleToggleTrialCode = async (codeId: string, currentStatus: boolean) => {
-    const action = currentStatus ? 'desactivar' : 'activar';
-    const confirmToggle = window.confirm(`¿Estás seguro de que quieres ${action} este código de prueba?`);
-    
-    if (!confirmToggle) return;
-
-    try {
-      const success = currentStatus ? deactivateTrialCode(codeId) : activateTrialCode(codeId);
-      
-      if (success) {
-        loadAllData();
-        alert(`✅ Código ${action === 'activar' ? 'activado' : 'desactivado'} exitosamente`);
-      } else {
-        alert(`❌ Error al ${action} el código`);
-      }
-    } catch (error) {
-      console.error(`Error toggling trial code:`, error);
-      alert(`❌ Error al ${action} el código`);
-    }
+  const saveObs = async () => {
+    if (!showObsModal) return;
+    await supabase.from('payment_requests').update({ internal_notes: obsText, updated_at: new Date().toISOString() }).eq('id', showObsModal.id);
+    setShowObsModal(null);
+    setObsText('');
+    load();
   };
 
-  const getTrialCodeUsageCount = (codeId: string): number => {
-    return getSubscriptionsByTrialCode(codeId).length;
+  const createBetaCode = async () => {
+    if (!betaForm.code.trim()) return;
+    setProcessing(true);
+    await supabase.from('beta_codes').insert({
+      code: betaForm.code.trim().toUpperCase(),
+      description: betaForm.description,
+      duration_days: parseInt(betaForm.duration_days) || 30,
+      max_uses: parseInt(betaForm.max_uses) || 10,
+      used_count: 0,
+      scope_department: betaForm.scope_department,
+      expires_at: betaForm.expires_at || null,
+      is_active: true,
+      created_by: admin?.email ?? '',
+    });
+    setProcessing(false);
+    setShowBetaModal(false);
+    setBetaForm({ code: '', description: '', duration_days: '30', max_uses: '10', scope_department: '', expires_at: '' });
+    load();
   };
 
-  const getDepartmentName = (departmentId?: string): string => {
-    if (!departmentId) return 'Global';
-    const department = activeDepartments.find(d => d.id === departmentId);
-    return department?.name || 'Desconocido';
+  const toggleBetaCode = async (code: BetaCode) => {
+    await supabase.from('beta_codes').update({ is_active: !code.is_active, updated_at: new Date().toISOString() }).eq('id', code.id);
+    load();
   };
+
+  const extendMembership = async (m: Membership, days: number) => {
+    const base = new Date(Math.max(Date.now(), new Date(m.ends_at).getTime()));
+    base.setDate(base.getDate() + days);
+    await supabase.from('memberships').update({
+      ends_at: base.toISOString(), status: 'active',
+      extended_by: admin?.email ?? '', extended_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', m.id);
+    setShowExtendModal(null);
+    load();
+  };
+
+  const suspendMembership = async (m: Membership) => {
+    if (!window.confirm(`¿Suspender membresía de ${m.genius_name}?`)) return;
+    await supabase.from('memberships').update({
+      status: 'suspended', suspended_by: admin?.email ?? '',
+      suspended_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    }).eq('id', m.id);
+    load();
+  };
+
+  const copyCode = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(text);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const whatsapp = (phone: string, name: string) => {
+    const msg = encodeURIComponent(`Hola ${name}, te contactamos desde Genios a la Obra respecto a tu pago.`);
+    window.open(`https://wa.me/51${phone.replace(/\D/g, '')}?text=${msg}`, '_blank');
+  };
+
+  // ─── Filter helpers ────────────────────────────────────────────────────────
+
+  const q = search.toLowerCase();
+  const filtRequests = requests.filter(r =>
+    (r.genius_name.toLowerCase().includes(q) || r.genius_email.toLowerCase().includes(q)) &&
+    (statusFilter === 'all' || r.status === statusFilter)
+  );
+  const filtBeta = betaCodes.filter(c =>
+    c.code.toLowerCase().includes(q) || c.description.toLowerCase().includes(q)
+  );
+  const filtMem = memberships.filter(m =>
+    (m.genius_name.toLowerCase().includes(q) || m.genius_email.toLowerCase().includes(q)) &&
+    (statusFilter === 'all' || m.status === statusFilter)
+  );
+  const filtHistory = history.filter(h =>
+    h.genius_name.toLowerCase().includes(q) || h.genius_email.toLowerCase().includes(q)
+  );
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-text">Gestión de Pagos</h1>
-          <p className="text-text/60 mt-1">Administra vouchers, suscripciones y códigos de prueba</p>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={exportPaymentData}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-text rounded-lg transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            <span>Exportar</span>
-          </button>
-          
-          <button
-            onClick={() => setShowTrialCodeModal(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-          >
-            <Gift className="w-4 h-4" />
-            <span>Generar Código</span>
-          </button>
-        </div>
-      </div>
+    <>
+      <div className="space-y-5 max-w-5xl">
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text/60 text-sm font-medium">Vouchers Pendientes</p>
-              <p className="text-2xl font-bold text-text">{statistics.pendingVouchers}</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-orange-600" />
-            </div>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-heading text-lg font-semibold text-text">Pagos y Membresías</h1>
+            <p className="text-sm text-text/40 mt-0.5">Revisa solicitudes, gestiona membresías y administra códigos beta</p>
           </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text/60 text-sm font-medium">Ingresos Totales</p>
-              <p className="text-2xl font-bold text-text">S/ {statistics.totalRevenue.toLocaleString()}</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text/60 text-sm font-medium">Suscripciones Activas</p>
-              <p className="text-2xl font-bold text-text">{statistics.activeSubscriptions}</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <User className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text/60 text-sm font-medium">Códigos Activos</p>
-              <p className="text-2xl font-bold text-text">{statistics.activeTrialCodes}</p>
-            </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Gift className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-8 px-6">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={() => setActiveTab('vouchers')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'vouchers'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-text/60 hover:text-text hover:border-gray-300'
-              }`}
+              onClick={() => {
+                const data = JSON.stringify({ requests, betaCodes, memberships, history }, null, 2);
+                const a = document.createElement('a');
+                a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(data);
+                a.download = `pagos_${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text/55 bg-white border border-gray-200 hover:border-gray-300 hover:text-text transition-colors"
             >
-              Vouchers de Pago ({statistics.totalVouchers})
+              <Download style={{ width: 14, height: 14 }} />
+              Exportar
             </button>
-            
-            <button
-              onClick={() => setActiveTab('subscriptions')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'subscriptions'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-text/60 hover:text-text hover:border-gray-300'
-              }`}
-            >
-              Suscripciones ({statistics.activeSubscriptions})
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('trial-codes')}
-              className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'trial-codes'
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-text/60 hover:text-text hover:border-gray-300'
-              }`}
-            >
-              Códigos de Prueba ({statistics.totalTrialCodes})
-            </button>
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        <div className="p-6">
-          {/* Vouchers Tab */}
-          {activeTab === 'vouchers' && (
-            <div className="space-y-6">
-              {/* Filters */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-                <div className="flex items-center space-x-4">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Buscar vouchers..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-64 pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-                    />
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 w-4 h-4" />
-                  </div>
-
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-                  >
-                    <option value="all">Todos los estados</option>
-                    <option value="pending">Pendientes</option>
-                    <option value="approved">Aprobados</option>
-                    <option value="rejected">Rechazados</option>
-                  </select>
-                </div>
-
-                <div className="text-text/60 text-sm">
-                  {filteredVouchers.length} de {vouchers.length} vouchers
-                </div>
-              </div>
-
-              {/* Vouchers Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Genio</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Monto</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Método</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Operación</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Fecha</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Estado</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredVouchers.map((voucher) => (
-                      <tr key={voucher.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4">
-                          <div>
-                            <p className="font-medium text-text">{voucher.geniusName}</p>
-                            <p className="text-text/60 text-sm">{voucher.geniusId}</p>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="font-medium text-text">S/ {voucher.amount}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-text/80">{getPaymentMethodDisplayName(voucher.paymentMethod)}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="font-mono text-sm text-text/80">{voucher.operationNumber}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-text/80">{voucher.paymentDate}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <StatusBadge status={voucher.status} />
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => {
-                                setSelectedVoucher(voucher);
-                                setShowVoucherModal(true);
-                              }}
-                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="Ver detalles"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            
-                            {voucher.status === 'pending' && (
-                              <>
-                                <button
-                                  onClick={() => handleApproveVoucher(voucher.id)}
-                                  disabled={isProcessing}
-                                  className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
-                                  title="Aprobar"
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                </button>
-                                
-                                <button
-                                  onClick={() => {
-                                    setSelectedVoucher(voucher);
-                                    setShowVoucherModal(true);
-                                  }}
-                                  disabled={isProcessing}
-                                  className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                                  title="Rechazar"
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredVouchers.length === 0 && (
-                  <div className="text-center py-12 text-text/60">
-                    <CreditCard className="w-12 h-12 mx-auto mb-4 text-text/40" />
-                    <p className="text-lg font-medium mb-2">No se encontraron vouchers</p>
-                    <p>Los vouchers de pago aparecerán aquí cuando los genios los envíen</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Trial Codes Tab */}
-          {activeTab === 'trial-codes' && (
-            <div className="space-y-6">
-              {/* Filters */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Buscar códigos..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-64 pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-                  />
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 w-4 h-4" />
-                </div>
-
-                <div className="text-text/60 text-sm">
-                  {filteredTrialCodes.length} de {trialCodes.length} códigos
-                </div>
-              </div>
-
-              {/* Trial Codes Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Código</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Días</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Departamento</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Usos</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Estado</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Creado</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTrialCodes.map((code) => (
-                      <tr key={code.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4">
-                          <span className="font-mono font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">
-                            {code.code}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-text/80">{code.days} días</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center space-x-2">
-                            <MapPin className="w-4 h-4 text-text/60" />
-                            <span className="text-text/80">{getDepartmentName(code.departmentId)}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-text/80">{getTrialCodeUsageCount(code.id)} usos</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <StatusBadge status={code.isActive ? 'active' : 'inactive'} />
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-text/60 text-sm">
-                            {new Date(code.createdAt).toLocaleDateString('es-ES')}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <button
-                            onClick={() => handleToggleTrialCode(code.id, code.isActive)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              code.isActive
-                                ? 'text-red-600 hover:bg-red-100'
-                                : 'text-green-600 hover:bg-green-100'
-                            }`}
-                            title={code.isActive ? 'Desactivar código' : 'Activar código'}
-                          >
-                            {code.isActive ? (
-                              <ToggleRight className="w-5 h-5" />
-                            ) : (
-                              <ToggleLeft className="w-5 h-5" />
-                            )}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {filteredTrialCodes.length === 0 && (
-                  <div className="text-center py-12 text-text/60">
-                    <Gift className="w-12 h-12 mx-auto mb-4 text-text/40" />
-                    <p className="text-lg font-medium mb-2">No se encontraron códigos</p>
-                    <p>Los códigos de prueba aparecerán aquí cuando los generes</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Subscriptions Tab */}
-          {activeTab === 'subscriptions' && (
-            <div className="space-y-6">
-              {/* Subscriptions Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Genio</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Tipo</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Inicio</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Vencimiento</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Días Restantes</th>
-                      <th className="text-left py-3 px-4 font-medium text-text/80">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subscriptions.map((subscription) => (
-                      <tr key={`${subscription.geniusId}-${subscription.startDate}`} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4">
-                          <div>
-                            <p className="font-medium text-text">{subscription.geniusName}</p>
-                            <p className="text-text/60 text-sm">{subscription.geniusId}</p>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-text/80">{getSubscriptionTypeDisplayName(subscription.subscriptionType)}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-text/80">
-                            {new Date(subscription.startDate).toLocaleDateString('es-ES')}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-text/80">
-                            {new Date(subscription.endDate).toLocaleDateString('es-ES')}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`font-medium ${
-                            subscription.daysRemaining <= 7 
-                              ? 'text-red-600' 
-                              : subscription.daysRemaining <= 30 
-                              ? 'text-orange-600' 
-                              : 'text-green-600'
-                          }`}>
-                            {subscription.daysRemaining} días
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <StatusBadge status={subscription.isActive ? 'active' : 'inactive'} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {subscriptions.length === 0 && (
-                  <div className="text-center py-12 text-text/60">
-                    <User className="w-12 h-12 mx-auto mb-4 text-text/40" />
-                    <p className="text-lg font-medium mb-2">No hay suscripciones</p>
-                    <p>Las suscripciones aparecerán aquí cuando se activen</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Voucher Details Modal */}
-      {showVoucherModal && selectedVoucher && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
-              <h3 className="font-heading text-xl font-bold text-text">Detalles del Voucher</h3>
+            {tab === 'beta' && (
               <button
-                onClick={() => {
-                  setShowVoucherModal(false);
-                  setSelectedVoucher(null);
-                  setRejectionReason('');
-                }}
-                className="text-text/60 hover:text-text transition-colors"
+                onClick={() => setShowBetaModal(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-white bg-text hover:bg-text/85 transition-colors"
               >
-                <X className="w-6 h-6" />
+                <Plus style={{ width: 14, height: 14 }} />
+                Nuevo código
               </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Voucher Image */}
-              <div>
-                <label className="block text-sm font-medium text-text/80 mb-2">Imagen del Voucher:</label>
-                <img
-                  src={selectedVoucher.voucherImage}
-                  alt="Voucher"
-                  className="w-full max-h-96 object-contain rounded-lg border border-gray-200"
-                />
-              </div>
-
-              {/* Voucher Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Genio:</label>
-                  <p className="text-text">{selectedVoucher.geniusName}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Monto:</label>
-                  <p className="text-text font-bold">S/ {selectedVoucher.amount}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Método de Pago:</label>
-                  <p className="text-text">{getPaymentMethodDisplayName(selectedVoucher.paymentMethod)}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Número de Operación:</label>
-                  <p className="text-text font-mono">{selectedVoucher.operationNumber}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Fecha y Hora:</label>
-                  <p className="text-text">{selectedVoucher.paymentDate} a las {selectedVoucher.paymentTime}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Estado:</label>
-                  <StatusBadge status={selectedVoucher.status} />
-                </div>
-
-                {selectedVoucher.bank && (
-                  <div>
-                    <label className="block text-sm font-medium text-text/80 mb-1">Banco:</label>
-                    <p className="text-text">{selectedVoucher.bank}</p>
-                  </div>
-                )}
-
-                {selectedVoucher.app && (
-                  <div>
-                    <label className="block text-sm font-medium text-text/80 mb-1">App:</label>
-                    <p className="text-text">{selectedVoucher.app}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Rejection Reason Input (for pending vouchers) */}
-              {selectedVoucher.status === 'pending' && (
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-2">
-                    Razón de Rechazo (opcional):
-                  </label>
-                  <textarea
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 resize-none"
-                    placeholder="Explica por qué se rechaza este voucher..."
-                  />
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              {selectedVoucher.status === 'pending' && (
-                <div className="flex space-x-4">
-                  <button
-                    onClick={() => handleApproveVoucher(selectedVoucher.id)}
-                    disabled={isProcessing}
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Procesando...' : 'Aprobar Pago'}
-                  </button>
-                  
-                  <button
-                    onClick={() => handleRejectVoucher(selectedVoucher.id)}
-                    disabled={isProcessing}
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Procesando...' : 'Rechazar Pago'}
-                  </button>
-                </div>
-              )}
-
-              {/* Review Information */}
-              {selectedVoucher.reviewedAt && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-text mb-2">Información de Revisión:</h4>
-                  <div className="space-y-1 text-sm text-text/80">
-                    <p>Revisado por: {selectedVoucher.reviewedBy}</p>
-                    <p>Fecha: {new Date(selectedVoucher.reviewedAt).toLocaleString('es-ES')}</p>
-                    {selectedVoucher.rejectionReason && (
-                      <p>Razón: {selectedVoucher.rejectionReason}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
-      )}
 
-      {/* Generate Trial Code Modal */}
-      {showTrialCodeModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-heading text-xl font-bold text-text">Generar Código de Prueba</h3>
-              <button
-                onClick={() => {
-                  setShowTrialCodeModal(false);
-                  setNewTrialCode('');
-                  setNewTrialDays('7');
-                  setCustomTrialDays('');
-                  setNewTrialDepartment('');
-                }}
-                className="text-text/60 hover:text-text transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+        {/* Metrics */}
+        <div className="grid grid-cols-4 gap-2.5">
+          {metrics.map(({ label, value, bg, border, warn }) => (
+            <div key={label} className={`${bg} border ${border} rounded-xl px-3 py-3 text-center`}>
+              <p className={`font-heading text-xl font-semibold ${warn ? 'text-amber-600' : 'text-text'}`}>{value}</p>
+              <p className="text-[11px] text-text/40 mt-0.5">{label}</p>
             </div>
+          ))}
+        </div>
 
-            <div className="space-y-6">
-              {/* Custom Code Input */}
-              <div>
-                <label className="block text-sm font-medium text-text/80 mb-2">
-                  🏷️ Código Personalizado (opcional):
-                </label>
-                <input
-                  type="text"
-                  value={newTrialCode}
-                  onChange={(e) => setNewTrialCode(e.target.value.toUpperCase())}
-                  className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 font-mono text-center tracking-wider"
-                  placeholder="TACNA30, LIMA15, etc."
-                  maxLength={20}
-                />
-                <p className="text-xs text-text/60 mt-1">
-                  Si no especificas, se generará automáticamente
-                </p>
-              </div>
-
-              {/* Days Selection */}
-              <div>
-                <label className="block text-sm font-medium text-text/80 mb-2">
-                  📅 Duración del código:
-                </label>
-                <select
-                  value={newTrialDays}
-                  onChange={(e) => {
-                    setNewTrialDays(e.target.value);
-                    if (e.target.value !== 'custom') {
-                      setCustomTrialDays('');
-                    }
-                  }}
-                  className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-                >
-                  <option value="3">3 días</option>
-                  <option value="7">7 días</option>
-                  <option value="15">15 días</option>
-                  <option value="30">30 días</option>
-                  <option value="60">60 días</option>
-                  <option value="custom">Personalizado</option>
-                </select>
-              </div>
-
-              {/* Custom Days Input */}
-              {newTrialDays === 'custom' && (
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-2">
-                    🔢 Días personalizados:
-                  </label>
-                  <input
-                    type="number"
-                    value={customTrialDays}
-                    onChange={(e) => setCustomTrialDays(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-                    placeholder="Ingresa el número de días"
-                    min="1"
-                    max="365"
-                  />
-                  <p className="text-xs text-text/60 mt-1">
-                    Entre 1 y 365 días
-                  </p>
-                </div>
-              )}
-
-              {/* Department Selection */}
-              <div>
-                <label className="block text-sm font-medium text-text/80 mb-2">
-                  🗺️ Departamento (opcional):
-                </label>
-                <select
-                  value={newTrialDepartment}
-                  onChange={(e) => setNewTrialDepartment(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-                >
-                  <option value="">Global (todos los departamentos)</option>
-                  {activeDepartments.map(dept => (
-                    <option key={dept.id} value={dept.id}>{dept.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-text/60 mt-1">
-                  Si seleccionas un departamento, solo los genios de esa región podrán usar el código
-                </p>
-              </div>
-
-              {/* Generate Button */}
+        {/* Tabs + filters */}
+        <div className="bg-white rounded-xl border border-gray-100">
+          {/* Tab bar */}
+          <div className="flex items-center gap-1 px-4 pt-3 pb-0 border-b border-gray-100 overflow-x-auto">
+            {TABS.map(t => (
               <button
-                onClick={handleGenerateTrialCode}
-                disabled={isGeneratingCode || (newTrialDays === 'custom' && (!customTrialDays || customTrialDays <= 0 || customTrialDays > 365))}
-                className={`w-full py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-md hover:shadow-lg ${
-                  isGeneratingCode || (newTrialDays === 'custom' && (!customTrialDays || customTrialDays <= 0 || customTrialDays > 365))
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-primary hover:bg-primary-dark text-white transform hover:scale-[1.02]'
+                key={t.id}
+                onClick={() => { setTab(t.id); setStatusFilter('all'); setSearch(''); }}
+                className={`relative px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                  tab === t.id
+                    ? 'border-text text-text'
+                    : 'border-transparent text-text/40 hover:text-text/65'
                 }`}
               >
-                {isGeneratingCode ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-500 mr-2"></div>
-                    Generando código...
-                  </div>
-                ) : (
-                  '🎁 Generar Código'
+                {t.label}
+                {t.id === 'pending' && pendingCount > 0 && (
+                  <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-400 text-white text-[9px] font-bold">{pendingCount}</span>
                 )}
               </button>
+            ))}
+          </div>
 
-              {/* Preview */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-medium text-text mb-2">Vista previa del código:</h4>
-                <div className="space-y-1 text-sm text-text/80">
-                  <p>Código: <span className="font-mono font-bold text-primary">
-                    {newTrialCode.trim() || 'TRIAL[GENERADO]'}
-                  </span></p>
-                  <p>Duración: <span className="font-medium">
-                    {newTrialDays === 'custom' ? (customTrialDays || '?') : newTrialDays} días
-                  </span></p>
-                  <p>Alcance: <span className="font-medium">
-                    {newTrialDepartment 
-                      ? activeDepartments.find(d => d.id === newTrialDepartment)?.name 
-                      : 'Global'
-                    }
-                  </span></p>
-                </div>
-              </div>
+          {/* Filters row */}
+          <div className="px-4 py-3 flex flex-wrap items-center gap-2.5 border-b border-gray-50">
+            <div className="relative flex-1 min-w-[160px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/25" />
+              <input
+                type="text"
+                placeholder="Buscar..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-text/15 focus:border-text/25 placeholder:text-text/25 transition-colors"
+              />
             </div>
+            {(tab === 'pending' || tab === 'memberships') && (
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-text/15 text-text/60 transition-colors"
+              >
+                <option value="all">Todos los estados</option>
+                {tab === 'pending'
+                  ? <>
+                      <option value="pending">Pendiente</option>
+                      <option value="approved">Aprobado</option>
+                      <option value="rejected">Rechazado</option>
+                      <option value="observed">Observado</option>
+                    </>
+                  : <>
+                      <option value="active">Activo</option>
+                      <option value="expiring_soon">Por vencer</option>
+                      <option value="expired">Vencido</option>
+                      <option value="suspended">Suspendido</option>
+                    </>
+                }
+              </select>
+            )}
+            <span className="text-xs text-text/30 ml-auto whitespace-nowrap">
+              {tab === 'pending' && `${filtRequests.length} solicitudes`}
+              {tab === 'beta' && `${filtBeta.length} códigos`}
+              {tab === 'memberships' && `${filtMem.length} membresías`}
+              {tab === 'history' && `${filtHistory.length} registros`}
+            </span>
+          </div>
+
+          {/* Content */}
+          <div className="p-4">
+            {loading ? (
+              <div className="py-12 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-text/30" />
+              </div>
+            ) : (
+              <>
+                {/* ── Pagos pendientes ── */}
+                {tab === 'pending' && (
+                  <div className="space-y-2.5">
+                    {filtRequests.length === 0 ? (
+                      <EmptyState icon={<Clock className="w-7 h-7" />} title="Sin solicitudes de pago" sub="Las solicitudes aparecerán aquí cuando un genio envíe su comprobante." />
+                    ) : filtRequests.map(req => {
+                      const s = STATUS_CFG[req.status] ?? STATUS_CFG.pending;
+                      const isOpen = activeDropdown === req.id;
+                      return (
+                        <div key={req.id} className="bg-white rounded-xl border border-gray-100 px-5 py-4 flex items-center gap-4 hover:border-gray-200 hover:shadow-sm transition-all duration-150">
+                          {/* Avatar placeholder */}
+                          <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-sm font-medium text-text/40">
+                            {req.genius_name.charAt(0).toUpperCase()}
+                          </div>
+
+                          {/* Main info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-medium text-text">{req.genius_name}</p>
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-100 text-text/50">{TYPE_LABEL[req.activation_type] ?? req.activation_type}</span>
+                            </div>
+                            <p className="text-xs text-text/40 mt-0.5 truncate">{req.genius_email}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              {req.amount > 0 && <span className="text-[11px] font-semibold text-text">S/ {req.amount}</span>}
+                              {req.payment_method && <span className="text-[11px] text-text/40">{METHOD_LABEL[req.payment_method]}</span>}
+                              {req.operation_reference && <span className="text-[11px] font-mono text-text/35">{req.operation_reference}</span>}
+                            </div>
+                          </div>
+
+                          {/* Date */}
+                          <div className="hidden md:block text-center flex-shrink-0">
+                            <p className="text-xs text-text/45">{fmtDate(req.created_at)}</p>
+                            <p className="text-[10px] text-text/25 mt-0.5">Solicitud</p>
+                          </div>
+
+                          {/* Status */}
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${s.cls}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                            {s.label}
+                          </span>
+
+                          {/* Quick actions */}
+                          {req.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => approveRequest(req)}
+                                disabled={processing}
+                                title="Aprobar pago"
+                                className="p-1.5 text-text/25 hover:text-green-500 hover:bg-green-50 rounded-lg transition-colors flex-shrink-0"
+                              >
+                                <CheckCircle style={{ width: 15, height: 15 }} />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => whatsapp(req.genius_phone, req.genius_name)}
+                            title="WhatsApp"
+                            className="p-1.5 text-text/25 hover:text-green-500 hover:bg-green-50 rounded-lg transition-colors flex-shrink-0"
+                          >
+                            <MessageCircle style={{ width: 15, height: 15 }} />
+                          </button>
+                          <button
+                            onClick={() => setDetailRequest(req)}
+                            className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 text-xs text-text/55 border border-gray-200 rounded-lg hover:border-gray-300 hover:text-text transition-colors flex-shrink-0"
+                          >
+                            <Eye style={{ width: 12, height: 12 }} />
+                            Ver
+                          </button>
+
+                          {/* Actions dropdown */}
+                          <div className="relative flex-shrink-0">
+                            <button onClick={() => setActiveDropdown(isOpen ? null : req.id)} className="p-1.5 text-text/25 hover:text-text/55 hover:bg-gray-50 rounded-lg transition-colors">
+                              <MoreVertical style={{ width: 15, height: 15 }} />
+                            </button>
+                            {isOpen && (
+                              <div className="absolute right-0 mt-1.5 w-48 bg-white rounded-xl border border-gray-100 shadow-lg z-20 overflow-hidden">
+                                <div className="py-1.5">
+                                  <DDItem icon={Eye} label="Ver detalle" onClick={() => { setDetailRequest(req); setActiveDropdown(null); }} />
+                                  {req.status === 'pending' && <DDItem icon={CheckCircle} label="Aprobar pago" onClick={() => { approveRequest(req); setActiveDropdown(null); }} />}
+                                  {req.status === 'pending' && <DDItem icon={XCircle} label="Rechazar pago" onClick={() => { setDetailRequest(req); setActiveDropdown(null); }} />}
+                                  <DDItem icon={AlertCircle} label="Agregar observación" onClick={() => { setShowObsModal({ id: req.id, current: req.internal_notes }); setObsText(req.internal_notes); setActiveDropdown(null); }} />
+                                  <DDItem icon={MessageCircle} label="WhatsApp" onClick={() => { whatsapp(req.genius_phone, req.genius_name); setActiveDropdown(null); }} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Códigos beta ── */}
+                {tab === 'beta' && (
+                  <div className="space-y-2.5">
+                    {filtBeta.length === 0 ? (
+                      <EmptyState icon={<Gift className="w-7 h-7" />} title="Sin códigos beta" sub="Crea el primer código beta para activar cuentas de genios.">
+                        <button onClick={() => setShowBetaModal(true)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-white bg-text hover:bg-text/85 transition-colors">
+                          <Plus style={{ width: 14, height: 14 }} />
+                          Nuevo código
+                        </button>
+                      </EmptyState>
+                    ) : filtBeta.map(code => {
+                      const usedPct = code.max_uses > 0 ? Math.round((code.used_count / code.max_uses) * 100) : 0;
+                      const expired = code.expires_at && new Date(code.expires_at) < new Date();
+                      return (
+                        <div key={code.id} className="bg-white rounded-xl border border-gray-100 px-5 py-4 flex items-center gap-4 hover:border-gray-200 hover:shadow-sm transition-all duration-150">
+                          {/* Code badge */}
+                          <div className="flex-shrink-0">
+                            <button
+                              onClick={() => copyCode(code.code)}
+                              title="Copiar código"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-colors group"
+                            >
+                              <span className="font-mono text-sm font-semibold text-text tracking-wide">{code.code}</span>
+                              {copied === code.code
+                                ? <Check style={{ width: 12, height: 12 }} className="text-green-500" />
+                                : <Copy style={{ width: 12, height: 12 }} className="text-text/30 group-hover:text-text/55" />
+                              }
+                            </button>
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-text/60 truncate">{code.description || 'Sin descripción'}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-[11px] text-text/40">{code.duration_days} días</span>
+                              {code.scope_department && <span className="text-[11px] text-text/35">{code.scope_department}</span>}
+                              {code.expires_at && <span className={`text-[11px] ${expired ? 'text-red-400' : 'text-text/35'}`}>Exp: {fmtDate(code.expires_at)}</span>}
+                            </div>
+                          </div>
+
+                          {/* Usage bar */}
+                          <div className="hidden md:flex flex-col items-end gap-1 flex-shrink-0 w-28">
+                            <p className="text-xs text-text/50">{code.used_count}/{code.max_uses} usos</p>
+                            <div className="w-full bg-gray-100 rounded-full h-1.5">
+                              <div className="h-1.5 rounded-full bg-[#A0C4FF] transition-all" style={{ width: `${usedPct}%` }} />
+                            </div>
+                          </div>
+
+                          {/* Status */}
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${code.is_active && !expired ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-text/45'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${code.is_active && !expired ? 'bg-green-400' : 'bg-gray-300'}`} />
+                            {code.is_active && !expired ? 'Activo' : 'Inactivo'}
+                          </span>
+
+                          {/* Toggle */}
+                          <button
+                            onClick={() => toggleBetaCode(code)}
+                            title={code.is_active ? 'Desactivar' : 'Activar'}
+                            className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${code.is_active ? 'text-text/25 hover:text-red-400 hover:bg-red-50' : 'text-text/25 hover:text-green-500 hover:bg-green-50'}`}
+                          >
+                            {code.is_active ? <Ban style={{ width: 15, height: 15 }} /> : <Zap style={{ width: 15, height: 15 }} />}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Membresías activas ── */}
+                {tab === 'memberships' && (
+                  <div className="space-y-2.5">
+                    {filtMem.length === 0 ? (
+                      <EmptyState icon={<Calendar className="w-7 h-7" />} title="Sin membresías" sub="Las membresías activas aparecerán aquí." />
+                    ) : filtMem.map(m => {
+                      const s = STATUS_CFG[m.status] ?? STATUS_CFG.active;
+                      const days = daysRemaining(m.ends_at);
+                      const isOpen = activeDropdown === m.id;
+                      return (
+                        <div key={m.id} className="bg-white rounded-xl border border-gray-100 px-5 py-4 flex items-center gap-4 hover:border-gray-200 hover:shadow-sm transition-all duration-150">
+                          <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-sm font-medium text-text/40">
+                            {m.genius_name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-text">{m.genius_name}</p>
+                            <p className="text-xs text-text/40 mt-0.5 truncate">{m.genius_email}</p>
+                          </div>
+                          {/* Type */}
+                          <span className={`hidden md:inline-flex text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${m.type === 'annual' ? 'bg-[#C0FDFB]/40 text-teal-700' : 'bg-[#A0C4FF]/20 text-blue-700'}`}>
+                            {m.type === 'annual' ? 'Anual' : 'Beta'}
+                          </span>
+                          {/* Dates */}
+                          <div className="hidden lg:flex flex-col text-right flex-shrink-0">
+                            <p className="text-xs text-text/45">{fmtDate(m.starts_at)} → {fmtDate(m.ends_at)}</p>
+                            <p className={`text-[11px] font-medium mt-0.5 ${days <= 14 ? 'text-amber-500' : 'text-text/35'}`}>{days > 0 ? `${days} días restantes` : 'Vencido'}</p>
+                          </div>
+                          {/* Status */}
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${s.cls}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                            {s.label}
+                          </span>
+                          <button onClick={() => whatsapp(m.genius_phone, m.genius_name)} title="WhatsApp" className="p-1.5 text-text/25 hover:text-green-500 hover:bg-green-50 rounded-lg transition-colors flex-shrink-0">
+                            <MessageCircle style={{ width: 15, height: 15 }} />
+                          </button>
+                          {/* Actions dropdown */}
+                          <div className="relative flex-shrink-0">
+                            <button onClick={() => setActiveDropdown(isOpen ? null : m.id)} className="p-1.5 text-text/25 hover:text-text/55 hover:bg-gray-50 rounded-lg transition-colors">
+                              <MoreVertical style={{ width: 15, height: 15 }} />
+                            </button>
+                            {isOpen && (
+                              <div className="absolute right-0 mt-1.5 w-48 bg-white rounded-xl border border-gray-100 shadow-lg z-20 overflow-hidden">
+                                <div className="py-1.5">
+                                  <DDItem icon={ArrowUpRight} label="Extender membresía" onClick={() => { setShowExtendModal(m); setActiveDropdown(null); }} />
+                                  <DDItem icon={RefreshCw} label="Renovar (365 días)" onClick={() => { extendMembership(m, 365); setActiveDropdown(null); }} />
+                                  <DDItem icon={Ban} label="Suspender" onClick={() => { suspendMembership(m); setActiveDropdown(null); }} />
+                                  <DDItem icon={MessageCircle} label="WhatsApp" onClick={() => { whatsapp(m.genius_phone, m.genius_name); setActiveDropdown(null); }} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* ── Historial ── */}
+                {tab === 'history' && (
+                  <div className="space-y-2.5">
+                    {filtHistory.length === 0 ? (
+                      <EmptyState icon={<Clock className="w-7 h-7" />} title="Sin historial" sub="Aquí aparecerán todos los movimientos de pago." />
+                    ) : filtHistory.map(h => {
+                      const s = STATUS_CFG[h.status] ?? STATUS_CFG.approved;
+                      return (
+                        <div key={h.id} className="bg-white rounded-xl border border-gray-100 px-5 py-3.5 flex items-center gap-4 hover:border-gray-200 transition-all duration-150">
+                          <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-xs font-medium text-text/40">
+                            {h.genius_name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-text">{h.genius_name}</p>
+                            <p className="text-xs text-text/40 truncate">{h.genius_email}</p>
+                          </div>
+                          {h.amount > 0 && <span className="text-sm font-semibold text-text flex-shrink-0">S/ {h.amount}</span>}
+                          {h.payment_method && <span className="text-xs text-text/40 flex-shrink-0">{METHOD_LABEL[h.payment_method] ?? h.payment_method}</span>}
+                          <span className="text-xs text-text/30 flex-shrink-0 hidden md:block">{fmtDate(h.created_at)}</span>
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${s.cls}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                            {s.label}
+                          </span>
+                          {h.approved_by && <span className="text-[10px] text-text/30 flex-shrink-0 hidden lg:block">por {h.approved_by.split('@')[0]}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
+      </div>
+
+      {/* ── Backdrop ── */}
+      {activeDropdown && <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)} />}
+
+      {/* ── Detail / approve / reject modal ── */}
+      {detailRequest && (
+        <MiniModal title={`Solicitud — ${detailRequest.genius_name}`} onClose={() => setDetailRequest(null)} wide>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <DetailRow label="Genio" value={detailRequest.genius_name} />
+              <DetailRow label="Correo" value={detailRequest.genius_email} />
+              <DetailRow label="Teléfono" value={`+51 ${detailRequest.genius_phone}`} />
+              <DetailRow label="Tipo" value={TYPE_LABEL[detailRequest.activation_type]} />
+              <DetailRow label="Método" value={METHOD_LABEL[detailRequest.payment_method] ?? detailRequest.payment_method} />
+              {detailRequest.amount > 0 && <DetailRow label="Monto" value={`S/ ${detailRequest.amount}`} bold />}
+              {detailRequest.operation_reference && <DetailRow label="Referencia" value={detailRequest.operation_reference} mono />}
+              <DetailRow label="Fecha" value={fmtDate(detailRequest.created_at)} />
+            </div>
+            {detailRequest.voucher_url && (
+              <div>
+                <p className="text-xs font-medium text-text/45 mb-1.5">Comprobante</p>
+                <img src={detailRequest.voucher_url} alt="Comprobante" className="w-full max-h-60 object-contain rounded-lg border border-gray-100" />
+              </div>
+            )}
+            {detailRequest.internal_notes && (
+              <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                <p className="text-xs text-amber-700">{detailRequest.internal_notes}</p>
+              </div>
+            )}
+            {detailRequest.status === 'pending' && (
+              <div className="flex gap-2 pt-1">
+                <button onClick={() => approveRequest(detailRequest)} disabled={processing} className="flex-1 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50">
+                  {processing ? 'Procesando...' : 'Aprobar pago'}
+                </button>
+                <button
+                  onClick={async () => {
+                    const reason = window.prompt('Razón del rechazo:');
+                    if (reason) rejectRequest(detailRequest, reason);
+                  }}
+                  disabled={processing}
+                  className="flex-1 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Rechazar
+                </button>
+              </div>
+            )}
+          </div>
+        </MiniModal>
       )}
-    </div>
+
+      {/* ── Observation modal ── */}
+      {showObsModal && (
+        <MiniModal title="Observación interna" onClose={() => { setShowObsModal(null); setObsText(''); }}>
+          <textarea
+            value={obsText}
+            onChange={e => setObsText(e.target.value)}
+            rows={3}
+            placeholder="Escribe una observación interna sobre este pago..."
+            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-1 focus:ring-text/15 resize-none placeholder:text-text/25"
+          />
+          <div className="flex gap-2 mt-3">
+            <button onClick={saveObs} className="flex-1 py-2 text-sm font-medium text-white bg-text hover:bg-text/85 rounded-lg transition-colors">Guardar</button>
+            <button onClick={() => { setShowObsModal(null); setObsText(''); }} className="flex-1 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
+          </div>
+        </MiniModal>
+      )}
+
+      {/* ── Extend modal ── */}
+      {showExtendModal && (
+        <MiniModal title={`Extender membresía — ${showExtendModal.genius_name}`} onClose={() => setShowExtendModal(null)}>
+          <div className="space-y-3">
+            <div className="text-sm text-text/55 bg-gray-50 rounded-lg px-3 py-2.5">
+              Vence: <span className="font-medium text-text">{fmtDate(showExtendModal.ends_at)}</span>
+              {' '}· <span className={daysRemaining(showExtendModal.ends_at) <= 14 ? 'text-amber-500 font-medium' : ''}>{daysRemaining(showExtendModal.ends_at)} días restantes</span>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text/45 mb-1.5">Días a extender</label>
+              <select value={extendDays} onChange={e => setExtendDays(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-text/15">
+                <option value="7">7 días</option>
+                <option value="14">14 días</option>
+                <option value="30">30 días</option>
+                <option value="60">60 días</option>
+                <option value="90">90 días</option>
+                <option value="180">180 días</option>
+                <option value="365">365 días (1 año)</option>
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => extendMembership(showExtendModal, parseInt(extendDays))} className="flex-1 py-2 text-sm font-medium text-white bg-text hover:bg-text/85 rounded-lg transition-colors">
+                Extender {extendDays} días
+              </button>
+              <button onClick={() => setShowExtendModal(null)} className="flex-1 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
+            </div>
+          </div>
+        </MiniModal>
+      )}
+
+      {/* ── New beta code modal ── */}
+      {showBetaModal && (
+        <MiniModal title="Nuevo código beta" onClose={() => setShowBetaModal(false)}>
+          <div className="space-y-3">
+            <FormField label="Código *">
+              <input type="text" value={betaForm.code} onChange={e => setBetaForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} className={miniInput} placeholder="Ej: TACNA30" maxLength={20} />
+            </FormField>
+            <FormField label="Descripción">
+              <input type="text" value={betaForm.description} onChange={e => setBetaForm(p => ({ ...p, description: e.target.value }))} className={miniInput} placeholder="Para qué sirve este código..." />
+            </FormField>
+            <div className="grid grid-cols-2 gap-2.5">
+              <FormField label="Duración (días)">
+                <select value={betaForm.duration_days} onChange={e => setBetaForm(p => ({ ...p, duration_days: e.target.value }))} className={miniInput}>
+                  {[7, 14, 30, 60, 90, 180, 365].map(d => <option key={d} value={d}>{d} días</option>)}
+                </select>
+              </FormField>
+              <FormField label="Límite de usos">
+                <input type="number" value={betaForm.max_uses} min={1} onChange={e => setBetaForm(p => ({ ...p, max_uses: e.target.value }))} className={miniInput} />
+              </FormField>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <FormField label="Departamento (opcional)">
+                <input type="text" value={betaForm.scope_department} onChange={e => setBetaForm(p => ({ ...p, scope_department: e.target.value }))} className={miniInput} placeholder="Tacna, Lima..." />
+              </FormField>
+              <FormField label="Fecha expiración (opcional)">
+                <input type="date" value={betaForm.expires_at} onChange={e => setBetaForm(p => ({ ...p, expires_at: e.target.value }))} className={miniInput} />
+              </FormField>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button onClick={createBetaCode} disabled={!betaForm.code.trim() || processing} className="flex-1 py-2 text-sm font-medium text-white bg-text hover:bg-text/85 rounded-lg transition-colors disabled:opacity-40">
+                {processing ? 'Creando...' : 'Crear código'}
+              </button>
+              <button onClick={() => setShowBetaModal(false)} className="flex-1 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
+            </div>
+          </div>
+        </MiniModal>
+      )}
+    </>
   );
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const miniInput = 'w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-text/15 focus:border-text/25 placeholder:text-text/25 transition-colors';
+
+const DDItem: React.FC<{ icon?: React.FC<any>; label: string; onClick: () => void }> = ({ icon: Icon, label, onClick }) => (
+  <button onClick={onClick} className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-text/60 hover:bg-gray-50 hover:text-text w-full text-left transition-colors">
+    {Icon && <Icon style={{ width: 13, height: 13, flexShrink: 0 }} />}
+    {label}
+  </button>
+);
+
+const MiniModal: React.FC<{ title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }> = ({ title, onClose, children, wide }) => (
+  <div className="fixed inset-0 bg-black/25 z-50 flex items-center justify-center p-4">
+    <div className={`bg-white rounded-2xl w-full shadow-xl ${wide ? 'max-w-lg' : 'max-w-sm'}`}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <h3 className="text-sm font-semibold text-text">{title}</h3>
+        <button onClick={onClose} className="p-1 text-text/30 hover:text-text/60 rounded-lg hover:bg-gray-50 transition-colors">
+          <X style={{ width: 15, height: 15 }} />
+        </button>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  </div>
+);
+
+const EmptyState: React.FC<{ icon: React.ReactNode; title: string; sub: string; children?: React.ReactNode }> = ({ icon, title, sub, children }) => (
+  <div className="bg-white rounded-xl border border-gray-100 py-16 text-center">
+    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-50 mb-3 text-text/25">{icon}</div>
+    <p className="text-sm font-medium text-text mb-1">{title}</p>
+    <p className="text-sm text-text/40 mb-5">{sub}</p>
+    {children}
+  </div>
+);
+
+const DetailRow: React.FC<{ label: string; value: string; bold?: boolean; mono?: boolean }> = ({ label, value, bold, mono }) => (
+  <div>
+    <p className="text-[10px] font-medium text-text/40 uppercase tracking-wide mb-0.5">{label}</p>
+    <p className={`text-sm text-text ${bold ? 'font-semibold' : ''} ${mono ? 'font-mono' : ''}`}>{value}</p>
+  </div>
+);
+
+const FormField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div>
+    <label className="block text-xs font-medium text-text/45 mb-1.5">{label}</label>
+    {children}
+  </div>
+);
 
 export default PaymentManagement;
