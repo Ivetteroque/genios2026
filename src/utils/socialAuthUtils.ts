@@ -1,4 +1,7 @@
-// Social authentication utility functions - SIMULATED VERSION
+// Social authentication utility functions
+// Google uses real Supabase Auth OAuth; Facebook/Apple remain simulated for now.
+
+import { supabase } from '../lib/supabase';
 
 export interface SocialUserInfo {
   id: string;
@@ -38,7 +41,25 @@ const simulateAuthDelay = (ms: number = 2000): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
-// Simulated Google OAuth login
+// Real Google OAuth via Supabase Auth.
+// This triggers a full-page redirect to Google; the browser returns to the app
+// with a session that SocialAuthBridge picks up via onAuthStateChange.
+export const signInWithGoogle = async (): Promise<void> => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin,
+      queryParams: { prompt: 'select_account' },
+    },
+  });
+  if (error) {
+    console.error('Error iniciando OAuth con Google:', error);
+    throw error;
+  }
+  // On success the browser navigates away to Google — nothing else runs here.
+};
+
+// Simulated Google OAuth login (legacy mock, no longer used for the Google button)
 export const loginWithGoogle = async (): Promise<SocialUserInfo> => {
   console.log('🔄 Simulando autenticación con Google...');
   
@@ -164,7 +185,7 @@ export const checkExistingUser = (email: string): any | null => {
 // Create user from social login data
 export const createUserFromSocialLogin = (userInfo: SocialUserInfo, role: 'client' | 'genius'): any => {
   const userData = {
-    id: `${userInfo.provider}_${Date.now()}`,
+    id: userInfo.id || `${userInfo.provider}_${Date.now()}`,
     name: userInfo.name,
     email: userInfo.email,
     profileImage: userInfo.profileImage,

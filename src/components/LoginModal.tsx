@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import RegistrationModal from './RegistrationModal';
 import SocialLoginRoleModal from './SocialLoginRoleModal';
-import { handleSocialLogin, checkExistingUser, SocialUserInfo } from '../utils/socialAuthUtils';
+import { handleSocialLogin, checkExistingUser, signInWithGoogle, SocialUserInfo } from '../utils/socialAuthUtils';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -61,9 +61,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     
     setIsLoading(true);
     setLoadingProvider(provider);
-    
+
     try {
-      // Call the real social authentication
+      // Google uses real Supabase OAuth: this redirects away to Google and the
+      // browser returns to the app, where SocialAuthBridge resumes the flow.
+      if (provider === 'google') {
+        await signInWithGoogle();
+        return; // page is navigating to Google; nothing else to do here
+      }
+
+      // Facebook / Apple still use the simulated flow.
       const userInfo: SocialUserInfo = await handleSocialLogin(provider);
       
       console.log(`${provider} authentication successful:`, userInfo);

@@ -10,10 +10,12 @@ import GeniusProfile from './pages/GeniusProfile';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
+import SocialAuthBridge from './components/SocialAuthBridge';
 
 function App() {
   return (
     <Router>
+      <SocialAuthBridge />
       <div className="font-body min-h-screen flex flex-col">
         <Routes>
           {/* Admin Routes */}

@@ -43,10 +43,19 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
-// Sync a client user to Supabase (fire-and-forget, best-effort)
-const syncClientProfile = (user: User): void => {
+// Sync a client user to Supabase (fire-and-forget, best-effort).
+//
+// We deliberately do NOT use .upsert(): Postgres translates upsert into
+// `INSERT ... ON CONFLICT DO UPDATE`, which requires a SELECT RLS policy on the
+// table (even when no conflict occurs). client_profiles has no SELECT policy by
+// design (privacy — admin reads via service role), so upsert always fails with
+// 42501. Instead we INSERT, and if the row already exists (unique violation on
+// id) we fall back to an UPDATE by id — both allowed by the existing policies.
+const syncClientProfile = async (user: User): Promise<void> => {
   if (user.role !== 'client') return;
-  supabase.from('client_profiles').upsert({
+
+  const nowIso = new Date().toISOString();
+  const row = {
     id: user.id,
     email: user.email,
     full_name: user.name,
@@ -55,9 +64,24 @@ const syncClientProfile = (user: User): void => {
     profile_image: user.profileImage ?? '',
     location: user.location ?? null,
     login_method: user.loginMethod,
-    last_seen_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'id' }).then(() => {});
+    last_seen_at: nowIso,
+    updated_at: nowIso,
+  };
+
+  const { error } = await supabase.from('client_profiles').insert(row);
+  if (!error) return;
+
+  // 23505 = unique_violation → the row already exists, update it instead.
+  if (error.code === '23505') {
+    const { id: _id, ...updates } = row;
+    const { error: updateError } = await supabase
+      .from('client_profiles')
+      .update(updates)
+      .eq('id', user.id);
+    if (updateError) console.error('client_profiles update error:', updateError);
+  } else {
+    console.error('client_profiles insert error:', error);
+  }
 };
 
 // Set current user
@@ -70,13 +94,24 @@ export const setCurrentUser = (user: User): void => {
 };
 
 // Logout user
-export const logout = (): void => {
+export const logout = async (): Promise<void> => {
   localStorage.removeItem('currentUser');
   localStorage.removeItem('isAuthenticated');
-  
+
+  // Also end any Supabase Auth session (Google OAuth) and WAIT for it to finish.
+  // We must clear the persisted Supabase session BEFORE redirecting, otherwise
+  // SocialAuthBridge would still see a live session on the next page load and
+  // silently log the user back in. scope: 'local' clears local storage without
+  // a network round-trip, so it can't hang the logout.
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (err) {
+    console.error('Supabase signOut error:', err);
+  }
+
   // Dispatch custom event to notify components of auth state change
   window.dispatchEvent(new Event('authStateChanged'));
-  
+
   // Redirect to home page
   window.location.href = '/';
 };

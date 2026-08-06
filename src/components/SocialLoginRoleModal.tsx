@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { X, User, Briefcase, CheckCircle } from 'lucide-react';
-import { createUserFromSocialLogin, saveUser } from '../utils/socialAuthUtils';
+import { createUserFromSocialLogin } from '../utils/socialAuthUtils';
+import { setCurrentUser, addRegisteredUser, User as AppUser } from '../utils/authUtils';
 
 interface SocialLoginRoleModalProps {
   isOpen: boolean;
   onClose: () => void;
   providerName: string;
   userInfo: {
+    id?: string;
     name: string;
     email: string;
     profileImage?: string;
@@ -29,11 +31,11 @@ const SocialLoginRoleModal: React.FC<SocialLoginRoleModalProps> = ({
     try {
       await new Promise(resolve => setTimeout(resolve, 1800));
       const userData = createUserFromSocialLogin(
-        { id: Date.now().toString(), name: userInfo.name, email: userInfo.email, profileImage: userInfo.profileImage, provider: providerName as 'google' | 'facebook' | 'apple' },
+        { id: userInfo.id || Date.now().toString(), name: userInfo.name, email: userInfo.email, profileImage: userInfo.profileImage, provider: providerName as 'google' | 'facebook' | 'apple' },
         role
-      );
-      saveUser(userData);
-      window.dispatchEvent(new Event('authStateChanged'));
+      ) as AppUser;
+      addRegisteredUser(userData);
+      setCurrentUser(userData); // persists, syncs client_profiles and dispatches authStateChanged
       setIsCompleted(true);
       setTimeout(() => {
         setIsLoading(false);
