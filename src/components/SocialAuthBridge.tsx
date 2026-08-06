@@ -34,6 +34,12 @@ const SocialAuthBridge: React.FC = () => {
       const email = su?.email;
       if (!su || !email) return;
 
+      // La sesión de un administrador también es una sesión de Supabase Auth,
+      // pero no representa a un cliente de la plataforma: sin esto, entrar al
+      // panel dejaría al admin "logueado" como usuario en la web pública.
+      const role = (su.app_metadata as { role?: string } | undefined)?.role;
+      if (role === 'admin' || role === 'super_admin') return;
+
       const emailKey = email.toLowerCase();
 
       // Already logged into the app as this same person → nothing to do

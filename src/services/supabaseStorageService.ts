@@ -1,4 +1,10 @@
 import { supabase } from '../lib/supabase';
+import {
+  compressImage,
+  GALLERY_PRESET,
+  PROFILE_PHOTO_PRESET,
+  type CompressOptions
+} from '../utils/imageCompression';
 
 /**
  * Subida de imágenes a Supabase Storage.
@@ -21,6 +27,10 @@ const extensionFor = (mimeType: string): string => {
 
 const randomSuffix = () => Math.random().toString(36).slice(2, 8);
 
+/** Cada bucket se muestra a un tamaño distinto, así que se comprime distinto. */
+const presetFor = (bucket: string): CompressOptions =>
+  bucket === PROFILE_PHOTOS_BUCKET ? PROFILE_PHOTO_PRESET : GALLERY_PRESET;
+
 /**
  * Sube un archivo (o un data-URL heredado) y devuelve su URL pública.
  * Si el valor ya es una URL, se devuelve tal cual: subir dos veces la misma
@@ -33,12 +43,19 @@ export const uploadImage = async (
 ): Promise<string> => {
   if (typeof image === 'string' && !isDataUrl(image)) return image;
 
-  const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+  const original = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+  const blob = await compressImage(original, presetFor(bucket));
   const path = `${pathPrefix || 'sin-id'}/${Date.now()}-${randomSuffix()}.${extensionFor(blob.type)}`;
 
   const { error } = await supabase.storage
     .from(bucket)
-    .upload(path, blob, { contentType: blob.type, upsert: false });
+    .upload(path, blob, {
+      contentType: blob.type,
+      upsert: false,
+      // Las URLs llevan timestamp, así que el archivo nunca cambia: se puede
+      // cachear un año y ahorrar la descarga en visitas siguientes.
+      cacheControl: '31536000'
+    });
 
   if (error) {
     console.error(`Error uploading to ${bucket}:`, error);

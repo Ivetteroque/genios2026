@@ -17,6 +17,28 @@ body {
   }
 }
 
+/* Barra de progreso del cartel "¡Gracias por tu reseña!" (ReviewForm) y
+   aparición del tooltip de favoritos (FavoriteButton). Ambas vivían en un
+   <style jsx>, sintaxis de Next que en Vite no hace nada: los keyframes nunca
+   llegaban al documento y las animaciones no corrían. */
+@keyframes progressBar {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes slide-in-from-bottom {
   from {
     transform: translateY(100px);

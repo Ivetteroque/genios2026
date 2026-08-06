@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { compressImage, GALLERY_PRESET } from '../utils/imageCompression';
 
 export type ReviewerType = 'client' | 'genius';
 export type ModerationStatus = 'visible' | 'pending' | 'hidden';
@@ -19,6 +20,11 @@ export interface GeniusReview {
   moderation_status: ModerationStatus;
   created_at: string;
   updated_at: string;
+  /**
+   * Cliente: copia guardada al publicar (columna `reviewer_photo`), porque
+   * `client_profiles` no es legible con la anon key.
+   * Genio: se completa al vuelo desde `public_genius_profiles`.
+   */
   reviewer_photo?: string;
   reviewer_category?: string;
 }
@@ -172,6 +178,35 @@ export const getReviewsByClient = async (clientUserId: string): Promise<GeniusRe
   return (data ?? []).map(normalize);
 };
 
+/**
+ * La reseña que ese cliente ya dejó a ese genio, si existe. Cada cliente puede
+ * reseñar una sola vez a cada genio; el formulario la usa para no ofrecer una
+ * segunda.
+ *
+ * No filtra por `moderation_status` a propósito: si la reseña está oculta o
+ * pendiente de moderación, igual ocupa el lugar y el cliente no debería poder
+ * escribir otra encima.
+ */
+export const getClientReviewForGenius = async (
+  clientUserId: string,
+  reviewedGeniusId: string
+): Promise<GeniusReview | null> => {
+  const { data, error } = await supabase
+    .from('genius_reviews')
+    .select('*')
+    .eq('reviewer_type', 'client')
+    .eq('reviewer_user_id', clientUserId)
+    .eq('reviewed_genius_id', reviewedGeniusId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching own client review:', error);
+    return null;
+  }
+
+  return data ? normalize(data) : null;
+};
+
 const REVIEW_IMAGES_BUCKET = 'review-images';
 
 /**
@@ -193,13 +228,18 @@ export const uploadReviewImages = async (
     }
 
     try {
-      const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+      const original = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+      const blob = await compressImage(original, GALLERY_PRESET);
       const extension = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
       const path = `${reviewedGeniusId}/${Date.now()}-${index}.${extension}`;
 
       const { error } = await supabase.storage
         .from(REVIEW_IMAGES_BUCKET)
-        .upload(path, blob, { contentType: blob.type, upsert: false });
+        .upload(path, blob, {
+          contentType: blob.type,
+          upsert: false,
+          cacheControl: '31536000'
+        });
 
       if (error) {
         console.error('Error uploading review image:', error);
@@ -220,6 +260,8 @@ export interface ClientReviewInput {
   reviewedGeniusId: string;
   clientUserId: string;
   clientName: string;
+  /** Avatar del cliente al momento de publicar; puede venir vacío. */
+  clientPhoto?: string;
   rating: number;
   comment: string;
   serviceDate: string;
@@ -227,24 +269,45 @@ export interface ClientReviewInput {
 }
 
 /**
- * Publica o actualiza la reseña de un cliente. El índice único parcial
- * (reviewer_user_id, reviewed_genius_id) garantiza una sola por genio.
+ * Publica o actualiza la reseña de un cliente: una sola por genio.
+ *
+ * No se usa `upsert` con `onConflict` a propósito. El índice que garantiza la
+ * unicidad es parcial (`WHERE reviewer_type = 'client'`, porque las reseñas
+ * entre colegas se identifican por otra columna), y Postgres rechaza un
+ * ON CONFLICT que no repita ese predicado —error 42P10— cosa que PostgREST no
+ * permite expresar. Así que la reseña previa se busca a mano y se decide entre
+ * UPDATE e INSERT.
  */
 export const submitClientReview = async (input: ClientReviewInput): Promise<boolean> => {
-  const { error } = await supabase.from('genius_reviews').upsert(
-    {
-      reviewer_type: 'client',
-      reviewer_user_id: input.clientUserId,
-      reviewer_name: input.clientName,
-      reviewed_genius_id: input.reviewedGeniusId,
-      rating: input.rating,
-      comment: input.comment,
-      service_date: input.serviceDate || null,
-      images: input.images,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'reviewer_user_id,reviewed_genius_id' }
-  );
+  const review = {
+    reviewer_type: 'client',
+    reviewer_user_id: input.clientUserId,
+    reviewer_name: input.clientName,
+    reviewer_photo: input.clientPhoto ?? '',
+    reviewed_genius_id: input.reviewedGeniusId,
+    rating: input.rating,
+    comment: input.comment,
+    service_date: input.serviceDate || null,
+    images: input.images,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: existing, error: lookupError } = await supabase
+    .from('genius_reviews')
+    .select('id')
+    .eq('reviewer_type', 'client')
+    .eq('reviewer_user_id', input.clientUserId)
+    .eq('reviewed_genius_id', input.reviewedGeniusId)
+    .maybeSingle();
+
+  if (lookupError) {
+    console.error('Error looking up existing client review:', lookupError);
+    return false;
+  }
+
+  const { error } = existing
+    ? await supabase.from('genius_reviews').update(review).eq('id', existing.id)
+    : await supabase.from('genius_reviews').insert(review);
 
   if (error) {
     console.error('Error submitting client review:', error);

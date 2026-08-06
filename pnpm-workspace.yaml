@@ -1,0 +1,5 @@
+# pnpm 11 pide decidir qué dependencias pueden ejecutar scripts de instalación.
+# esbuild no lo necesita: instala su binario como paquete opcional por plataforma
+# y `vite build` funciona sin ese script.
+allowBuilds:
+  esbuild: false

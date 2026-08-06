@@ -53,11 +53,8 @@ const AdminLogin: React.FC = () => {
       
       if (admin) {
         setCurrentAdmin(admin);
-        
-        // Show success message
-        alert(`¡Bienvenido ${admin.name}!\n\nAcceso autorizado al panel de administración.`);
-        
-        // Redirect to dashboard
+
+        // Sin alert de bienvenida: el propio dashboard ya confirma la entrada.
         window.location.href = '/admin/dashboard';
       } else {
         setError('Credenciales incorrectas. Verifica tu email y contraseña.');
@@ -181,16 +178,6 @@ const AdminLogin: React.FC = () => {
             </div>
           </form>
 
-          {/* Demo Credentials Info */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
-            <p className="text-text/60 text-sm text-center mb-2">
-              <strong>Credenciales de prueba:</strong>
-            </p>
-            <div className="text-text/60 text-xs space-y-1">
-              <p><strong>Super Admin:</strong> admin@genios.pe / admin123</p>
-              <p><strong>Admin:</strong> soporte@genios.pe / admin123</p>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

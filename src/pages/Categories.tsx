@@ -683,6 +683,8 @@ const Categories: React.FC = () => {
                       <img
                         src={professional.image}
                         alt={professional.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-48 object-cover"
                       />
                     ) : (
