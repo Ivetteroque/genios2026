@@ -24,7 +24,21 @@ export default {
         },
         background: {
           DEFAULT: '#FDFDFD',
-        }
+        },
+        /* Bandas de sección: lavados muy tenues de los pasteles de marca.
+           Reemplazan a los grises neutros para que cada sección se distinga. */
+        surface: {
+          paper: '#FDFDFD',
+          blue: '#F1F6FF',
+          mint: '#EDFAF9',
+          rose: '#FFF4F2',
+        },
+        /* Versiones oscuras de los pasteles, legibles para texto pequeño */
+        ink: {
+          blue: '#3F6FB5',
+          mint: '#2E7C77',
+          rose: '#C05A54',
+        },
       },
       fontFamily: {
         heading: ['Poppins', 'sans-serif'],

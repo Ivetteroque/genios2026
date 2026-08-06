@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fondo papel de la página: las bandas de sección se desvanecen sobre él */
+body {
+  background-color: #FDFDFD;
+}
+
 /* Custom animations for modal */
 @keyframes fade-in {
   from {
@@ -33,4 +38,25 @@
 
 .slide-in-from-bottom-4 {
   animation: slide-in-from-bottom 0.4s ease-out;
+}
+
+/* --- Aparición al hacer scroll (ver hooks/useReveal) --- */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }

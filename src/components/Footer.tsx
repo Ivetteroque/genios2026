@@ -3,12 +3,12 @@ import { Facebook, Twitter, Instagram, Linkedin, Briefcase } from 'lucide-react'
 
 const Footer: React.FC = () => {
   return (
-    <footer className="bg-primary/10 text-text py-12">
+    <footer className="relative bg-[linear-gradient(to_bottom,transparent_0%,rgba(160,196,255,0.14)_14%,rgba(160,196,255,0.14)_100%)] text-text pt-14 md:pt-16 pb-12">
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between">
           <div className="mb-8 md:mb-0">
             <div className="flex items-center mb-4">
-              <Briefcase className="text-primary mr-2" size={24} />
+              <Briefcase className="text-ink-blue mr-2" size={24} />
               <span className="font-heading font-bold text-xl">Genios</span>
             </div>
             <div className="flex items-center space-x-4">
@@ -22,16 +22,16 @@ const Footer: React.FC = () => {
               </p>
             </div>
             <div className="flex space-x-4 mt-6">
-              <a href="#facebook" className="text-text/60 hover:text-primary transition-colors">
+              <a href="#facebook" className="text-text/70 hover:text-ink-blue transition-colors">
                 <Facebook size={20} />
               </a>
-              <a href="#twitter" className="text-text/60 hover:text-primary transition-colors">
+              <a href="#twitter" className="text-text/70 hover:text-ink-blue transition-colors">
                 <Twitter size={20} />
               </a>
-              <a href="#instagram" className="text-text/60 hover:text-primary transition-colors">
+              <a href="#instagram" className="text-text/70 hover:text-ink-blue transition-colors">
                 <Instagram size={20} />
               </a>
-              <a href="#linkedin" className="text-text/60 hover:text-primary transition-colors">
+              <a href="#linkedin" className="text-text/70 hover:text-ink-blue transition-colors">
                 <Linkedin size={20} />
               </a>
             </div>
@@ -41,28 +41,28 @@ const Footer: React.FC = () => {
             <div>
               <h3 className="font-heading font-bold text-lg mb-4">Enlaces rápidos</h3>
               <ul className="space-y-2">
-                <li><a href="#inicio" className="text-text/60 hover:text-primary transition-colors">Inicio</a></li>
-                <li><a href="#como-funciona" className="text-text/60 hover:text-primary transition-colors">Cómo funciona</a></li>
-                <li><a href="#categorias" className="text-text/60 hover:text-primary transition-colors">Categorías</a></li>
-                <li><a href="#historias" className="text-text/60 hover:text-primary transition-colors">Historias</a></li>
+                <li><a href="#inicio" className="text-text/70 hover:text-ink-blue transition-colors">Inicio</a></li>
+                <li><a href="#como-funciona" className="text-text/70 hover:text-ink-blue transition-colors">Cómo funciona</a></li>
+                <li><a href="#categorias" className="text-text/70 hover:text-ink-blue transition-colors">Categorías</a></li>
+                <li><a href="#historias" className="text-text/70 hover:text-ink-blue transition-colors">Historias</a></li>
               </ul>
             </div>
             
             <div>
               <h3 className="font-heading font-bold text-lg mb-4">Legal</h3>
               <ul className="space-y-2">
-                <li><a href="#terminos" className="text-text/60 hover:text-primary transition-colors">Términos y condiciones</a></li>
-                <li><a href="#privacidad" className="text-text/60 hover:text-primary transition-colors">Política de privacidad</a></li>
-                <li><a href="#cookies" className="text-text/60 hover:text-primary transition-colors">Política de cookies</a></li>
+                <li><a href="#terminos" className="text-text/70 hover:text-ink-blue transition-colors">Términos y condiciones</a></li>
+                <li><a href="#privacidad" className="text-text/70 hover:text-ink-blue transition-colors">Política de privacidad</a></li>
+                <li><a href="#cookies" className="text-text/70 hover:text-ink-blue transition-colors">Política de cookies</a></li>
               </ul>
             </div>
             
             <div>
               <h3 className="font-heading font-bold text-lg mb-4">Más información</h3>
               <ul className="space-y-2">
-                <li><a href="#nosotros" className="text-text/60 hover:text-primary transition-colors">Sobre nosotros</a></li>
-                <li><a href="#blog" className="text-text/60 hover:text-primary transition-colors">Blog</a></li>
-                <li><a href="#contacto" className="text-text/60 hover:text-primary transition-colors">Contacto</a></li>
+                <li><a href="#nosotros" className="text-text/70 hover:text-ink-blue transition-colors">Sobre nosotros</a></li>
+                <li><a href="#blog" className="text-text/70 hover:text-ink-blue transition-colors">Blog</a></li>
+                <li><a href="#contacto" className="text-text/70 hover:text-ink-blue transition-colors">Contacto</a></li>
               </ul>
             </div>
           </div>

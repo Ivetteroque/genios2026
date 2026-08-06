@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Minus } from 'lucide-react';
+import { Section, SectionHeader, Reveal } from './Section';
 
 const FAQ: React.FC = () => {
   const faqs = [
@@ -28,31 +29,34 @@ const FAQ: React.FC = () => {
   const [openItem, setOpenItem] = useState<number | null>(null);
 
   return (
-    <section id="faq" className="py-16 md:py-24 bg-gray-50">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-14">
-          <h2 className="font-heading text-3xl md:text-4xl font-bold text-gray-800 mb-3">
-            Todo claro desde el inicio
-          </h2>
-          <p className="text-base text-gray-500 max-w-xl mx-auto">
-            Lo importante, explicado de manera simple.
-          </p>
-        </div>
+    <Section id="faq" tone="paper">
+      <SectionHeader
+        eyebrow="Preguntas"
+        title="Todo claro desde el inicio"
+        subtitle="Lo importante, explicado de manera simple."
+      />
 
+      <Reveal>
         <div className="max-w-2xl mx-auto">
           {faqs.map((faq, i) => {
             const isOpen = openItem === faq.id;
             return (
               <div key={faq.id}>
                 <button
-                  className="w-full text-left py-4 flex justify-between items-center gap-4 group focus:outline-none"
+                  className="w-full text-left py-4 flex justify-between items-center gap-4 group rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ink-blue/40"
                   onClick={() => setOpenItem(isOpen ? null : faq.id)}
                   aria-expanded={isOpen}
                 >
-                  <span className="font-medium text-gray-800 text-[0.95rem] leading-snug group-hover:text-primary transition-colors duration-150">
+                  <span className="font-medium text-text text-[0.95rem] leading-snug group-hover:text-ink-blue transition-colors duration-150">
                     {faq.question}
                   </span>
-                  <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors duration-150">
+                  <span
+                    className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-150 ${
+                      isOpen
+                        ? 'bg-surface-blue text-ink-blue'
+                        : 'bg-gray-100 text-text/50 group-hover:bg-surface-blue group-hover:text-ink-blue'
+                    }`}
+                  >
                     {isOpen
                       ? <Minus className="w-3.5 h-3.5" />
                       : <Plus className="w-3.5 h-3.5" />
@@ -65,7 +69,7 @@ const FAQ: React.FC = () => {
                     isOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
                   }`}
                 >
-                  <p className="text-sm text-gray-500 leading-relaxed pb-4 pr-8">
+                  <p className="text-sm text-text/70 leading-relaxed pb-4 pr-8">
                     {faq.answer}
                   </p>
                 </div>
@@ -81,13 +85,13 @@ const FAQ: React.FC = () => {
         <div className="text-center mt-10">
           <a
             href="#contacto"
-            className="text-sm text-primary font-medium hover:underline transition-colors"
+            className="text-sm text-ink-blue font-medium hover:underline underline-offset-4 transition-colors"
           >
             Tengo otra duda →
           </a>
         </div>
-      </div>
-    </section>
+      </Reveal>
+    </Section>
   );
 };
 
