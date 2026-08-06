@@ -35,21 +35,21 @@ export default function AvailabilitySection({ status, daysRemaining, onChangeAva
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-4">
           <Calendar className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Disponibilidad</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Disponibilidad</h2>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        <div className="flex items-start gap-6">
-          <div className={`p-4 rounded-xl ${currentStatus.bgColor}`}>
-            <Calendar className={`w-8 h-8 ${currentStatus.iconColor}`} />
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-8">
+        <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
+          <div className={`p-3 sm:p-4 rounded-xl shrink-0 ${currentStatus.bgColor}`}>
+            <Calendar className={`w-7 h-7 sm:w-8 sm:h-8 ${currentStatus.iconColor}`} />
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-w-0 w-full">
             <h3 className="text-lg font-semibold text-gray-900 mb-1">Estado actual:</h3>
             <div className="flex items-center gap-2 mb-4">
-              <CheckCircle2 className={`w-5 h-5 ${currentStatus.iconColor}`} />
-              <span className={`text-xl font-semibold ${currentStatus.color}`}>
+              <CheckCircle2 className={`w-5 h-5 shrink-0 ${currentStatus.iconColor}`} />
+              <span className={`text-lg sm:text-xl font-semibold ${currentStatus.color}`}>
                 {currentStatus.label}
               </span>
             </div>

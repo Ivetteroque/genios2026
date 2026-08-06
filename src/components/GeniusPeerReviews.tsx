@@ -188,12 +188,12 @@ const GeniusPeerReviews: React.FC<GeniusPeerReviewsProps> = ({ reviewedGeniusId 
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-text">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 min-w-0">
+                        <span className="text-sm font-medium text-text break-words">
                           {review.reviewer_name}
                         </span>
-                        <BadgeCheck className="w-3.5 h-3.5 text-text/25" />
+                        <BadgeCheck className="w-3.5 h-3.5 shrink-0 text-text/25" />
                         {review.reviewer_category && (
                           <span className="text-xs text-text/35">{review.reviewer_category}</span>
                         )}

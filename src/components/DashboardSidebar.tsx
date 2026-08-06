@@ -20,15 +20,15 @@ const menuItems = [
 
 export default function DashboardSidebar({ activeSection, onSectionChange, geniusProfile }: DashboardSidebarProps) {
   return (
-    <div className="w-52 bg-white border-r border-gray-100 flex flex-col overflow-y-auto">
-      <nav className="p-3 pt-4">
+    <div className="w-full lg:w-52 shrink-0 bg-white border-b lg:border-b-0 lg:border-r border-gray-100 flex flex-col lg:overflow-y-auto">
+      <nav className="flex lg:block gap-1 overflow-x-auto p-3 lg:pt-4">
         {menuItems.map(({ id, label, icon: Icon }) => {
           const active = activeSection === id;
           return (
             <button
               key={id}
               onClick={() => onSectionChange(id)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg mb-0.5 text-sm transition-colors ${
+              className={`shrink-0 lg:w-full flex items-center gap-2.5 px-3 py-2 rounded-lg lg:mb-0.5 text-sm whitespace-nowrap transition-colors ${
                 active
                   ? 'bg-gray-100 text-text font-medium'
                   : 'text-text/50 hover:bg-gray-50 hover:text-text/75'
@@ -41,10 +41,10 @@ export default function DashboardSidebar({ activeSection, onSectionChange, geniu
         })}
       </nav>
 
-      <div className="flex-1" />
+      <div className="hidden lg:block flex-1" />
 
       {geniusProfile && (
-        <div className="p-4 border-t border-gray-100">
+        <div className="order-first lg:order-none px-4 py-3 lg:p-4 border-b lg:border-b-0 lg:border-t border-gray-100">
           <div className="flex items-center gap-2.5">
             {geniusProfile.profile_photo ? (
               <img

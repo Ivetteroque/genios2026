@@ -38,9 +38,9 @@ const ProfileValidationModal: React.FC<ProfileValidationModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="lg">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Revisión de perfil</h2>
+      <div className="p-4 sm:p-6">
+        <div className="flex items-center justify-between gap-2 mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Revisión de perfil</h2>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -162,7 +162,7 @@ const ProfileValidationModal: React.FC<ProfileValidationModalProps> = ({
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           {missingFields.length > 0 && (
             <button
               onClick={handleCompleteNow}

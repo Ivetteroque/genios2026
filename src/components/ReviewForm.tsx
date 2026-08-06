@@ -3,13 +3,37 @@ import { Star, X, Check, Calendar, Camera } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import { getCurrentUser } from '../utils/authUtils';
 import { validateReviewData } from '../utils/reviewUtils';
-import { submitClientReview, uploadReviewImages } from '../services/supabaseGeniusReviewsService';
+import {
+  getClientReviewForGenius,
+  submitClientReview,
+  uploadReviewImages,
+  GeniusReview,
+} from '../services/supabaseGeniusReviewsService';
 
 interface ReviewFormProps {
   geniusId: string;
   geniusName: string;
   onReviewSubmitted?: (review: any) => void;
 }
+
+/**
+ * Fecha de hoy en formato `YYYY-MM-DD`, según el reloj de quien reseña.
+ * `toISOString()` daría la fecha en UTC: en Perú (UTC-5), a partir de las 19:00
+ * devolvería la de mañana, y el formulario arrancaría con un servicio que
+ * todavía no ocurrió.
+ */
+const today = (): string => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+};
+
+/**
+ * Tope de fotos por reseña. Dos alcanzan para mostrar un trabajo y mantienen
+ * liviana la ficha del genio, que puede llegar a listar decenas de reseñas.
+ */
+const MAX_REVIEW_IMAGES = 2;
 
 interface ReviewData {
   clientName: string;
@@ -23,11 +47,17 @@ interface ReviewData {
 const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewSubmitted }) => {
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  /** Estrella sobre la que está el cursor; 0 cuando el mouse está afuera. */
+  const [hoverRating, setHoverRating] = useState(0);
+  const [imageError, setImageError] = useState('');
+  /** Reseña que este cliente ya dejó a este genio; null si todavía no dejó ninguna. */
+  const [ownReview, setOwnReview] = useState<GeniusReview | null>(null);
+  const [isCheckingOwnReview, setIsCheckingOwnReview] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [reviewData, setReviewData] = useState<ReviewData>({
     clientName: '',
-    serviceDate: '',
+    serviceDate: today(),
     rating: 0,
     comment: '',
     images: []
@@ -65,6 +95,32 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
     return () => window.removeEventListener('authStateChanged', handleAuthChange);
   }, []);
 
+  // Una reseña por cliente y por genio: si ya dejó la suya, no se ofrece el
+  // formulario de nuevo.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadOwnReview = async () => {
+      if (!currentUser) {
+        setOwnReview(null);
+        setIsCheckingOwnReview(false);
+        return;
+      }
+
+      setIsCheckingOwnReview(true);
+      const review = await getClientReviewForGenius(currentUser.id, geniusId);
+      if (!cancelled) {
+        setOwnReview(review);
+        setIsCheckingOwnReview(false);
+      }
+    };
+
+    loadOwnReview();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, geniusId]);
+
   const handleInputChange = (field: keyof ReviewData, value: any) => {
     setReviewData(prev => ({
       ...prev,
@@ -81,15 +137,31 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    // Permite volver a elegir el mismo archivo después de quitarlo.
+    e.target.value = '';
     if (files.length === 0) return;
 
-    // Limit to 2 images
-    const filesToProcess = files.slice(0, 2 - reviewData.images.length);
+    setImageError('');
 
-    setImageFiles(prev => [...prev, ...filesToProcess].slice(0, 2));
+    const images = files.filter(file => file.type.startsWith('image/'));
+    if (images.length < files.length) {
+      setImageError('Solo se permiten archivos de imagen.');
+    }
+
+    const freeSlots = MAX_REVIEW_IMAGES - reviewData.images.length;
+    const accepted = images.slice(0, freeSlots);
+
+    // Recortar en silencio hace creer que se subieron todas: mejor decirlo.
+    if (images.length > freeSlots) {
+      setImageError(`Solo puedes adjuntar ${MAX_REVIEW_IMAGES} fotos; se tomaron las primeras ${accepted.length}.`);
+    }
+
+    if (accepted.length === 0) return;
+
+    setImageFiles(prev => [...prev, ...accepted]);
     setReviewData(prev => ({
       ...prev,
-      images: [...prev.images, ...filesToProcess.map(file => URL.createObjectURL(file))].slice(0, 2)
+      images: [...prev.images, ...accepted.map(file => URL.createObjectURL(file))]
     }));
   };
 
@@ -97,12 +169,16 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
     const preview = reviewData.images[index];
     if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
 
+    setImageError('');
     setImageFiles(prev => prev.filter((_, i) => i !== index));
     setReviewData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
   };
+
+  /** Lo que el cursor está previsualizando, o el puntaje ya elegido. */
+  const activeStars = hoverRating || reviewData.rating;
 
   const isFormValid = () => {
     return reviewData.rating > 0 && 
@@ -141,10 +217,17 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
       // Las fotos van al bucket de Storage; la reseña guarda solo sus URLs
       const uploadedImages = await uploadReviewImages(imageFiles, geniusId);
 
+      // Una foto que falla se descarta en silencio: sin este aviso, la reseña
+      // se publicaría sin ella y el cliente nunca se enteraría.
+      if (uploadedImages.length < imageFiles.length) {
+        alert('⚠️ No se pudieron subir todas las fotos. La reseña se publicará con las que sí funcionaron.');
+      }
+
       const saved = await submitClientReview({
         reviewedGeniusId: geniusId,
         clientUserId: currentUser!.id,
         clientName: reviewData.clientName,
+        clientPhoto: currentUser!.profileImage ?? '',
         rating: reviewData.rating,
         comment: reviewData.comment,
         serviceDate: reviewData.serviceDate,
@@ -172,7 +255,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
       setImageFiles([]);
       setReviewData({
         clientName: currentUser!.name,
-        serviceDate: '',
+        serviceDate: today(),
         rating: 0,
         comment: '',
         images: []
@@ -212,7 +295,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
           </div>
         </div>
         
-        <h2 className="font-heading text-2xl font-bold text-text mb-4">
+        <h2 className="font-heading text-xl sm:text-2xl font-bold text-text mb-4">
           ¡Gracias por tu reseña!
         </h2>
         
@@ -237,29 +320,24 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
   // If not logged in, show login prompt
   if (!currentUser) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-8 max-w-2xl mx-auto text-center">
-        <div className="mb-6">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
+        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">✍️ COMPARTE TU EXPERIENCIA</h2>
+
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center gap-4">
+          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
             <Star className="w-8 h-8 text-primary" />
           </div>
-          <h3 className="font-heading text-xl font-bold text-text mb-2">
-            Comparte tu experiencia
-          </h3>
-          <p className="text-text/60">
-            Tu comentario ayuda a otros a elegir mejor.
-          </p>
-        </div>
-        
-        <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mb-6">
-          <p className="text-text font-medium mb-4">
-            🔐 Debes iniciar sesión para dejar una reseña
-          </p>
-          <p className="text-text/60 text-sm mb-4">
-            Inicia sesión para compartir tu experiencia con {geniusName} y ayudar a otros clientes.
-          </p>
+          <div className="flex-1">
+            <p className="text-text font-medium mb-1">
+              🔐 Debes iniciar sesión para dejar una reseña
+            </p>
+            <p className="text-text/60 text-sm">
+              Inicia sesión para compartir tu experiencia con {geniusName} y ayudar a otros clientes.
+            </p>
+          </div>
           <button
             onClick={handleLoginRedirect}
-            className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-full transition-colors shadow-md"
+            className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-full transition-colors shadow-md flex-shrink-0"
             style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
           >
             Iniciar sesión
@@ -269,19 +347,91 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
     );
   }
 
+  // Mientras se comprueba, no se dibuja el formulario: aparecer y desaparecer
+  // sería peor que esperar un instante.
+  if (isCheckingOwnReview) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
+        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">✍️ COMPARTE TU EXPERIENCIA</h2>
+        <LoadingSpinner size="md" text="Cargando..." className="py-6" />
+      </div>
+    );
+  }
+
+  // Ya reseñó a este genio: se le muestra lo que escribió, no un formulario en
+  // blanco que sugiera que puede opinar de nuevo.
+  if (ownReview) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
+        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1">✍️ TU RESEÑA</h2>
+        <p className="text-text/60 mb-6">
+          Ya compartiste tu experiencia con {geniusName}. Cada cliente puede dejar una sola reseña
+          por genio.
+        </p>
+
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 sm:p-6">
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map(star => (
+                <Star
+                  key={star}
+                  className={`w-5 h-5 ${
+                    star <= ownReview.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                  }`}
+                />
+              ))}
+            </div>
+            {ownReview.service_date && (
+              <span className="text-sm text-text/60">
+                Servicio del{' '}
+                {new Date(`${ownReview.service_date}T00:00:00`).toLocaleDateString('es-ES', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric'
+                })}
+              </span>
+            )}
+            {ownReview.moderation_status !== 'visible' && (
+              <span className="text-sm text-orange-600">En revisión</span>
+            )}
+          </div>
+
+          <p className="text-text/80 mb-4">"{ownReview.comment}"</p>
+
+          {ownReview.images.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {ownReview.images.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={`Foto ${index + 1} de tu reseña`}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-20 h-20 object-cover rounded-lg border-2 border-white shadow-sm"
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      <div className="bg-white rounded-lg shadow-sm p-6 max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <h3 className="font-heading text-2xl font-bold text-text mb-3">
-            Comparte tu experiencia
-          </h3>
-          <p className="text-text/60 text-lg">
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
+        <div className="mb-6">
+          <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1">✍️ COMPARTE TU EXPERIENCIA</h2>
+          <p className="text-text/60">
             Tu comentario ayuda a otros a elegir mejor.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* A lo ancho, nombre y fecha entran en la misma fila: dos campos
+              cortos estirados a todo el ancho se leen peor que uno al lado del
+              otro. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Client Name */}
           <div>
             <label className="block text-sm font-medium text-text/80 mb-2">
@@ -309,7 +459,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
                 type="date"
                 value={reviewData.serviceDate}
                 onChange={(e) => handleInputChange('serviceDate', e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
+                max={today()}
                 className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
                 style={{ fontFamily: 'Open Sans, sans-serif' }}
                 required
@@ -317,33 +467,41 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
               <Calendar className="absolute right-4 top-1/2 transform -translate-y-1/2 text-primary/60 pointer-events-none w-5 h-5" />
             </div>
           </div>
+          </div>
 
           {/* Rating Stars */}
           <div>
             <label className="block text-sm font-medium text-text/80 mb-3">
               ⭐ ¿Cómo calificarías su trabajo?
             </label>
-            <div className="flex justify-center space-x-2 mb-2">
+            {/* Al pasar el mouse se pintan todas las estrellas hasta donde está
+                el cursor: así se ve el puntaje que se va a dar antes de hacer
+                clic, en vez de iluminar solo la estrella de debajo. */}
+            <div className="flex space-x-2 mb-2" onMouseLeave={() => setHoverRating(0)}>
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
                   onClick={() => handleStarClick(star)}
+                  onMouseEnter={() => setHoverRating(star)}
+                  onFocus={() => setHoverRating(star)}
+                  onBlur={() => setHoverRating(0)}
                   className="focus:outline-none transform transition-all hover:scale-110 active:scale-95"
+                  aria-label={`${star} de 5 estrellas`}
                 >
                   <Star
-                    className={`w-12 h-12 transition-colors ${
-                      star <= reviewData.rating 
-                        ? 'text-primary fill-current' 
-                        : 'text-gray-300 hover:text-primary/50'
+                    className={`w-10 h-10 sm:w-12 sm:h-12 transition-colors ${
+                      star <= activeStars
+                        ? 'text-yellow-400 fill-current'
+                        : 'text-gray-300'
                     }`}
                   />
                 </button>
               ))}
             </div>
-            {reviewData.rating > 0 && (
-              <p className="text-center text-primary font-medium">
-                {reviewData.rating} de 5 estrellas
+            {activeStars > 0 && (
+              <p className="text-text/60 font-medium">
+                {activeStars} de 5 estrellas
               </p>
             )}
           </div>
@@ -383,12 +541,12 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
           {/* Image Upload */}
           <div>
             <label className="block text-sm font-medium text-text/80 mb-3">
-              📷 ¿Tienes fotos del trabajo realizado? (máximo 2 imágenes)
+              📷 ¿Tienes fotos del trabajo realizado? (máximo {MAX_REVIEW_IMAGES} imágenes)
             </label>
             
             {/* Image Preview */}
             {reviewData.images.length > 0 && (
-              <div className="flex space-x-3 mb-4">
+              <div className="flex flex-wrap gap-3 mb-4">
                 {reviewData.images.map((image, index) => (
                   <div key={index} className="relative">
                     <img
@@ -409,16 +567,16 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
             )}
 
             {/* Upload Button */}
-            {reviewData.images.length < 2 && (
+            {reviewData.images.length < MAX_REVIEW_IMAGES && (
               <div className="flex items-center justify-center w-full">
-                <label className="w-full flex items-center justify-center px-6 py-4 rounded-xl border-2 border-dashed border-primary/30 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
+                <label className="w-full flex items-center justify-center px-4 sm:px-6 py-4 rounded-xl border-2 border-dashed border-primary/30 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors">
                   <div className="text-center">
                     <Camera className="mx-auto h-8 w-8 text-primary/60 mb-2" />
                     <span className="text-text/60 font-medium">
-                      Seleccionar fotos ({reviewData.images.length}/2)
+                      Seleccionar fotos ({reviewData.images.length}/{MAX_REVIEW_IMAGES})
                     </span>
                     <p className="text-xs text-text/40 mt-1">
-                      JPG, PNG hasta 5MB cada una
+                      JPG, PNG o WebP. Se optimizan al publicarlas.
                     </p>
                   </div>
                   <input
@@ -431,14 +589,21 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
                 </label>
               </div>
             )}
+
+            {imageError && (
+              <p className="text-sm text-red-500 mt-2 flex items-center">
+                <X className="w-4 h-4 mr-1" />
+                {imageError}
+              </p>
+            )}
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex space-x-4 pt-4">
+          <div className="flex flex-col sm:flex-row gap-4 pt-2">
             <button
               type="submit"
               disabled={!isFormValid() || isSubmitting}
-              className={`flex-1 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-md hover:shadow-lg ${
+              className={`sm:px-10 py-4 rounded-xl font-semibold text-lg transition-all duration-300 shadow-md hover:shadow-lg ${
                 isFormValid() && !isSubmitting
                   ? 'bg-primary hover:bg-primary-dark text-white transform hover:scale-[1.02]'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -460,14 +625,14 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
               onClick={() => {
                 setReviewData({
                   clientName: currentUser.name,
-                  serviceDate: '',
+                  serviceDate: today(),
                   rating: 0,
                   comment: '',
                   images: []
                 });
               }}
               disabled={isSubmitting}
-              className="flex-1 py-4 rounded-xl font-semibold text-lg text-text/60 hover:bg-gray-100 transition-colors border-2 border-gray-200 hover:border-gray-300 disabled:opacity-50"
+              className="sm:px-10 py-4 rounded-xl font-semibold text-lg text-text/60 hover:bg-gray-100 transition-colors border-2 border-gray-200 hover:border-gray-300 disabled:opacity-50"
               style={{ fontFamily: 'Open Sans, sans-serif', fontWeight: '600' }}
             >
               🔄 Limpiar formulario
@@ -498,14 +663,6 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
 
       {/* Success Animation */}
       {showSuccessAnimation && <SuccessAnimation />}
-
-      {/* CSS for animations */}
-      <style jsx>{`
-        @keyframes progressBar {
-          from { width: 0%; }
-          to { width: 100%; }
-        }
-      `}</style>
     </>
   );
 };

@@ -17,6 +17,20 @@ import {
 } from '../services/supabaseGeniusReviewsService';
 import { getPublicGeniusById, DirectoryGenius } from '../services/publicGeniusDirectoryService';
 
+/** Un promedio siempre con decimal: "3" se muestra "3.0", igual que "3.5". */
+const formatAverage = (average: number) =>
+  average.toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/**
+ * Resume la calificación en una frase legible. "3 de 1 opiniones" mezclaba dos
+ * números distintos —promedio y cantidad— con un "de" que los hacía parecer
+ * parte de la misma fracción.
+ */
+const ratingSummary = (average: number, count: number, singular: string, plural: string) =>
+  count === 0
+    ? `Sin ${plural} aún`
+    : `${formatAverage(average)} · ${count} ${count === 1 ? singular : plural}`;
+
 const Profile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -159,14 +173,10 @@ const Profile: React.FC = () => {
     );
   };
 
-  const handleReviewSubmitted = (review: any) => {
-    console.log('New review submitted:', review);
-    
-    // Reload reviews and stats to reflect the new review
+  // La confirmación la da la animación del propio formulario; un alert encima
+  // sería una segunda confirmación, y además bloquea la página.
+  const handleReviewSubmitted = () => {
     loadReviewsAndStats();
-    
-    // Show success message
-    alert('✅ ¡Reseña publicada exitosamente!\n\nTu comentario ya es visible en el perfil del genio.');
   };
 
   const visibleImages = portfolio.slice(currentImageIndex, currentImageIndex + 3);
@@ -181,8 +191,11 @@ const Profile: React.FC = () => {
     );
   };
 
-  // Hero Section Component
-  const HeroSection = () => (
+  // Secciones como elementos, no como componentes: si fueran funciones
+  // declaradas acá dentro, cada render de Profile crearía un tipo nuevo y React
+  // desmontaría y volvería a montar todo el subárbol, perdiendo el estado de
+  // los hijos (por ejemplo, la animación de éxito de ReviewForm).
+  const heroSection = (
     <section className="bg-white shadow-sm">
       <div className="container mx-auto px-4 py-8">
         {/* Back Button + Context Menu */}
@@ -286,7 +299,7 @@ const Profile: React.FC = () => {
               />
             ))}
             <span className="ml-2 text-text/60">
-              ({ratingStats.average} de {ratingStats.count} opiniones)
+              {ratingSummary(ratingStats.average, ratingStats.count, 'opinión', 'opiniones')}
             </span>
           </div>
 
@@ -312,7 +325,7 @@ const Profile: React.FC = () => {
   );
 
   // About Section Component
-  const AboutSection = () => (
+  const aboutSection = (
     <section className="py-12 bg-gray-50">
       <div className="container mx-auto px-4">
         <h2 className="font-heading text-2xl font-bold mb-6">Acerca de mí</h2>
@@ -365,7 +378,7 @@ const Profile: React.FC = () => {
     </section>
   );
 
-  const PortfolioSection = () => (
+  const portfolioSection = (
     <section className="py-12 bg-white">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
@@ -385,6 +398,8 @@ const Profile: React.FC = () => {
                       <img
                         src={image}
                         alt={`Trabajo ${currentImageIndex + index + 1}`}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-48 object-cover rounded-lg transition-transform duration-300 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg flex items-center justify-center">
@@ -413,14 +428,14 @@ const Profile: React.FC = () => {
   );
 
   // Reviews Section Component
-  const ReviewsSection = () => (
+  const reviewsSection = (
     <section className="py-12 bg-gray-50">
       <div className="container mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              <h2 className="font-heading text-2xl font-bold">⭐ VALORACIONES DEL GENIO</h2>
-              <div className="ml-4 flex items-center">
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <h2 className="font-heading text-xl sm:text-2xl font-bold">⭐ VALORACIONES DEL GENIO</h2>
+              <div className="flex items-center">
                 <div className="flex">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -430,14 +445,14 @@ const Profile: React.FC = () => {
                     />
                   ))}
                 </div>
-                <span className="ml-2 text-text/60">
-                  ({ratingStats.average} de {ratingStats.count} valoraciones)
+                <span className="ml-2 text-sm sm:text-base text-text/60 whitespace-nowrap">
+                  {ratingSummary(ratingStats.average, ratingStats.count, 'valoración', 'valoraciones')}
                 </span>
               </div>
             </div>
             <button
               onClick={() => setShowReviewModal(true)}
-              className="text-primary hover:text-primary-dark transition-colors"
+              className="text-primary hover:text-primary-dark transition-colors text-sm sm:text-base text-left lg:text-right whitespace-nowrap"
             >
               🔽 Ver más comentarios
             </button>
@@ -488,19 +503,29 @@ const Profile: React.FC = () => {
                   <div className="flex items-start space-x-4 pr-16">
                     {/* User profile photo */}
                     <div className="flex-shrink-0">
-                      <div className="w-12 h-12 rounded-full bg-surface-blue border-2 border-white shadow-sm flex items-center justify-center">
-                        <span className="font-heading font-bold text-ink-blue">
-                          {review.reviewer_name.trim().charAt(0).toUpperCase() || '?'}
-                        </span>
-                      </div>
+                      {review.reviewer_photo ? (
+                        <img
+                          src={review.reviewer_photo}
+                          alt={review.reviewer_name}
+                          loading="lazy"
+                          decoding="async"
+                          className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-surface-blue border-2 border-white shadow-sm flex items-center justify-center">
+                          <span className="font-heading font-bold text-ink-blue">
+                            {review.reviewer_name.trim().charAt(0).toUpperCase() || '?'}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Main content */}
                     <div className="flex-1 min-w-0">
                       {/* User name and stars in same line */}
                       <div className="flex items-center space-x-3 mb-3">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-semibold text-text text-lg">{review.reviewer_name}</h4>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <h4 className="font-semibold text-text text-base sm:text-lg">{review.reviewer_name}</h4>
                           <div className="flex items-center">
                             {[...Array(5)].map((_, i) => (
                               <Star
@@ -530,6 +555,8 @@ const Profile: React.FC = () => {
                               <img
                                 src={image}
                                 alt={`Foto del trabajo ${index + 1}`}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-16 h-16 rounded-lg object-cover shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-105 border-2 border-white"
                               />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-all duration-300"></div>
@@ -602,11 +629,21 @@ const Profile: React.FC = () => {
                     <div className="flex items-start space-x-4 pr-16">
                       {/* User profile photo */}
                       <div className="flex-shrink-0">
-                        <div className="w-14 h-14 rounded-full bg-surface-blue border-2 border-white shadow-sm flex items-center justify-center">
-                          <span className="font-heading font-bold text-lg text-ink-blue">
-                            {review.reviewer_name.trim().charAt(0).toUpperCase() || '?'}
-                          </span>
-                        </div>
+                        {review.reviewer_photo ? (
+                          <img
+                            src={review.reviewer_photo}
+                            alt={review.reviewer_name}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-14 h-14 rounded-full object-cover border-2 border-white shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-full bg-surface-blue border-2 border-white shadow-sm flex items-center justify-center">
+                            <span className="font-heading font-bold text-lg text-ink-blue">
+                              {review.reviewer_name.trim().charAt(0).toUpperCase() || '?'}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Main content */}
@@ -644,6 +681,8 @@ const Profile: React.FC = () => {
                                 <img
                                   src={image}
                                   alt={`Foto del trabajo ${index + 1}`}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-20 h-20 rounded-lg object-cover shadow-md group-hover:shadow-lg transition-all duration-300 group-hover:scale-105 border-2 border-white"
                                 />
                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-all duration-300"></div>
@@ -732,10 +771,10 @@ const Profile: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background pt-20">
-      <HeroSection />
-      <AboutSection />
-      {portfolio.length > 0 && <PortfolioSection />}
-      <ReviewsSection />
+      {heroSection}
+      {aboutSection}
+      {portfolio.length > 0 && portfolioSection}
+      {reviewsSection}
       <GeniusPeerReviews reviewedGeniusId={id || ''} />
 
       {/* WhatsApp Float Button */}

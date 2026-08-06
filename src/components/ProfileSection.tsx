@@ -12,12 +12,12 @@ export default function ProfileSection({ percentage, onCompleteProfile }: Profil
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-4">
           <User className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Mi perfil</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Mi perfil</h2>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-        <div className="flex items-center gap-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-8">
+        <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 text-center sm:text-left">
           <div className="flex-shrink-0">
             <CircularProgress percentage={percentage} />
           </div>
@@ -33,7 +33,7 @@ export default function ProfileSection({ percentage, onCompleteProfile }: Profil
             </p>
             <button
               onClick={onCompleteProfile}
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              className="w-full sm:w-auto bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
             >
               {percentage === 100 ? 'Editar perfil' : 'Completar perfil'}
             </button>

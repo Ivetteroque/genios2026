@@ -39,8 +39,8 @@ const WizardStepsIndicator: React.FC<WizardStepsIndicatorProps> = ({
   };
 
   return (
-    <div className="bg-white border-b border-gray-200 py-6">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="bg-white border-b border-gray-200 py-4 sm:py-6">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4">
         <div className="relative">
           <div className="flex items-center justify-between">
             {steps.map((step, index) => {
@@ -52,18 +52,18 @@ const WizardStepsIndicator: React.FC<WizardStepsIndicatorProps> = ({
                   <div className="flex flex-col items-center relative z-10">
                     <button
                       onClick={() => onStepClick(step.number)}
-                      className={`w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all ${getStepColor(
+                      className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex items-center justify-center transition-all ${getStepColor(
                         step.number
                       )} cursor-pointer hover:scale-110`}
                     >
                       {status === 'completed' ? (
-                        <Check className="w-6 h-6" />
+                        <Check className="w-5 h-5 sm:w-6 sm:h-6" />
                       ) : (
-                        <Icon className="w-5 h-5" />
+                        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                       )}
                     </button>
                     <span
-                      className={`mt-2 text-xs font-medium text-center ${
+                      className={`hidden sm:block mt-2 text-xs font-medium text-center ${
                         status === 'current' ? 'text-blue-600 font-bold' : status === 'completed' ? 'text-green-600' : 'text-gray-400'
                       }`}
                     >
@@ -72,7 +72,7 @@ const WizardStepsIndicator: React.FC<WizardStepsIndicatorProps> = ({
                   </div>
 
                   {index < steps.length - 1 && (
-                    <div className="flex-1 h-0.5 bg-gray-300 mx-2 relative top-[-20px]">
+                    <div className="flex-1 h-0.5 bg-gray-300 mx-1 sm:mx-2 relative top-0 sm:top-[-20px]">
                       <div
                         className={`h-full transition-all ${getLineColor(step.number)}`}
                         style={{ width: completedSteps.includes(step.number) ? '100%' : '0%' }}
@@ -85,10 +85,16 @@ const WizardStepsIndicator: React.FC<WizardStepsIndicatorProps> = ({
           </div>
         </div>
 
-        <div className="mt-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">Progreso</span>
-            <span className="text-sm font-bold text-blue-600">{(currentStep / 5) * 100}%</span>
+        <div className="mt-4 sm:mt-6">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            {/* En mobile las etiquetas de los pasos están ocultas: mostramos aquí la del paso actual */}
+            <span className="text-sm font-medium text-gray-600 truncate">
+              <span className="sm:hidden">
+                Paso {currentStep} de 5 · {steps.find(s => s.number === currentStep)?.label}
+              </span>
+              <span className="hidden sm:inline">Progreso</span>
+            </span>
+            <span className="text-sm font-bold text-blue-600 shrink-0">{(currentStep / 5) * 100}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div

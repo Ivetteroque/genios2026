@@ -268,17 +268,17 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-6 sm:py-8 px-0 sm:px-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-green-500 to-blue-500 px-6 py-4">
-            <h1 className="text-2xl font-bold text-white mb-1">Calendario de Disponibilidad</h1>
+          <div className="bg-gradient-to-r from-green-500 to-blue-500 px-4 sm:px-6 py-4">
+            <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">Calendario de Disponibilidad</h1>
             <p className="text-white/90 text-sm">
               Configura tu disponibilidad para que los clientes sepan cuándo estás disponible
             </p>
           </div>
 
-          <div className="p-6">
+          <div className="p-3 sm:p-6">
             <div className="flex items-center justify-between mb-6">
               <button
                 onClick={handlePreviousMonth}
@@ -287,7 +287,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
                 <ChevronLeft className="w-6 h-6 text-gray-700" />
               </button>
 
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-base sm:text-xl font-bold text-gray-900 text-center">
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </h2>
 
@@ -299,15 +299,15 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
               </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-2 mb-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
               {dayNames.map(day => (
-                <div key={day} className="text-center text-sm font-semibold text-gray-600 py-2">
+                <div key={day} className="text-center text-xs sm:text-sm font-semibold text-gray-600 py-2">
                   {day}
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {getDaysInMonth().map((day, index) => (
                 <div
                   key={index}
@@ -325,7 +325,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
                 >
                   {day.isCurrentMonth && (
                     <>
-                      <span className="text-sm font-medium text-gray-900">{day.date}</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-900">{day.date}</span>
                       {getStatusIcon(availability[day.dateString], isFutureDate(day.dateString))}
                     </>
                   )}
@@ -334,7 +334,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
             </div>
 
             <div className="mt-6 space-y-4">
-              <div className="flex items-center space-x-4">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-green-100 border-2 border-green-500 rounded"></div>
                   <span className="text-sm text-gray-700">Disponible</span>
@@ -350,7 +350,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
               </div>
 
               <div className="bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
                   <div className="flex items-center space-x-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
                     <span className="text-gray-700">
@@ -398,7 +398,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
 
               <button
                 onClick={onClose}
-                className="px-6 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold transition-colors"
+                className="px-4 sm:px-6 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold transition-colors"
               >
                 Cerrar
               </button>

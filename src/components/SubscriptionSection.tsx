@@ -97,15 +97,15 @@ export default function SubscriptionSection({
       <div className="max-w-2xl">
         <div className="mb-6 flex items-center gap-3">
           <CreditCard className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Suscripcion</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Suscripcion</h2>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <div className="flex items-start gap-5">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-8">
+          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-5">
             <div className="p-3 rounded-xl bg-green-50 shrink-0">
               <CheckCircle2 className="w-8 h-8 text-green-500" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-semibold uppercase tracking-wide text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Activa</span>
               </div>
@@ -137,10 +137,10 @@ export default function SubscriptionSection({
     <div className="max-w-lg mx-auto">
       {/* Value proposition header */}
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">
           Mas clientes, un solo pago al año
         </h2>
-        <p className="text-blue-600 font-semibold text-lg">
+        <p className="text-blue-600 font-semibold text-base sm:text-lg">
           S/{PAYMENT_AMOUNT} al año — menos de S/0.50 al dia
         </p>
         <p className="text-gray-500 text-sm mt-1.5">
@@ -150,7 +150,7 @@ export default function SubscriptionSection({
 
       {/* Pricing card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* QR */}
           <div className="flex flex-col items-center mb-6">
             <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-3">Escanea para pagar</p>
@@ -203,7 +203,7 @@ export default function SubscriptionSection({
           <div className="border-t border-gray-100">
             <button
               onClick={() => setShowBank(v => !v)}
-              className="w-full flex items-center justify-between px-6 py-4 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-between gap-2 px-4 sm:px-6 py-4 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-gray-400" />
@@ -213,30 +213,30 @@ export default function SubscriptionSection({
             </button>
 
             {showBank && (
-              <div className="px-6 pb-5 space-y-2">
+              <div className="px-4 sm:px-6 pb-5 space-y-2">
                 <div className="bg-gray-50 rounded-xl p-4 space-y-2.5 text-sm">
                   {paymentConfig.bank_name && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Banco</span>
-                      <span className="font-semibold text-gray-900">{paymentConfig.bank_name}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500 shrink-0">Banco</span>
+                      <span className="font-semibold text-gray-900 text-right">{paymentConfig.bank_name}</span>
                     </div>
                   )}
                   {paymentConfig.bank_account_name && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Titular</span>
-                      <span className="font-semibold text-gray-900">{paymentConfig.bank_account_name}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500 shrink-0">Titular</span>
+                      <span className="font-semibold text-gray-900 text-right">{paymentConfig.bank_account_name}</span>
                     </div>
                   )}
                   {paymentConfig.bank_account_number && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Cuenta</span>
-                      <span className="font-mono font-semibold text-gray-900">{paymentConfig.bank_account_number}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500 shrink-0">Cuenta</span>
+                      <span className="font-mono font-semibold text-gray-900 text-right break-all">{paymentConfig.bank_account_number}</span>
                     </div>
                   )}
                   {paymentConfig.bank_cci && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">CCI</span>
-                      <span className="font-mono font-semibold text-gray-900">{paymentConfig.bank_cci}</span>
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-500 shrink-0">CCI</span>
+                      <span className="font-mono font-semibold text-gray-900 text-right break-all">{paymentConfig.bank_cci}</span>
                     </div>
                   )}
                 </div>
@@ -249,7 +249,7 @@ export default function SubscriptionSection({
         )}
 
         {/* Promo code section */}
-        <div className="border-t border-gray-100 px-6 py-5">
+        <div className="border-t border-gray-100 px-4 sm:px-6 py-5">
           <div className="flex items-center gap-2 mb-3">
             <Tag className="w-4 h-4 text-gray-400" />
             <p className="text-sm font-medium text-gray-700">¿Tienes un codigo?</p>
