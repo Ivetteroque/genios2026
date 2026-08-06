@@ -103,7 +103,7 @@ const GeniusPeerReviews: React.FC<GeniusPeerReviewsProps> = ({ reviewedGeniusId 
     const data = await getReviewsForGenius(reviewedGeniusId);
     setReviews(data);
 
-    if (currentUser?.role === 'genius') {
+    if (currentUser?.isGenius) {
       const profile = await getGeniusProfile(currentUser.id);
       if (profile && profile.id !== reviewedGeniusId) {
         setReviewerGeniusId(profile.id);
@@ -116,7 +116,7 @@ const GeniusPeerReviews: React.FC<GeniusPeerReviewsProps> = ({ reviewedGeniusId 
       }
     }
     setLoading(false);
-  }, [reviewedGeniusId, currentUser?.id, currentUser?.role]);
+  }, [reviewedGeniusId, currentUser?.id, currentUser?.isGenius]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -148,7 +148,7 @@ const GeniusPeerReviews: React.FC<GeniusPeerReviewsProps> = ({ reviewedGeniusId 
     );
   }
 
-  const canReview = currentUser?.role === 'genius' && reviewerGeniusId !== null;
+  const canReview = currentUser?.isGenius && reviewerGeniusId !== null;
   const showForm = canReview && (!myReview || isEditing);
 
   return (

@@ -7,7 +7,14 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  // `role` is the user's ACTIVE VIEW MODE, not a fixed identity. Everyone is a
+  // client (can browse/hire); being a Genio is an additive capability (`isGenius`)
+  // granted once the user completes the Genio profile wizard. Dual users toggle
+  // `role` from the header to switch between the client and genio panels.
   role: 'client' | 'genius';
+  // True when this account has a genius_profile in the DB (i.e. it can act as a
+  // Genio). Derived at login from Supabase; a plain client has this false.
+  isGenius?: boolean;
   loginMethod: 'email' | 'google' | 'facebook' | 'apple';
   isVerified: boolean;
   registeredAt: string;
@@ -49,8 +56,14 @@ export const getCurrentUser = (): User | null => {
 // `INSERT ... ON CONFLICT DO UPDATE`, which requires a SELECT RLS policy on the
 // table (even when no conflict occurs). client_profiles has no SELECT policy by
 // design (privacy — admin reads via service role), so upsert always fails with
-// 42501. Instead we INSERT, and if the row already exists (unique violation on
-// id) we fall back to an UPDATE by id — both allowed by the existing policies.
+// 42501. Instead we INSERT, and if the row already exists (unique violation) we
+// fall back to an UPDATE — both allowed by the existing policies.
+//
+// The table has TWO unique constraints: id (PK) and email. We key the fallback
+// UPDATE on EMAIL, not id: email is the stable identity across logins, whereas a
+// user's app id can differ from the row that already exists (e.g. a row created
+// under an older id scheme). Updating by id in that case matches 0 rows and
+// silently drops profile edits, so email is the robust key here.
 const syncClientProfile = async (user: User): Promise<void> => {
   if (user.role !== 'client') return;
 
@@ -71,13 +84,14 @@ const syncClientProfile = async (user: User): Promise<void> => {
   const { error } = await supabase.from('client_profiles').insert(row);
   if (!error) return;
 
-  // 23505 = unique_violation → the row already exists, update it instead.
+  // 23505 = unique_violation → a row with this id OR email already exists.
+  // Update it by email (the stable key), leaving the immutable id/email as-is.
   if (error.code === '23505') {
-    const { id: _id, ...updates } = row;
+    const { id: _id, email: _email, ...updates } = row;
     const { error: updateError } = await supabase
       .from('client_profiles')
       .update(updates)
-      .eq('id', user.id);
+      .eq('email', user.email);
     if (updateError) console.error('client_profiles update error:', updateError);
   } else {
     console.error('client_profiles insert error:', error);
@@ -236,4 +250,12 @@ export const updateUser = (userId: string, updates: Partial<User>): boolean => {
 // Get user role display text
 export const getRoleDisplayText = (role: 'client' | 'genius'): string => {
   return role === 'genius' ? 'Genio' : 'Cliente';
+};
+
+// Switch the current user's active view mode (client <-> genio). Only meaningful
+// for users who are also genios; the caller is responsible for gating on isGenius.
+export const setActiveMode = (mode: 'client' | 'genius'): void => {
+  const user = getCurrentUser();
+  if (!user || user.role === mode) return;
+  setCurrentUser({ ...user, role: mode });
 };
