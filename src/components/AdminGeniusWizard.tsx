@@ -339,6 +339,7 @@ const AdminGeniusWizard: React.FC<AdminGeniusWizardProps> = ({ initialData, onCo
         onImageRemove={() => set('profilePhoto', '')}
         required
         helpText="Foto clara y profesional"
+        pathPrefix={formData.dni || 'admin'}
       />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Nombre completo *">
@@ -487,6 +488,7 @@ const AdminGeniusWizard: React.FC<AdminGeniusWizardProps> = ({ initialData, onCo
         onImagesChange={v => set('portfolio', v)}
         maxImages={6}
         helpText="Hasta 6 imágenes. Puedes completar esto después."
+        pathPrefix={formData.dni || 'admin'}
       />
     </div>
   );

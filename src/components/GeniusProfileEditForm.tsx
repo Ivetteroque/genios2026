@@ -270,6 +270,7 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
         onImageRemove={() => handleInputChange('profilePhoto', '')}
         required
         helpText="Una foto clara y profesional ayuda a generar confianza"
+        pathPrefix={currentUser?.id ?? ''}
       />
 
       {/* Personal Information */}
@@ -548,6 +549,7 @@ const GeniusProfileEditForm: React.FC<GeniusProfileEditFormProps> = ({
         onImagesChange={(images) => handleInputChange('portfolio', images)}
         maxImages={6}
         helpText="Muestra ejemplos de tu mejor trabajo para atraer más clientes"
+        pathPrefix={currentUser?.id ?? ''}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Star, MapPin, MessageSquare, Globe, Instagram, Facebook, Video, ChevronLeft, ChevronRight, Calendar, Upload, X, Check, MoreVertical, Share2, Copy, Flag } from 'lucide-react';
+import { Star, MapPin, MessageSquare, Instagram, Facebook, Video, ChevronLeft, ChevronRight, Calendar, Upload, X, Check, MoreVertical, Share2, Copy, Flag } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { handleWhatsAppContact } from '../utils/whatsappUtils';
 import FavoriteButton from '../components/FavoriteButton';
@@ -10,11 +10,12 @@ import GeniusPeerReviews from '../components/GeniusPeerReviews';
 import ReportModal from '../components/ReportModal';
 import { useGeniusAvailability } from '../hooks/useGeniusAvailability';
 import {
-  getReviewsForGenius,
-  calculateGeniusRatingStats,
-  Review as ReviewType,
-  GeniusRatingStats
-} from '../utils/reviewUtils';
+  getClientReviewsForGenius,
+  getRatingStatsForGenius,
+  GeniusReview,
+  RatingStats,
+} from '../services/supabaseGeniusReviewsService';
+import { getPublicGeniusById, DirectoryGenius } from '../services/publicGeniusDirectoryService';
 
 const Profile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,12 +26,15 @@ const Profile: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
-  const [reviews, setReviews] = useState<ReviewType[]>([]);
-  const [ratingStats, setRatingStats] = useState<GeniusRatingStats>({
-    averageRating: 4.9,
-    totalReviews: 42,
-    ratingDistribution: { 5: 30, 4: 8, 3: 3, 2: 1, 1: 0 }
+  const [reviews, setReviews] = useState<GeniusReview[]>([]);
+  const [ratingStats, setRatingStats] = useState<RatingStats>({
+    average: 0,
+    count: 0,
+    distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
   });
+  const [genius, setGenius] = useState<DirectoryGenius | null>(null);
+  const [isLoadingGenius, setIsLoadingGenius] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const { isAvailableToday, getDisplayStatus } = useGeniusAvailability(id);
 
@@ -66,26 +70,55 @@ const Profile: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [id]);
 
+  // Cargar el perfil público real desde Supabase
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+
+    const loadGenius = async () => {
+      setIsLoadingGenius(true);
+      setLoadError(false);
+      try {
+        const profile = await getPublicGeniusById(id);
+        if (!cancelled) setGenius(profile);
+      } catch (error) {
+        console.error('Error loading genius profile:', error);
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setIsLoadingGenius(false);
+      }
+    };
+
+    loadGenius();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const homeLocation = genius?.home_location;
+  const locationLabel = homeLocation
+    ? [homeLocation.districtName, homeLocation.departmentName].filter(Boolean).join(', ')
+    : '';
+
   const geniusData = {
-    id: id || 'carla-maquilladora',
-    name: 'Carla Maquilladora',
-    category: 'Belleza y Estética',
-    subcategory: 'Maquillaje Profesional',
-    phone: '51999123456',
-    rating: ratingStats.averageRating,
-    reviews: ratingStats.totalReviews,
-    location: 'Tacna, Perú',
+    id: genius?.id ?? id ?? '',
+    name: genius?.full_name ?? '',
+    category: genius?.category ?? '',
+    subcategory: genius?.subcategories?.[0] || genius?.service_name || genius?.category || '',
+    phone: genius?.phone ?? '',
+    rating: ratingStats.average,
+    reviews: ratingStats.count,
+    location: locationLabel,
     available: isAvailableToday,
-    verified: true,
-    description: 'Hola, soy Carla, maquilladora profesional con más de 5 años de experiencia en eventos, novias y sesiones fotográficas. Amo resaltar la belleza natural de cada persona y hacer que cada ocasión se sienta especial. He trabajado con productoras, novias y artistas locales.',
-    profileImage: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
+    verified: genius?.has_documents ?? false,
+    description: genius?.description ?? '',
+    profileImage: genius?.profile_photo ?? '',
+    instagram: genius?.instagram ?? '',
+    facebook: genius?.facebook ?? '',
+    tiktok: genius?.tiktok ?? '',
   };
 
-  const portfolio = [
-    'https://images.pexels.com/photos/2681751/pexels-photo-2681751.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    'https://images.pexels.com/photos/2681751/pexels-photo-2681751.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    'https://images.pexels.com/photos/2681751/pexels-photo-2681751.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2'
-  ];
+  const portfolio = genius?.portfolio ?? [];
 
   // Load reviews and rating stats
   useEffect(() => {
@@ -102,17 +135,16 @@ const Profile: React.FC = () => {
     return () => window.removeEventListener('reviewsChanged', handleReviewsChange);
   }, [id]);
 
-  const loadReviewsAndStats = () => {
-    if (id) {
-      const geniusReviews = getReviewsForGenius(id);
-      const stats = calculateGeniusRatingStats(id);
-      
-      setReviews(geniusReviews);
-      setRatingStats(stats);
-      
-      console.log(`Loaded ${geniusReviews.length} reviews for genius ${id}`);
-      console.log('Rating stats:', stats);
-    }
+  const loadReviewsAndStats = async () => {
+    if (!id) return;
+
+    const [geniusReviews, stats] = await Promise.all([
+      getClientReviewsForGenius(id),
+      getRatingStatsForGenius(id),
+    ]);
+
+    setReviews(geniusReviews);
+    setRatingStats(stats);
   };
 
   const nextImage = () => {
@@ -205,11 +237,19 @@ const Profile: React.FC = () => {
         <div className="flex flex-col items-center relative">
           {/* Profile Image with Favorite Button */}
           <div className="relative">
-            <img
-              src={geniusData.profileImage}
-              alt={geniusData.name}
-              className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover shadow-lg mb-4"
-            />
+            {geniusData.profileImage ? (
+              <img
+                src={geniusData.profileImage}
+                alt={geniusData.name}
+                className="w-32 h-32 md:w-48 md:h-48 rounded-full object-cover shadow-lg mb-4"
+              />
+            ) : (
+              <div className="w-32 h-32 md:w-48 md:h-48 rounded-full bg-surface-blue shadow-lg mb-4 flex items-center justify-center">
+                <span className="font-heading font-bold text-4xl md:text-6xl text-ink-blue">
+                  {geniusData.name.trim().charAt(0).toUpperCase()}
+                </span>
+              </div>
+            )}
             
             {/* Favorite Button - positioned on top right of profile image */}
             <div className="absolute top-2 right-2 md:top-4 md:right-4">
@@ -231,30 +271,32 @@ const Profile: React.FC = () => {
           </div>
 
           <h1 className="font-heading text-2xl md:text-4xl font-bold text-text mb-2">
-            {geniusData.name} 💄
+            {geniusData.name}
           </h1>
           <p className="text-text/60 text-lg mb-4">
-            {geniusData.subcategory} / Eventos / Novias
+            {(genius?.subcategories ?? []).join(' / ') || geniusData.subcategory}
           </p>
           
           <div className="flex items-center mb-4">
             {[...Array(5)].map((_, i) => (
               <Star
                 key={i}
-                className={`w-5 h-5 ${i < Math.floor(ratingStats.averageRating) ? 'text-primary' : 'text-gray-300'}`}
-                fill={i < Math.floor(ratingStats.averageRating) ? 'currentColor' : 'none'}
+                className={`w-5 h-5 ${i < Math.floor(ratingStats.average) ? 'text-primary' : 'text-gray-300'}`}
+                fill={i < Math.floor(ratingStats.average) ? 'currentColor' : 'none'}
               />
             ))}
             <span className="ml-2 text-text/60">
-              ({ratingStats.averageRating} de {ratingStats.totalReviews} opiniones)
+              ({ratingStats.average} de {ratingStats.count} opiniones)
             </span>
           </div>
 
           <div className="flex flex-wrap gap-4 justify-center items-center">
-            <div className="flex items-center text-text/60">
-              <MapPin className="w-5 h-5 mr-1" />
-              {geniusData.location}
-            </div>
+            {geniusData.location && (
+              <div className="flex items-center text-text/60">
+                <MapPin className="w-5 h-5 mr-1" />
+                {geniusData.location}
+              </div>
+            )}
             <GeniusAvailabilityBadge geniusId={geniusData.id} showIcon={true} showNextDate={true} />
             <button
               onClick={handleContactClick}
@@ -274,23 +316,50 @@ const Profile: React.FC = () => {
     <section className="py-12 bg-gray-50">
       <div className="container mx-auto px-4">
         <h2 className="font-heading text-2xl font-bold mb-6">Acerca de mí</h2>
-        <p className="text-text/80 leading-relaxed max-w-3xl mx-auto">
-          "{geniusData.description}"
-        </p>
+        {geniusData.description ? (
+          <p className="text-text/80 leading-relaxed max-w-3xl mx-auto">
+            "{geniusData.description}"
+          </p>
+        ) : (
+          <p className="text-text/50 max-w-3xl mx-auto">
+            Este genio todavía no escribió su presentación.
+          </p>
+        )}
 
         <div className="flex justify-center mt-8 space-x-4">
-          <a href="#web" className="text-text/60 hover:text-primary transition-colors">
-            <Globe className="w-6 h-6" />
-          </a>
-          <a href="#instagram" className="text-text/60 hover:text-primary transition-colors">
-            <Instagram className="w-6 h-6" />
-          </a>
-          <a href="#facebook" className="text-text/60 hover:text-primary transition-colors">
-            <Facebook className="w-6 h-6" />
-          </a>
-          <a href="#tiktok" className="text-text/60 hover:text-primary transition-colors">
-            <Video className="w-6 h-6" />
-          </a>
+          {geniusData.instagram && (
+            <a
+              href={geniusData.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+              className="text-text/60 hover:text-ink-blue transition-colors"
+            >
+              <Instagram className="w-6 h-6" />
+            </a>
+          )}
+          {geniusData.facebook && (
+            <a
+              href={geniusData.facebook}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Facebook"
+              className="text-text/60 hover:text-ink-blue transition-colors"
+            >
+              <Facebook className="w-6 h-6" />
+            </a>
+          )}
+          {geniusData.tiktok && (
+            <a
+              href={geniusData.tiktok}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="TikTok"
+              className="text-text/60 hover:text-ink-blue transition-colors"
+            >
+              <Video className="w-6 h-6" />
+            </a>
+          )}
         </div>
       </div>
     </section>
@@ -356,13 +425,13 @@ const Profile: React.FC = () => {
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-5 h-5 ${i < Math.floor(ratingStats.averageRating) ? 'text-primary' : 'text-gray-300'}`}
-                      fill={i < Math.floor(ratingStats.averageRating) ? 'currentColor' : 'none'}
+                      className={`w-5 h-5 ${i < Math.floor(ratingStats.average) ? 'text-primary' : 'text-gray-300'}`}
+                      fill={i < Math.floor(ratingStats.average) ? 'currentColor' : 'none'}
                     />
                   ))}
                 </div>
                 <span className="ml-2 text-text/60">
-                  ({ratingStats.averageRating} de {ratingStats.totalReviews} valoraciones)
+                  ({ratingStats.average} de {ratingStats.count} valoraciones)
                 </span>
               </div>
             </div>
@@ -375,7 +444,7 @@ const Profile: React.FC = () => {
           </div>
 
           {/* Rating Distribution */}
-          {ratingStats.totalReviews > 0 && (
+          {ratingStats.count > 0 && (
             <div className="mb-6 p-3 bg-gray-50 rounded-lg">
               <h4 className="font-medium text-text text-sm mb-2">Distribución de calificaciones:</h4>
               <div className="space-y-1.5">
@@ -386,14 +455,14 @@ const Profile: React.FC = () => {
                       <div 
                         className="bg-primary h-1.5 rounded-full transition-all duration-500"
                         style={{ 
-                          width: `${ratingStats.totalReviews > 0 
-                            ? (ratingStats.ratingDistribution[rating as keyof typeof ratingStats.ratingDistribution] / ratingStats.totalReviews) * 100 
+                          width: `${ratingStats.count > 0 
+                            ? (ratingStats.distribution[rating as keyof typeof ratingStats.distribution] / ratingStats.count) * 100 
                             : 0}%` 
                         }}
                       ></div>
                     </div>
                     <span className="text-xs text-text/60 w-6 text-right">
-                      {ratingStats.ratingDistribution[rating as keyof typeof ratingStats.ratingDistribution]}
+                      {ratingStats.distribution[rating as keyof typeof ratingStats.distribution]}
                     </span>
                   </div>
                 ))}
@@ -408,7 +477,7 @@ const Profile: React.FC = () => {
                   {/* Date in top right corner */}
                   <div className="absolute top-0 right-0">
                     <span className="text-xs text-text/50 font-medium bg-gray-50 px-2 py-1 rounded-md">
-                      {new Date(review.serviceDate).toLocaleDateString('es-ES', {
+                      {new Date(review.service_date ?? review.created_at).toLocaleDateString('es-ES', {
                         day: '2-digit',
                         month: '2-digit',
                         year: '2-digit'
@@ -419,15 +488,11 @@ const Profile: React.FC = () => {
                   <div className="flex items-start space-x-4 pr-16">
                     {/* User profile photo */}
                     <div className="flex-shrink-0">
-                      <img
-                        src={`https://images.pexels.com/photos/${Math.floor(Math.random() * 1000000)}/pexels-photo-${Math.floor(Math.random() * 1000000)}.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2`}
-                        alt={review.clientName}
-                        className="w-12 h-12 rounded-full object-cover border-2 border-gray-200 shadow-sm"
-                        onError={(e) => {
-                          // Fallback to a default avatar if image fails to load
-                          (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2';
-                        }}
-                      />
+                      <div className="w-12 h-12 rounded-full bg-surface-blue border-2 border-white shadow-sm flex items-center justify-center">
+                        <span className="font-heading font-bold text-ink-blue">
+                          {review.reviewer_name.trim().charAt(0).toUpperCase() || '?'}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Main content */}
@@ -435,7 +500,7 @@ const Profile: React.FC = () => {
                       {/* User name and stars in same line */}
                       <div className="flex items-center space-x-3 mb-3">
                         <div className="flex items-center space-x-2">
-                          <h4 className="font-semibold text-text text-lg">{review.clientName}</h4>
+                          <h4 className="font-semibold text-text text-lg">{review.reviewer_name}</h4>
                           <div className="flex items-center">
                             {[...Array(5)].map((_, i) => (
                               <Star
@@ -446,11 +511,6 @@ const Profile: React.FC = () => {
                             ))}
                           </div>
                         </div>
-                        {review.verified && (
-                          <div className="flex-shrink-0">
-                            <Check className="w-4 h-4 text-success" />
-                          </div>
-                        )}
                       </div>
                       
                       {/* Review comment - aligned with user name */}
@@ -515,7 +575,7 @@ const Profile: React.FC = () => {
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white p-4 border-b flex justify-between items-center">
               <h3 className="font-heading text-xl font-bold">
-                🧾 TODAS LAS VALORACIONES ({ratingStats.totalReviews})
+                🧾 TODAS LAS VALORACIONES ({ratingStats.count})
               </h3>
               <button
                 onClick={() => setShowReviewModal(false)}
@@ -531,7 +591,7 @@ const Profile: React.FC = () => {
                     {/* Date in top right corner */}
                     <div className="absolute top-0 right-0">
                       <span className="text-xs text-text/50 font-medium bg-gray-50 px-2 py-1 rounded-md">
-                        {new Date(review.serviceDate).toLocaleDateString('es-ES', {
+                        {new Date(review.service_date ?? review.created_at).toLocaleDateString('es-ES', {
                           day: '2-digit',
                           month: '2-digit',
                           year: '2-digit'
@@ -542,15 +602,11 @@ const Profile: React.FC = () => {
                     <div className="flex items-start space-x-4 pr-16">
                       {/* User profile photo */}
                       <div className="flex-shrink-0">
-                        <img
-                          src={`https://images.pexels.com/photos/${Math.floor(Math.random() * 1000000)}/pexels-photo-${Math.floor(Math.random() * 1000000)}.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2`}
-                          alt={review.clientName}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-gray-200 shadow-sm"
-                          onError={(e) => {
-                            // Fallback to a default avatar if image fails to load
-                            (e.target as HTMLImageElement).src = 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2';
-                          }}
-                        />
+                        <div className="w-14 h-14 rounded-full bg-surface-blue border-2 border-white shadow-sm flex items-center justify-center">
+                          <span className="font-heading font-bold text-lg text-ink-blue">
+                            {review.reviewer_name.trim().charAt(0).toUpperCase() || '?'}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Main content */}
@@ -558,7 +614,7 @@ const Profile: React.FC = () => {
                         {/* User name and stars in same line */}
                         <div className="flex items-center space-x-3 mb-4">
                           <div className="flex items-center space-x-2">
-                            <h4 className="font-semibold text-text text-xl">{review.clientName}</h4>
+                            <h4 className="font-semibold text-text text-xl">{review.reviewer_name}</h4>
                             <div className="flex items-center">
                               {[...Array(5)].map((_, i) => (
                                 <Star
@@ -569,11 +625,6 @@ const Profile: React.FC = () => {
                               ))}
                             </div>
                           </div>
-                          {review.verified && (
-                            <div className="flex-shrink-0">
-                              <Check className="w-5 h-5 text-success" />
-                            </div>
-                          )}
                         </div>
                         
                         {/* Review comment - aligned with user name */}
@@ -643,11 +694,47 @@ const Profile: React.FC = () => {
     </section>
   );
 
+  if (isLoadingGenius) {
+    return (
+      <div className="min-h-screen bg-background pt-20">
+        <div className="container mx-auto px-4 py-16 flex flex-col items-center animate-pulse">
+          <div className="w-32 h-32 md:w-48 md:h-48 rounded-full bg-gray-100 mb-6" />
+          <div className="h-8 w-64 bg-gray-100 rounded mb-3" />
+          <div className="h-4 w-40 bg-gray-100 rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !genius) {
+    return (
+      <div className="min-h-screen bg-background pt-20">
+        <div className="container mx-auto px-4 py-20 text-center max-w-md">
+          <h1 className="font-heading text-2xl font-bold text-text mb-3">
+            {loadError ? 'No pudimos cargar este perfil' : 'Este perfil no está disponible'}
+          </h1>
+          <p className="text-text/60 mb-8">
+            {loadError
+              ? 'Revisa tu conexión e inténtalo de nuevo.'
+              : 'Puede que el genio haya quitado su perfil o que aún no esté publicado.'}
+          </p>
+          <Link
+            to="/categories"
+            className="inline-flex items-center bg-primary text-text px-6 py-2.5 rounded-full hover:bg-primary-dark transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4 mr-2" />
+            Volver a categorías
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pt-20">
       <HeroSection />
       <AboutSection />
-      <PortfolioSection />
+      {portfolio.length > 0 && <PortfolioSection />}
       <ReviewsSection />
       <GeniusPeerReviews reviewedGeniusId={id || ''} />
 

@@ -165,6 +165,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({
               onImageChange={(imageUrl) => handleInputChange('profileImage', imageUrl)}
               onImageRemove={() => handleInputChange('profileImage', '')}
               helpText="Una foto clara ayuda a los genios a reconocerte"
+              pathPrefix={currentUser.id}
             />
           </div>
 

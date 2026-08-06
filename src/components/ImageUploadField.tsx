@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
 import { Camera, X, Upload, AlertCircle, CheckCircle } from 'lucide-react';
+import { uploadImage, PROFILE_PHOTOS_BUCKET } from '../services/supabaseStorageService';
 
 interface ImageUploadFieldProps {
   label: string;
   currentImage?: string;
+  /** Recibe la URL pública de la imagen ya subida a Storage. */
   onImageChange: (imageUrl: string) => void;
   onImageRemove: () => void;
   className?: string;
   required?: boolean;
   helpText?: string;
+  /** Bucket de destino. Por defecto, fotos de perfil. */
+  bucket?: string;
+  /** Carpeta dentro del bucket; normalmente el id del genio o del usuario. */
+  pathPrefix?: string;
 }
 
 const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
@@ -18,12 +24,14 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   onImageRemove,
   className = '',
   required = false,
-  helpText
+  helpText,
+  bucket = PROFILE_PHOTOS_BUCKET,
+  pathPrefix = ''
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -42,16 +50,14 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     setIsLoading(true);
     setError('');
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      const publicUrl = await uploadImage(bucket, file, pathPrefix);
+      onImageChange(publicUrl);
+    } catch {
+      setError('No se pudo subir la imagen. Inténtalo de nuevo.');
+    } finally {
       setIsLoading(false);
-      onImageChange(reader.result as string);
-    };
-    reader.onerror = () => {
-      setIsLoading(false);
-      setError('Error al cargar la imagen');
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleRemove = () => {

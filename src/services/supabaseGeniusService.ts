@@ -1,6 +1,13 @@
 import { supabase } from '../lib/supabase';
 import { Genius } from '../utils/geniusUtils';
 import { getGeniusAvailabilityStatus, GeniusAvailabilityStatus } from './supabaseAvailabilityService';
+import {
+  uploadImage,
+  migrateImagesToStorage,
+  isDataUrl,
+  PROFILE_PHOTOS_BUCKET,
+  PORTFOLIOS_BUCKET,
+} from './supabaseStorageService';
 
 export interface GeniusProfile {
   id: string;
@@ -65,9 +72,25 @@ export const saveGeniusProfile = async (
     ? completionPercentage
     : calculateProfileCompleteness(profileData);
 
+  // Los perfiles guardados antes de mover las imágenes a Storage traen
+  // data-URLs base64. Se suben aquí para que la fila guarde solo URLs; si ya
+  // son URLs, estas llamadas no hacen nada.
+  const [profilePhoto, portfolio] = await Promise.all([
+    profileData.profilePhoto && isDataUrl(profileData.profilePhoto)
+      ? uploadImage(PROFILE_PHOTOS_BUCKET, profileData.profilePhoto, userId).catch((error) => {
+          console.error('Error migrando la foto de perfil a Storage:', error);
+          return profileData.profilePhoto as string;
+        })
+      : Promise.resolve(profileData.profilePhoto || ''),
+    migrateImagesToStorage(PORTFOLIOS_BUCKET, profileData.portfolio || [], userId).catch((error) => {
+      console.error('Error migrando el portafolio a Storage:', error);
+      return profileData.portfolio || [];
+    }),
+  ]);
+
   const profilePayload = {
     user_id: userId,
-    profile_photo: profileData.profilePhoto || '',
+    profile_photo: profilePhoto || '',
     full_name: profileData.fullName || '',
     dni: profileData.dni || '',
     email: profileData.email || '',
@@ -82,7 +105,7 @@ export const saveGeniusProfile = async (
     home_location: profileData.homeLocation || null,
     coverage_type: profileData.coverageType || 'my-district',
     work_locations: profileData.workLocations || [],
-    portfolio: profileData.portfolio || [],
+    portfolio,
     documents: profileData.documents || [],
     completion_percentage: calculatedCompletion,
     last_wizard_step: lastWizardStep || 6,

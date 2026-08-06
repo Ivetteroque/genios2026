@@ -4,14 +4,16 @@ import { User, MapPin, Mail, Phone, CreditCard as Edit, Lock, Star, Heart, Messa
 import { formatDateToSpanish, getFirstName } from '../utils/commonUtils';
 import { getCurrentUser, logout, updateUser } from '../utils/authUtils';
 import { getUserFavorites, FavoriteGenius } from '../utils/favoritesUtils';
-import { getReviewsByClient, Review as ReviewType } from '../utils/reviewUtils';
+import { getReviewsByClient, GeniusReview } from '../services/supabaseGeniusReviewsService';
+import { getGeniusNamesByIds } from '../services/publicGeniusDirectoryService';
 import EditProfileModal from '../components/EditProfileModal';
 import { handleWhatsAppContact } from '../utils/whatsappUtils';
 
 const ClientProfile: React.FC = () => {
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [favoriteGenios, setFavoriteGenios] = useState<FavoriteGenius[]>([]);
-  const [clientReviews, setClientReviews] = useState<ReviewType[]>([]);
+  const [clientReviews, setClientReviews] = useState<GeniusReview[]>([]);
+  const [geniusNames, setGeniusNames] = useState<Map<string, string>>(new Map());
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -48,21 +50,18 @@ const ClientProfile: React.FC = () => {
     }
   };
 
-  const loadClientReviews = () => {
-    if (currentUser) {
-      setClientReviews(getReviewsByClient(currentUser.id));
-    }
+  const loadClientReviews = async () => {
+    if (!currentUser) return;
+
+    const reviews = await getReviewsByClient(currentUser.id);
+    setClientReviews(reviews);
+
+    const ids = [...new Set(reviews.map(review => review.reviewed_genius_id))];
+    setGeniusNames(await getGeniusNamesByIds(ids));
   };
 
-  const getGeniusName = (geniusId: string): string => {
-    const geniusNames: Record<string, string> = {
-      'carla-maquilladora': 'Carla Maquilladora',
-      '1': 'Ana Estilista', '2': 'Luis Técnico', '3': 'Sofía Nutricionista',
-      '4': 'Diego Desarrollador', '5': 'Carmen Limpieza', '6': 'Roberto DJ',
-      '7': 'María Diseñadora', '8': 'Carlos Gasfitero',
-    };
-    return geniusNames[geniusId] || `Genio ${geniusId}`;
-  };
+  const getGeniusName = (geniusId: string): string =>
+    geniusNames.get(geniusId) ?? 'Genio';
 
   const handleLogout = () => {
     if (window.confirm('¿Cerrar sesión?')) logout();
@@ -223,9 +222,9 @@ const ClientProfile: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-text">{getGeniusName(review.geniusId)}</span>
+                      <span className="text-sm font-medium text-text">{getGeniusName(review.reviewed_genius_id)}</span>
                       <span className="text-xs text-text/30">
-                        {new Date(review.serviceDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        {new Date(review.service_date ?? review.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </span>
                     </div>
                     <div className="flex items-center gap-0.5 mb-1.5">
@@ -309,9 +308,9 @@ const ClientProfile: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-text">{getGeniusName(review.geniusId)}</span>
+                      <span className="text-sm font-medium text-text">{getGeniusName(review.reviewed_genius_id)}</span>
                       <span className="text-xs text-text/30">
-                        {new Date(review.serviceDate).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        {new Date(review.service_date ?? review.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                       </span>
                     </div>
                     <div className="flex items-center gap-0.5 mb-1.5">

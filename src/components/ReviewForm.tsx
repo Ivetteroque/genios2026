@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Star, X, Check, Calendar, Camera } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import { getCurrentUser } from '../utils/authUtils';
-import { addReview, validateReviewData } from '../utils/reviewUtils';
+import { validateReviewData } from '../utils/reviewUtils';
+import { submitClientReview, uploadReviewImages } from '../services/supabaseGeniusReviewsService';
 
 interface ReviewFormProps {
   geniusId: string;
@@ -15,6 +16,7 @@ interface ReviewData {
   serviceDate: string;
   rating: number;
   comment: string;
+  /** Previsualizaciones locales; los archivos originales van en `imageFiles`. */
   images: string[];
 }
 
@@ -22,6 +24,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [reviewData, setReviewData] = useState<ReviewData>({
     clientName: '',
     serviceDate: '',
@@ -83,94 +86,24 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
     // Limit to 2 images
     const filesToProcess = files.slice(0, 2 - reviewData.images.length);
 
-    const readers = filesToProcess.map(file => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-    });
-
-    Promise.all(readers).then(results => {
-      setReviewData(prev => ({
-        ...prev,
-        images: [...prev.images, ...results].slice(0, 2)
-      }));
-    });
+    setImageFiles(prev => [...prev, ...filesToProcess].slice(0, 2));
+    setReviewData(prev => ({
+      ...prev,
+      images: [...prev.images, ...filesToProcess.map(file => URL.createObjectURL(file))].slice(0, 2)
+    }));
   };
 
   const removeImage = (index: number) => {
+    const preview = reviewData.images[index];
+    if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
+
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
     setReviewData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
-  // Storage management utilities
-  const getStorageSize = () => {
-    let total = 0;
-    for (let key in localStorage) {
-      if (localStorage.hasOwnProperty(key)) {
-        total += localStorage[key].length + key.length;
-      }
-    }
-    return total;
-  };
-
-  const isStorageAvailable = (dataSize: number) => {
-    const currentSize = getStorageSize();
-    const maxSize = 5 * 1024 * 1024; // 5MB typical limit
-    return (currentSize + dataSize) < (maxSize * 0.8); // Use 80% of limit as safety margin
-  };
-
-  const cleanupOldReviews = () => {
-    try {
-      const existingReviews = JSON.parse(localStorage.getItem('reviews') || '[]');
-      if (existingReviews.length > 50) {
-        // Keep only the 30 most recent reviews
-        const sortedReviews = existingReviews
-          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          .slice(0, 30);
-        localStorage.setItem('reviews', JSON.stringify(sortedReviews));
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Error cleaning up reviews:', error);
-      return false;
-    }
-  };
-
-  const compressImages = (images: string[]): string[] => {
-    return images.map(image => {
-      try {
-        // Create a canvas to compress the image
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
-        
-        return new Promise<string>((resolve) => {
-          img.onload = () => {
-            // Resize to max 800px width while maintaining aspect ratio
-            const maxWidth = 800;
-            const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
-            canvas.width = img.width * ratio;
-            canvas.height = img.height * ratio;
-            
-            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-            
-            // Compress to 70% quality
-            const compressedImage = canvas.toDataURL('image/jpeg', 0.7);
-            resolve(compressedImage);
-          };
-          img.src = image;
-        });
-      } catch (error) {
-        console.error('Error compressing image:', error);
-        return image; // Return original if compression fails
-      }
-    });
-  };
   const isFormValid = () => {
     return reviewData.rating > 0 && 
            reviewData.comment.trim().length > 0 && 
@@ -205,33 +138,23 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
         return;
       }
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Las fotos van al bucket de Storage; la reseña guarda solo sus URLs
+      const uploadedImages = await uploadReviewImages(imageFiles, geniusId);
 
-      // Add review using the utility function
-      try {
-        const newReview = addReview(reviewToSubmit);
-        console.log('Review successfully added:', newReview);
-        
-      } catch (storageError: any) {
-        console.error('Storage error:', storageError);
-        
-        if (storageError.name === 'QuotaExceededError' || storageError.code === 22) {
-          // Try saving without images as fallback
-          try {
-            const reviewWithoutImages = { ...reviewToSubmit, images: [] };
-            const newReview = addReview(reviewWithoutImages);
-            alert('⚠️ Reseña guardada sin imágenes debido a limitaciones de almacenamiento.');
-            console.log('Review saved without images:', newReview);
-          } catch (finalError) {
-            console.error('Final storage attempt failed:', finalError);
-            alert('❌ No se pudo guardar la reseña debido a limitaciones de almacenamiento del navegador.');
-            setIsSubmitting(false);
-            return;
-          }
-        } else {
-          throw storageError;
-        }
+      const saved = await submitClientReview({
+        reviewedGeniusId: geniusId,
+        clientUserId: currentUser!.id,
+        clientName: reviewData.clientName,
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        serviceDate: reviewData.serviceDate,
+        images: uploadedImages,
+      });
+
+      if (!saved) {
+        alert('❌ No se pudo publicar la reseña. Inténtalo de nuevo en un momento.');
+        setIsSubmitting(false);
+        return;
       }
 
       // Show success animation
@@ -243,6 +166,10 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
       }
 
       // Reset form
+      reviewData.images.forEach(preview => {
+        if (preview.startsWith('blob:')) URL.revokeObjectURL(preview);
+      });
+      setImageFiles([]);
       setReviewData({
         clientName: currentUser!.name,
         serviceDate: '',

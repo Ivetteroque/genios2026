@@ -335,6 +335,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         onImageRemove={() => handleInputChange('profilePhoto', '')}
         required
         helpText="Una foto clara y profesional ayuda a generar confianza"
+        pathPrefix={currentUser?.id ?? ''}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -608,6 +609,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         onImagesChange={(images) => handleInputChange('portfolio', images)}
         maxImages={6}
         helpText="Muestra ejemplos de tu mejor trabajo para atraer más clientes. Puedes agregar fotos más tarde."
+        pathPrefix={currentUser?.id ?? ''}
       />
     </div>
   );

@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { Camera, X, Upload, AlertCircle, Plus } from 'lucide-react';
+import { uploadImages, PORTFOLIOS_BUCKET } from '../services/supabaseStorageService';
 
 interface MultiImageUploadFieldProps {
   label: string;
   currentImages: string[];
+  /** Recibe las URLs públicas de las imágenes ya subidas a Storage. */
   onImagesChange: (images: string[]) => void;
   maxImages: number;
   className?: string;
   helpText?: string;
+  /** Bucket de destino. Por defecto, portafolios. */
+  bucket?: string;
+  /** Carpeta dentro del bucket; normalmente el id del genio. */
+  pathPrefix?: string;
 }
 
 const MultiImageUploadField: React.FC<MultiImageUploadFieldProps> = ({
@@ -16,12 +22,14 @@ const MultiImageUploadField: React.FC<MultiImageUploadFieldProps> = ({
   onImagesChange,
   maxImages,
   className = '',
-  helpText
+  helpText,
+  bucket = PORTFOLIOS_BUCKET,
+  pathPrefix = ''
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
@@ -50,25 +58,21 @@ const MultiImageUploadField: React.FC<MultiImageUploadFieldProps> = ({
     setIsLoading(true);
     setError('');
 
-    // Convert files to data URLs
-    const readers = validFiles.map(file => {
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('Error al cargar imagen'));
-        reader.readAsDataURL(file);
-      });
-    });
+    try {
+      const uploaded = await uploadImages(bucket, validFiles, pathPrefix);
 
-    Promise.all(readers)
-      .then(results => {
-        setIsLoading(false);
-        onImagesChange([...currentImages, ...results]);
-      })
-      .catch(() => {
-        setIsLoading(false);
-        setError('Error al cargar algunas imágenes');
-      });
+      if (uploaded.length === 0) {
+        setError('No se pudieron subir las imágenes. Inténtalo de nuevo.');
+      } else if (uploaded.length < validFiles.length) {
+        setError(`Se subieron ${uploaded.length} de ${validFiles.length} imágenes.`);
+      }
+
+      if (uploaded.length > 0) {
+        onImagesChange([...currentImages, ...uploaded]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleRemoveImage = (index: number) => {
