@@ -378,12 +378,22 @@ const Profile: React.FC = () => {
     </section>
   );
 
+  // La disponibilidad no depende del portafolio: un genio sin trabajos
+  // cargados igual necesita mostrar su calendario, así que la sección se
+  // dibuja siempre y solo la columna de trabajos es condicional.
+  const hasPortfolio = portfolio.length > 0;
+
   const portfolioSection = (
     <section className="py-12 bg-white">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+        <div
+          className={`grid grid-cols-1 gap-8 mx-auto ${
+            hasPortfolio ? 'lg:grid-cols-3 max-w-7xl' : 'max-w-md'
+          }`}
+        >
+          {hasPortfolio && (
           <div className="lg:col-span-2">
-            <h2 className="font-heading text-2xl font-bold mb-6">Trabajos realizados</h2>
+            <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">Trabajos realizados</h2>
             <div className="relative">
               <button
                 onClick={prevImage}
@@ -417,9 +427,10 @@ const Profile: React.FC = () => {
               </button>
             </div>
           </div>
+          )}
 
           <div className="lg:col-span-1">
-            <h2 className="font-heading text-2xl font-bold mb-6">Disponibilidad</h2>
+            <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">Disponibilidad</h2>
             <PublicAvailabilityCalendar geniusId={geniusData.id} compact={true} />
           </div>
         </div>
@@ -773,7 +784,7 @@ const Profile: React.FC = () => {
     <div className="min-h-screen bg-background pt-20">
       {heroSection}
       {aboutSection}
-      {portfolio.length > 0 && portfolioSection}
+      {portfolioSection}
       {reviewsSection}
       <GeniusPeerReviews reviewedGeniusId={id || ''} />
 
