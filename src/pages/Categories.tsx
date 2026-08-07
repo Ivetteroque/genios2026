@@ -8,7 +8,6 @@ import { getCurrentUser, isAuthenticated } from '../utils/authUtils';
 import { handleWhatsAppContact } from '../utils/whatsappUtils';
 import FavoriteButton from '../components/FavoriteButton';
 import GeniusAvailabilityBadge from '../components/GeniusAvailabilityBadge';
-import { getPublicGeniusDirectory, DirectoryGenius } from '../services/publicGeniusDirectoryService';
 
 interface Professional {
   id: string;
@@ -25,41 +24,7 @@ interface Professional {
   departmentId: string;
   provinceId: string;
   districtId: string;
-  workLocations: Array<{ departmentId?: string; provinceId?: string; districtId?: string }>;
 }
-
-/** Un perfil del directorio, en la forma que consume la tarjeta de resultados. */
-const toProfessional = (genius: DirectoryGenius): Professional => ({
-  id: genius.id,
-  name: genius.full_name,
-  image: genius.profile_photo,
-  rating: genius.rating,
-  reviews: genius.reviews_count,
-  category: genius.category,
-  subcategory: genius.subcategories[0] || genius.service_name || genius.category,
-  verified: genius.has_documents,
-  available: genius.is_available_today,
-  description: genius.description,
-  phone: genius.phone,
-  departmentId: genius.home_location?.departmentId ?? '',
-  provinceId: genius.home_location?.provinceId ?? '',
-  districtId: genius.home_location?.districtId ?? '',
-  workLocations: genius.work_locations ?? [],
-});
-
-/**
- * Un genio coincide con el filtro de ubicación si vive ahí o si declaró esa
- * zona dentro de su cobertura de trabajo.
- */
-const matchesLocation = (
-  professional: Professional,
-  level: 'departmentId' | 'provinceId' | 'districtId',
-  value: string
-): boolean => {
-  if (!value) return true;
-  if (professional[level] === value) return true;
-  return professional.workLocations.some((location) => location?.[level] === value);
-};
 
 const Categories: React.FC = () => {
   const { categorySlug } = useParams<{ categorySlug?: string }>();
@@ -80,9 +45,137 @@ const Categories: React.FC = () => {
   const [showLocationFilters, setShowLocationFilters] = useState(false);
   const [hasInitializedUserLocation, setHasInitializedUserLocation] = useState(false);
 
-  const [professionals, setProfessionals] = useState<Professional[]>([]);
-  const [isLoadingProfessionals, setIsLoadingProfessionals] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  // Mock professionals data with more variety and phone numbers
+  const allProfessionals: Professional[] = [
+    {
+      id: '1',
+      name: 'Ana Estilista',
+      image: 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+      rating: 4.9,
+      reviews: 23,
+      category: 'Belleza y Estética',
+      subcategory: 'Maquillaje',
+      verified: true,
+      available: true,
+      description: 'Especialista en maquillaje para eventos y novias',
+      phone: '51999123456',
+      departmentId: 'tacna',
+      provinceId: 'tacna-prov',
+      districtId: 'tacna-dist'
+    },
+    {
+      id: '2',
+      name: 'Luis Técnico',
+      image: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+      rating: 4.8,
+      reviews: 12,
+      category: 'Servicios Técnicos',
+      subcategory: 'Electricista',
+      verified: true,
+      available: false,
+      description: 'Electricista certificado con 10 años de experiencia',
+      phone: '51987654321',
+      departmentId: 'tacna',
+      provinceId: 'tacna-prov',
+      districtId: 'ciudad-nueva'
+    },
+    {
+      id: '3',
+      name: 'Sofía Nutricionista',
+      image: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+      rating: 5.0,
+      reviews: 33,
+      category: 'Salud y Bienestar',
+      subcategory: 'Nutrición',
+      verified: true,
+      available: true,
+      description: 'Nutricionista especializada en planes personalizados',
+      phone: '51976543210',
+      departmentId: 'lima',
+      provinceId: 'lima-prov',
+      districtId: 'miraflores-lima'
+    },
+    {
+      id: '4',
+      name: 'Diego Desarrollador',
+      image: 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+      rating: 4.7,
+      reviews: 44,
+      category: 'Servicios Profesionales',
+      subcategory: 'Desarrollo Web',
+      verified: true,
+      available: true,
+      description: 'Desarrollador full-stack especializado en React y Node.js',
+      phone: '51965432109',
+      departmentId: 'lima',
+      provinceId: 'lima-prov',
+      districtId: 'san-isidro'
+    },
+    {
+      id: '5',
+      name: 'Carmen Limpieza',
+      image: 'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+      rating: 4.8,
+      reviews: 18,
+      category: 'Servicios para el Hogar',
+      subcategory: 'Limpieza',
+      verified: true,
+      available: true,
+      description: 'Servicio de limpieza profesional para hogares y oficinas',
+      phone: '51954321098',
+      departmentId: 'tacna',
+      provinceId: 'tacna-prov',
+      districtId: 'alto-alianza'
+    },
+    {
+      id: '6',
+      name: 'Roberto DJ',
+      image: 'https://images.pexels.com/photos/1587927/pexels-photo-1587927.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+      rating: 4.9,
+      reviews: 27,
+      category: 'Eventos y Entretenimiento',
+      subcategory: 'DJ',
+      verified: true,
+      available: true,
+      description: 'DJ profesional para bodas, fiestas y eventos corporativos',
+      phone: '51943210987',
+      departmentId: 'tacna',
+      provinceId: 'tacna-prov',
+      districtId: 'pocollay'
+    },
+    {
+      id: '7',
+      name: 'María Diseñadora',
+      image: 'https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+      rating: 4.6,
+      reviews: 15,
+      category: 'Diseño y Creatividad',
+      subcategory: 'Diseño Gráfico',
+      verified: true,
+      available: true,
+      description: 'Diseñadora gráfica especializada en branding e identidad corporativa',
+      phone: '51932109876',
+      departmentId: 'lima',
+      provinceId: 'lima-prov',
+      districtId: 'san-borja'
+    },
+    {
+      id: '8',
+      name: 'Carlos Gasfitero',
+      image: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
+      rating: 4.7,
+      reviews: 21,
+      category: 'Servicios Técnicos',
+      subcategory: 'Gasfitería',
+      verified: true,
+      available: true,
+      description: 'Gasfitero profesional para reparaciones e instalaciones',
+      phone: '51921098765',
+      departmentId: 'tacna',
+      provinceId: 'tacna-prov',
+      districtId: 'tacna-dist'
+    }
+  ];
 
   const [activeFilters, setActiveFilters] = useState({
     rating4Plus: false,
@@ -199,33 +292,9 @@ const Categories: React.FC = () => {
     }
   }, [currentUser, activeDepartments, hasInitializedUserLocation, locationFilters]);
 
-  // Cargar el directorio público de genios desde Supabase
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadProfessionals = async () => {
-      setIsLoadingProfessionals(true);
-      setLoadError(false);
-      try {
-        const directory = await getPublicGeniusDirectory();
-        if (!cancelled) setProfessionals(directory.map(toProfessional));
-      } catch (error) {
-        console.error('Error loading genius directory:', error);
-        if (!cancelled) setLoadError(true);
-      } finally {
-        if (!cancelled) setIsLoadingProfessionals(false);
-      }
-    };
-
-    loadProfessionals();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   // Filter professionals based on selected category and search
   useEffect(() => {
-    let filtered = professionals;
+    let filtered = allProfessionals;
 
     // Filter by selected category
     if (selectedCategory) {
@@ -253,15 +322,19 @@ const Categories: React.FC = () => {
       filtered = filtered.filter(prof => prof.verified);
     }
 
-    // Apply location filters (vive ahí o declaró la zona en su cobertura)
-    filtered = filtered.filter(prof =>
-      matchesLocation(prof, 'departmentId', locationFilters.department) &&
-      matchesLocation(prof, 'provinceId', locationFilters.province) &&
-      matchesLocation(prof, 'districtId', locationFilters.district)
-    );
+    // Apply location filters
+    if (locationFilters.department) {
+      filtered = filtered.filter(prof => prof.departmentId === locationFilters.department);
+    }
+    if (locationFilters.province) {
+      filtered = filtered.filter(prof => prof.provinceId === locationFilters.province);
+    }
+    if (locationFilters.district) {
+      filtered = filtered.filter(prof => prof.districtId === locationFilters.district);
+    }
 
     setFilteredProfessionals(filtered);
-  }, [selectedCategory, searchTerm, activeFilters, locationFilters, professionals]);
+  }, [selectedCategory, searchTerm, activeFilters, locationFilters, allProfessionals]);
 
   const loadCategories = () => {
     const activeCategories = getActiveCategories();
@@ -643,57 +716,16 @@ const Categories: React.FC = () => {
               </div>
             </div>
 
-            {/* Estado de carga */}
-            {isLoadingProfessionals && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse">
-                    <div className="w-full h-48 bg-gray-100" />
-                    <div className="p-4 space-y-3">
-                      <div className="h-4 bg-gray-100 rounded w-2/3" />
-                      <div className="h-3 bg-gray-100 rounded w-1/3" />
-                      <div className="h-3 bg-gray-100 rounded w-full" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Error de carga */}
-            {!isLoadingProfessionals && loadError && (
-              <div className="text-center py-12">
-                <p className="text-lg font-medium text-text mb-2">No pudimos cargar los genios</p>
-                <p className="text-text/60 mb-4">Revisa tu conexión e inténtalo de nuevo.</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="bg-primary text-text px-6 py-2 rounded-full hover:bg-primary-dark transition-colors"
-                >
-                  Reintentar
-                </button>
-              </div>
-            )}
-
             {/* Results */}
-            {!isLoadingProfessionals && !loadError && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProfessionals.map(professional => (
                 <div key={professional.id} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
                   <div className="relative">
-                    {professional.image ? (
-                      <img
-                        src={professional.image}
-                        alt={professional.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-48 object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-surface-blue flex items-center justify-center">
-                        <span className="font-heading font-bold text-3xl text-ink-blue">
-                          {professional.name.trim().charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
+                    <img 
+                      src={professional.image} 
+                      alt={professional.name}
+                      className="w-full h-48 object-cover"
+                    />
                     
                     {/* Status badges */}
                     <div className="absolute top-2 left-2 flex flex-col space-y-1">
@@ -753,27 +785,13 @@ const Categories: React.FC = () => {
                 </div>
               ))}
             </div>
-            )}
 
             {/* No results message */}
-            {!isLoadingProfessionals && !loadError && filteredProfessionals.length === 0 && (
+            {filteredProfessionals.length === 0 && (
               <div className="text-center py-12 text-text/60">
-                {professionals.length === 0 ? (
-                  <>
-                    <p className="text-lg font-medium text-text mb-2">Todavía no hay genios publicados</p>
-                    <p>Sé el primero: completa tu perfil y aparecerás aquí.</p>
-                    <Link
-                      to="/#ser-genio"
-                      className="inline-block mt-4 bg-secondary text-gray-900 font-semibold px-6 py-2.5 rounded-full hover:bg-secondary-dark transition-colors"
-                    >
-                      Quiero ser un Genio
-                    </Link>
-                  </>
-                ) : (
-                  <>
                 <p className="text-lg font-medium mb-2">
-                  {selectedCategory
-                    ? `No se encontraron especialistas en ${selectedCategory.name}`
+                  {selectedCategory 
+                    ? `No se encontraron especialistas en ${selectedCategory.name}` 
                     : 'No se encontraron profesionales'
                   }
                 </p>
@@ -785,8 +803,6 @@ const Categories: React.FC = () => {
                   >
                     Ver todas las categorías
                   </Link>
-                )}
-                  </>
                 )}
               </div>
             )}

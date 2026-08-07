@@ -221,10 +221,6 @@ const AdminDashboard: React.FC = () => {
 
   if (!currentAdmin) return null;
 
-  /** Hay trabajo esperando en alguna bandeja: lo señala el punto de la campana. */
-  const hasPendingWork =
-    liveStats.pendingComments > 0 || liveStats.newReports > 0 || liveStats.pendingPayments > 0;
-
   const navItems = [
     { id: 'overview', label: 'Resumen', icon: BarChart3, show: true },
     { id: 'stats', label: 'Estadisticas', icon: TrendingUp, show: true },
@@ -267,7 +263,7 @@ const AdminDashboard: React.FC = () => {
 
             <button className="relative p-2 text-text/35 hover:text-text/60 transition-colors rounded-lg hover:bg-gray-50">
               <Bell className="w-4.5 h-4.5" style={{ width: '18px', height: '18px' }} />
-              {hasPendingWork && (
+              {stats.newMessages > 0 && (
                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-400 rounded-full" />
               )}
             </button>

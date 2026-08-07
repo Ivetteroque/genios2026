@@ -80,13 +80,6 @@ const Hero: React.FC = () => {
       id="inicio"
       className="relative h-screen bg-background overflow-hidden flex flex-col"
     >
-      {/* Atmósfera: manchas suaves con los pasteles de marca */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-[28rem] h-[28rem] rounded-full bg-primary/25 blur-3xl" />
-        <div className="absolute top-1/3 -right-32 w-[26rem] h-[26rem] rounded-full bg-secondary/20 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/4 w-[24rem] h-[24rem] rounded-full bg-success/30 blur-3xl" />
-      </div>
-
       {/* Slides area */}
       <div className="flex-1 relative overflow-hidden">
 
@@ -100,7 +93,7 @@ const Hero: React.FC = () => {
             <div className="text-center max-w-2xl mx-auto">
               <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-text mb-4 leading-tight">
                 Encuentra el genio que{' '}
-                <span className="text-ink-blue">necesitas.</span>
+                <span className="text-primary-dark">necesitas.</span>
               </h1>
               <p className="text-base md:text-lg text-text/60 mb-10 max-w-md mx-auto leading-relaxed">
                 Busca por habilidad, oficio o nombre y conecta con alguien de tu ciudad hoy mismo.
@@ -108,14 +101,14 @@ const Hero: React.FC = () => {
 
               {/* Search bar */}
               <div className="flex items-center border border-gray-200 bg-white rounded-full px-4 py-3 gap-2 mb-5 max-w-lg mx-auto shadow-sm focus-within:border-primary/40 focus-within:shadow-md transition-all duration-200">
-                <Search className="w-4 h-4 text-text/45 flex-shrink-0" />
+                <Search className="w-4 h-4 text-text/35 flex-shrink-0" />
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder={displayedPlaceholder || 'Busca un genio...'}
-                  className="flex-1 bg-transparent text-sm text-text placeholder:text-text/45 outline-none"
+                  className="flex-1 bg-transparent text-sm text-text placeholder:text-text/35 outline-none"
                 />
                 <button
                   onClick={handleSearch}
@@ -128,12 +121,12 @@ const Hero: React.FC = () => {
 
               {/* Popular pills */}
               <div className="flex flex-wrap gap-2 justify-center items-center">
-                <span className="text-xs text-text/55 mr-1">Popular:</span>
+                <span className="text-xs text-text/40 mr-1">Popular:</span>
                 {PILLS.map((pill) => (
                   <button
                     key={pill}
                     onClick={() => handlePill(pill)}
-                    className="inline-flex items-center px-4 py-2 rounded-full border border-gray-200 bg-white text-text/75 text-xs font-medium hover:border-ink-blue/30 hover:text-ink-blue hover:-translate-y-0.5 transition-all duration-200 shadow-sm hover:shadow-md"
+                    className="inline-flex items-center px-4 py-2 rounded-full border border-gray-200 bg-white text-text/70 text-xs font-medium hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-200 shadow-sm hover:shadow"
                   >
                     {pill}
                   </button>
@@ -153,7 +146,7 @@ const Hero: React.FC = () => {
             <div className="text-center max-w-2xl mx-auto">
               <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold text-text mb-4 leading-tight">
                 Los genios no salen de lámparas…{' '}
-                <span className="text-ink-blue">salen de tu ciudad.</span>
+                <span className="text-primary-dark">salen de tu ciudad.</span>
               </h1>
               <p className="text-base md:text-lg text-text/60 mb-10 max-w-md mx-auto leading-relaxed">
                 El vecino que enseña, la amiga que diseña, o tú con tu habilidad.
@@ -171,7 +164,7 @@ const Hero: React.FC = () => {
       </div>
 
       {/* Carousel controls */}
-      <div className="relative flex items-center justify-center gap-2 pb-10">
+      <div className="flex items-center justify-center gap-2 pb-6">
         {[0, 1].map((i) => (
           <button
             key={i}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Upload, MapPin, Check, X, Camera, Instagram, Facebook, MessageSquare } from 'lucide-react';
-import { uploadImage, uploadImages, PROFILE_PHOTOS_BUCKET, PORTFOLIOS_BUCKET } from '../services/supabaseStorageService';
 import HierarchicalLocationSelector from './HierarchicalLocationSelector';
 import WorkZoneSelector from './WorkZoneSelector';
 import { HomeLocation, CoverageType, expandCoverageToDistricts } from '../utils/locationUtils';
@@ -58,34 +57,35 @@ const GeniusRegistration: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // Las imágenes van a Supabase Storage; el formulario guarda solo la URL.
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const url = await uploadImage(PROFILE_PHOTOS_BUCKET, file, formData.dni || 'registro');
-      setFormData(prev => ({ ...prev, [field]: url }));
-    } catch {
-      alert('No se pudo subir la imagen. Inténtalo de nuevo.');
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, [field]: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleMultipleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMultipleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    const uploaded = await uploadImages(PORTFOLIOS_BUCKET, files, formData.dni || 'registro');
+    const readers = files.map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    });
 
-    if (uploaded.length === 0) {
-      alert('No se pudieron subir las imágenes. Inténtalo de nuevo.');
-      return;
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      gallery: [...prev.gallery, ...uploaded].slice(0, 6)
-    }));
+    Promise.all(readers).then(results => {
+      setFormData(prev => ({
+        ...prev,
+        gallery: [...prev.gallery, ...results].slice(0, 6)
+      }));
+    });
   };
 
   const removeGalleryImage = (index: number) => {

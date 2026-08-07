@@ -1,5 +1,3 @@
-import { supabase } from '../lib/supabase';
-
 // Admin authentication utility functions
 
 export interface AdminUser {
@@ -40,10 +38,6 @@ export const setCurrentAdmin = (admin: AdminUser): void => {
 
 // Logout admin
 export const logoutAdmin = (): void => {
-  // Sin esto la sesión de Supabase sobreviviría al logout y el navegador
-  // seguiría teniendo permisos de admin contra la base.
-  supabase.auth.signOut().catch(() => {});
-
   localStorage.removeItem('currentAdmin');
   localStorage.removeItem('isAdminAuthenticated');
   
@@ -54,46 +48,42 @@ export const logoutAdmin = (): void => {
   window.location.href = '/admin/login';
 };
 
-/**
- * Valida las credenciales contra Supabase Auth.
- *
- * Antes comparaba contra dos usuarios escritos acá mismo con la contraseña
- * `admin123`: la sesión existía solo en el navegador, así que para Supabase el
- * panel era un visitante anónimo y RLS le devolvía cero filas en todas las
- * tablas. Ahora la sesión es real y el rol viaja en el JWT, que es lo que leen
- * las políticas mediante `is_admin()`.
- *
- * Los administradores se crean con `node scripts/create-admin.mjs`.
- */
-export const validateAdminCredentials = async (
-  email: string,
-  password: string
-): Promise<AdminUser | null> => {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error || !data.user) return null;
-
-  const metadata = (data.user.app_metadata ?? {}) as {
-    role?: string;
-    name?: string;
-    permissions?: string[];
-  };
-
-  // Una cuenta común (un cliente que entró con Google, por ejemplo) puede
-  // autenticarse, pero no es admin: se cierra la sesión para no dejarla abierta.
-  if (metadata.role !== 'admin' && metadata.role !== 'super_admin') {
-    await supabase.auth.signOut();
-    return null;
+// Validate admin credentials (mock implementation)
+export const validateAdminCredentials = async (email: string, password: string): Promise<AdminUser | null> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  // Mock admin credentials
+  const mockAdmins = [
+    {
+      id: 'admin1',
+      email: 'admin@genios.pe',
+      name: 'Administrador Principal',
+      role: 'super_admin' as const,
+      lastLogin: new Date().toISOString(),
+      permissions: ['users', 'genios', 'reports', 'settings', 'payments']
+    },
+    {
+      id: 'admin2',
+      email: 'soporte@genios.pe',
+      name: 'Soporte Técnico',
+      role: 'admin' as const,
+      lastLogin: new Date().toISOString(),
+      permissions: ['users', 'genios', 'reports']
+    }
+  ];
+  
+  // Check credentials
+  const admin = mockAdmins.find(a => a.email === email && password === 'admin123');
+  
+  if (admin) {
+    return {
+      ...admin,
+      lastLogin: new Date().toISOString()
+    };
   }
-
-  return {
-    id: data.user.id,
-    email: data.user.email ?? email,
-    name: metadata.name || 'Administrador',
-    role: metadata.role,
-    lastLogin: new Date().toISOString(),
-    permissions: metadata.permissions ?? [],
-  };
+  
+  return null;
 };
 
 // Check if admin has specific permission

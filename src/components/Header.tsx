@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Briefcase, Menu, X, Bell, ChevronDown, User, LogOut } from 'lucide-react';
 import { getFirstName } from '../utils/commonUtils';
 import LoginModal from './LoginModal';
-import { getCurrentUser, logout, isAuthenticated, setActiveMode } from '../utils/authUtils';
+import { getCurrentUser, logout, isAuthenticated } from '../utils/authUtils';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -75,8 +75,8 @@ const Header: React.FC = () => {
   const handleProfileClick = () => {
     setShowUserDropdown(false);
     setMobileMenuOpen(false);
-
-    // Navigate to user profile based on active view mode
+    
+    // Navigate to user profile based on role
     if (currentUser?.role === 'genius') {
       // Navigate to genius profile page
       window.location.href = '/genius-profile';
@@ -84,22 +84,6 @@ const Header: React.FC = () => {
       // Navigate to client profile page
       window.location.href = '/client-profile';
     }
-  };
-
-  // Toggle the active view for users who are both client and genio.
-  const handleSwitchMode = (mode: 'client' | 'genius') => {
-    setActiveMode(mode);
-    setShowUserDropdown(false);
-    setMobileMenuOpen(false);
-    window.location.href = mode === 'genius' ? '/genius-profile' : '/client-profile';
-  };
-
-  // A plain client opts in to becoming a genio; the genio panel opens the wizard
-  // automatically when there's no genius_profile yet.
-  const handleBecomeGenius = () => {
-    setShowUserDropdown(false);
-    setMobileMenuOpen(false);
-    window.location.href = '/genius-profile';
   };
 
   // Close dropdown when clicking outside
@@ -205,43 +189,6 @@ const Header: React.FC = () => {
                         <User size={16} className="mr-3" />
                         🧾 Ver mi perfil
                       </button>
-
-                      {/* Dual users: switch view. Plain clients: opt in to Genio. */}
-                      <div className="my-1 border-t border-gray-100" />
-                      {currentUser.isGenius ? (
-                        <>
-                          <p className="px-4 pt-1 pb-0.5 text-[10px] uppercase tracking-wide text-text/40" style={{ fontFamily: 'Open Sans, sans-serif' }}>
-                            Ver como
-                          </p>
-                          <button
-                            onClick={() => handleSwitchMode('client')}
-                            className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center ${currentUser.role === 'client' ? 'text-primary font-semibold' : 'text-text/80 hover:text-primary'}`}
-                            style={{ fontFamily: 'Open Sans, sans-serif' }}
-                          >
-                            <User size={16} className="mr-3" />
-                            Cliente {currentUser.role === 'client' && '✓'}
-                          </button>
-                          <button
-                            onClick={() => handleSwitchMode('genius')}
-                            className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors flex items-center ${currentUser.role === 'genius' ? 'text-primary font-semibold' : 'text-text/80 hover:text-primary'}`}
-                            style={{ fontFamily: 'Open Sans, sans-serif' }}
-                          >
-                            <Briefcase size={16} className="mr-3" />
-                            Genio {currentUser.role === 'genius' && '✓'}
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={handleBecomeGenius}
-                          className="w-full text-left px-4 py-2 text-text/80 hover:bg-gray-50 hover:text-primary transition-colors flex items-center"
-                          style={{ fontFamily: 'Open Sans, sans-serif' }}
-                        >
-                          <Briefcase size={16} className="mr-3" />
-                          💼 Conviértete en Genio
-                        </button>
-                      )}
-                      <div className="my-1 border-t border-gray-100" />
-
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-text/80 hover:bg-gray-50 hover:text-red-500 transition-colors flex items-center"
@@ -335,35 +282,6 @@ const Header: React.FC = () => {
                     <User size={16} className="mr-3" />
                     🧾 Ver mi perfil
                   </button>
-
-                  {/* Dual users: switch view. Plain clients: opt in to Genio. */}
-                  {currentUser?.isGenius ? (
-                    <div className="flex items-center gap-2 py-2">
-                      <span className="text-xs text-text/40" style={{ fontFamily: 'Open Sans, sans-serif' }}>Ver como:</span>
-                      <button
-                        onClick={() => handleSwitchMode('client')}
-                        className={`px-3 py-1 rounded-full text-sm transition-colors ${currentUser.role === 'client' ? 'bg-primary text-text' : 'bg-gray-100 text-text/70'}`}
-                      >
-                        Cliente
-                      </button>
-                      <button
-                        onClick={() => handleSwitchMode('genius')}
-                        className={`px-3 py-1 rounded-full text-sm transition-colors ${currentUser.role === 'genius' ? 'bg-primary text-text' : 'bg-gray-100 text-text/70'}`}
-                      >
-                        Genio
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={handleBecomeGenius}
-                      className="text-text/80 hover:text-primary transition-colors py-2 text-left flex items-center"
-                      style={{ fontFamily: 'Open Sans, sans-serif' }}
-                    >
-                      <Briefcase size={16} className="mr-3" />
-                      💼 Conviértete en Genio
-                    </button>
-                  )}
-
                   <button
                     onClick={handleLogout}
                     className="text-text/80 hover:text-red-500 transition-colors py-2 text-left flex items-center"

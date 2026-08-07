@@ -1,12 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Star, MapPin, MessageSquare, Globe, Instagram, Facebook, ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import { Genius } from '../utils/geniusUtils';
-import {
-  getClientReviewsForGenius,
-  getRatingStatsForGenius,
-  GeniusReview,
-  RatingStats,
-} from '../services/supabaseGeniusReviewsService';
+import { getReviewsForGenius, calculateGeniusRatingStats } from '../utils/reviewUtils';
 import LocationChips from './LocationChips';
 
 interface GeniusProfilePreviewModalProps {
@@ -21,40 +16,16 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
   geniusData
 }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [reviews, setReviews] = useState<GeniusReview[]>([]);
-  const [ratingStats, setRatingStats] = useState<RatingStats>({
-    average: 0,
-    count: 0,
-    distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-  });
-
-  const geniusId = geniusData?.id;
-
-  useEffect(() => {
-    if (!isOpen || !geniusId) return;
-    let cancelled = false;
-
-    const loadReviews = async () => {
-      const [list, stats] = await Promise.all([
-        getClientReviewsForGenius(geniusId),
-        getRatingStatsForGenius(geniusId),
-      ]);
-      if (cancelled) return;
-      setReviews(list);
-      setRatingStats(stats);
-    };
-
-    loadReviews();
-    return () => {
-      cancelled = true;
-    };
-  }, [isOpen, geniusId]);
 
   // Validate geniusData exists
   if (!isOpen || !geniusData) return null;
 
   // Safe portfolio access with default empty array
   const portfolio = geniusData.portfolio || [];
+
+  // Get real reviews and rating stats for this genius (only if ID exists)
+  const reviews = geniusData.id ? getReviewsForGenius(geniusData.id) : [];
+  const ratingStats = geniusData.id ? calculateGeniusRatingStats(geniusData.id) : { averageRating: 0, totalReviews: 0, ratingDistribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 } };
 
   const nextImage = () => {
     setCurrentImageIndex((prev) =>
@@ -134,12 +105,12 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-5 h-5 ${i < Math.floor(ratingStats.average) ? 'text-primary' : 'text-gray-300'}`}
-                      fill={i < Math.floor(ratingStats.average) ? 'currentColor' : 'none'}
+                      className={`w-5 h-5 ${i < Math.floor(ratingStats.averageRating) ? 'text-primary' : 'text-gray-300'}`}
+                      fill={i < Math.floor(ratingStats.averageRating) ? 'currentColor' : 'none'}
                     />
                   ))}
                   <span className="ml-2 text-text/60">
-                    ({ratingStats.average} de {ratingStats.count} opiniones)
+                    ({ratingStats.averageRating} de {ratingStats.totalReviews} opiniones)
                   </span>
                 </div>
 
@@ -302,14 +273,14 @@ const GeniusProfilePreviewModal: React.FC<GeniusProfilePreviewModalProps> = ({
                     {reviews.slice(0, 2).map((review) => (
                       <div key={review.id} className="p-4 bg-background rounded-xl border border-gray-100">
                         <div className="flex items-start space-x-4">
-                          <div className="w-12 h-12 rounded-full bg-surface-blue border-2 border-white flex items-center justify-center flex-shrink-0">
-                            <span className="font-heading font-bold text-ink-blue">
-                              {review.reviewer_name.trim().charAt(0).toUpperCase() || '?'}
-                            </span>
-                          </div>
+                          <img
+                            src="https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2"
+                            alt={review.clientName}
+                            className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                          />
                           <div className="flex-1">
                             <div className="flex items-center space-x-2 mb-2">
-                              <h4 className="font-semibold text-text">{review.reviewer_name}</h4>
+                              <h4 className="font-semibold text-text">{review.clientName}</h4>
                               <div className="flex">
                                 {[...Array(5)].map((_, i) => (
                                   <Star

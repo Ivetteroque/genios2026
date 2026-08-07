@@ -162,15 +162,15 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
   const daysRemaining = calculateDaysRemaining();
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 pt-20">
+    <div className="flex min-h-screen bg-gray-50 pt-20">
       <DashboardSidebar
         activeSection={activeSection}
         onSectionChange={handleSectionChange}
         geniusProfile={geniusProfile}
       />
 
-      <div className="flex-1 min-w-0">
-        <main className="p-4 sm:p-6 lg:p-8">
+      <div className="flex-1">
+        <main className="p-8">
           {activeSection === 'profile' && (
             <>
               {!showWizard ? (
@@ -179,7 +179,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
                   onCompleteProfile={() => setShowWizard(true)}
                 />
               ) : (
-                <div className="max-w-5xl min-w-0">
+                <div className="max-w-5xl">
                   <GeniusProfileWizard
                     initialData={geniusProfile ? convertGeniusProfileToGenius(geniusProfile) : undefined}
                     onComplete={handleWizardComplete}
@@ -226,30 +226,32 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = ({
         </main>
       </div>
 
-      <Modal
-        isOpen={showSectionChangeModal}
-        onClose={handleCancelSectionChange}
-        title="¿Quieres cambiar de sección?"
-        size="sm"
-      >
-        <p className="text-gray-600 mb-6">
-          Tu progreso se guardará automáticamente. Puedes continuar editando tu perfil más tarde.
-        </p>
-        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
-          <button
-            onClick={handleCancelSectionChange}
-            className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
-          >
-            Quedarme aquí
-          </button>
-          <button
-            onClick={handleConfirmSectionChange}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            Cambiar de sección
-          </button>
-        </div>
-      </Modal>
+      {showSectionChangeModal && (
+        <Modal onClose={handleCancelSectionChange}>
+          <div className="p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              ¿Quieres cambiar de sección?
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Tu progreso se guardará automáticamente. Puedes continuar editando tu perfil más tarde.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelSectionChange}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+              >
+                Quedarme aquí
+              </button>
+              <button
+                onClick={handleConfirmSectionChange}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+              >
+                Cambiar de sección
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

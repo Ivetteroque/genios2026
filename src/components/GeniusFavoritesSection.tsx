@@ -123,8 +123,6 @@ const GeniusFavoritesSection: React.FC = () => {
                 <img
                   src={genius.image}
                   alt={genius.name}
-                  loading="lazy"
-                  decoding="async"
                   className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <button

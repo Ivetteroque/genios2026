@@ -13,10 +13,8 @@ export interface WhatsAppClick {
 }
 
 // Format phone number for WhatsApp (remove + and spaces)
-// Los perfiles guardan el número local de 9 dígitos; wa.me necesita el código de país.
 export const formatPhoneForWhatsApp = (phone: string): string => {
-  const digits = phone.replace(/\D/g, '');
-  return /^9\d{8}$/.test(digits) ? `51${digits}` : digits;
+  return phone.replace(/[\s+()-]/g, '');
 };
 
 // Generate WhatsApp message

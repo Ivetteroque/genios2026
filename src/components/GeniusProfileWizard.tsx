@@ -323,7 +323,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Información Personal</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Información Personal</h2>
         </div>
         <p className="text-gray-600">Vamos a completar tu perfil paso a paso. Comencemos con tu información básica.</p>
       </div>
@@ -335,7 +335,6 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         onImageRemove={() => handleInputChange('profilePhoto', '')}
         required
         helpText="Una foto clara y profesional ayuda a generar confianza"
-        pathPrefix={currentUser?.id ?? ''}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -427,7 +426,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sobre Mí</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Sobre Mí</h2>
         </div>
         <p className="text-gray-600">¡Vas muy bien! Ahora cuéntanos sobre ti y tu trabajo. Esto ayudará a los clientes a conocerte mejor.</p>
       </div>
@@ -513,7 +512,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Detalles del Servicio</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Detalles del Servicio</h2>
         </div>
         <p className="text-gray-600">¡Excelente progreso! Define tu categoría y especialidades para que los clientes te encuentren fácilmente.</p>
       </div>
@@ -598,7 +597,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Mi Portafolio</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Mi Portafolio</h2>
         </div>
         <p className="text-gray-600">¡Ya casi terminas! Muestra tu mejor trabajo. Las fotos de calidad generan hasta 5 veces más consultas.</p>
       </div>
@@ -609,7 +608,6 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         onImagesChange={(images) => handleInputChange('portfolio', images)}
         maxImages={6}
         helpText="Muestra ejemplos de tu mejor trabajo para atraer más clientes. Puedes agregar fotos más tarde."
-        pathPrefix={currentUser?.id ?? ''}
       />
     </div>
   );
@@ -619,7 +617,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Verificación de Identidad</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Verificación de Identidad</h2>
         </div>
         <p className="text-gray-600">¡Último paso! Verifica tu identidad para generar confianza y seguridad con tus futuros clientes.</p>
       </div>
@@ -693,18 +691,18 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
     const missingFields = getMissingFields(profileForValidation);
 
     return (
-      <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-4 sm:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-8 max-w-2xl w-full">
+      <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-8 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-12 h-12 text-green-600" />
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-6 text-center">
             {percentage === 100 ? '¡Perfil completado al 100%!' : '¡Perfil guardado exitosamente!'}
           </h2>
 
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 sm:p-6 mb-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 mb-6">
+            <div className="flex items-center gap-6">
               <div className="relative w-32 h-32 flex-shrink-0">
                 <svg className="transform -rotate-90 w-32 h-32">
                   <circle
@@ -748,7 +746,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
           </div>
 
           {percentage < 100 && missingFields.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-6">
+            <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
               <div className="flex items-start gap-3 mb-4">
                 <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div>
@@ -794,14 +792,14 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
 
   return (
     <div className="relative">
-      <div className="mb-6 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Editar mi perfil</h2>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Completa la información en cada paso</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Editar mi perfil</h2>
+          <p className="text-gray-600 mt-1">Completa la información en cada paso</p>
         </div>
         <button
           onClick={onCancel}
-          className="p-2 shrink-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           title="Cerrar"
         >
           <X className="w-6 h-6" />
@@ -815,15 +813,15 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       />
 
       <div className="mt-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 mb-6">
           {renderCurrentStep()}
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between">
           {currentStep > 1 && (
             <button
               onClick={handleBack}
-              className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium transition-colors"
+              className="flex items-center space-x-2 px-6 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
               <span>Atrás</span>
@@ -835,17 +833,16 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
           {currentStep < 5 ? (
             <button
               onClick={handleNext}
-              className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white"
+              className="flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white"
             >
-              <span className="sm:hidden">Continuar</span>
-              <span className="hidden sm:inline">Guardar y Continuar</span>
-              <ArrowRight className="w-5 h-5 shrink-0" />
+              <span>Guardar y Continuar</span>
+              <ArrowRight className="w-5 h-5" />
             </button>
           ) : (
             <button
               onClick={handleFinish}
               disabled={isSaving}
-              className={`flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-colors ${
                 isSaving
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   : 'bg-green-600 hover:bg-green-700 text-white'
@@ -875,7 +872,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         </button>
       </div>
 
-      <div className="fixed top-24 right-4 sm:right-8 z-50">
+      <div className="fixed top-24 right-8 z-50">
         {saveStatus === 'saving' && (
           <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg shadow-md flex items-center space-x-2">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-800"></div>

@@ -25,8 +25,6 @@ import { supabase } from '../../lib/supabase';
 type ModerationStatus = 'visible' | 'pending' | 'hidden';
 
 interface AdminReview {
-  reviewer_type?: 'client' | 'genius';
-  reviewer_user_id?: string | null;
   id: string;
   reviewer_genius_id: string;
   reviewed_genius_id: string;
@@ -412,7 +410,7 @@ const CommentsManagement: React.FC = () => {
     if (!rows || rows.length === 0) { setReviews([]); setLoading(false); return; }
 
     // Collect all genius IDs needed
-    const reviewerIds = [...new Set(rows.map(r => r.reviewer_genius_id).filter(Boolean))];
+    const reviewerIds = [...new Set(rows.map(r => r.reviewer_genius_id))];
     const reviewedIds = [...new Set(rows.map(r => r.reviewed_genius_id))];
     const allIds = [...new Set([...reviewerIds, ...reviewedIds])];
 
@@ -437,19 +435,15 @@ const CommentsManagement: React.FC = () => {
     });
 
     const enriched: AdminReview[] = rows.map(row => {
-      const isClientReview = (row.reviewer_type ?? 'genius') === 'client';
-      const reviewer = isClientReview ? undefined : profileMap.get(row.reviewer_genius_id);
+      const reviewer = profileMap.get(row.reviewer_genius_id);
       const reviewed = profileMap.get(row.reviewed_genius_id);
       return {
         ...row,
         moderation_status: row.moderation_status ?? 'visible',
         moderation_note: row.moderation_note ?? '',
-        // Una reseña de cliente guarda el nombre del autor en la propia fila
-        reviewer_name: isClientReview
-          ? (row.reviewer_name || 'Cliente')
-          : (reviewer?.full_name ?? 'Genio verificado'),
+        reviewer_name: reviewer?.full_name ?? 'Genio verificado',
         reviewer_photo: reviewer?.profile_photo ?? '',
-        reviewer_category: isClientReview ? 'Cliente' : (reviewer?.category ?? ''),
+        reviewer_category: reviewer?.category ?? '',
         reviewed_name: reviewed?.full_name ?? 'Genio',
         reviewed_photo: reviewed?.profile_photo ?? '',
         report_count: reportCounts.get(row.id) || 0,

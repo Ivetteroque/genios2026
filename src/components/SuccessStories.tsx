@@ -1,6 +1,5 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
-import { Section, SectionHeader, Reveal } from './Section';
 
 const testimonials = [
   {
@@ -28,20 +27,22 @@ const testimonials = [
 
 const SuccessStories: React.FC = () => {
   return (
-    <Section id="historias" tone="mint">
-      <SectionHeader
-        tone="mint"
-        eyebrow="Historias"
-        title="Historias reales de tu ciudad"
-        subtitle="Cada genio tiene una historia que merece ser contada."
-      />
+    <section id="historias" className="py-20 md:py-28 bg-gray-50">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-14">
+          <h2 className="font-heading text-3xl md:text-4xl font-bold text-text mb-3">
+            Historias reales de tu ciudad
+          </h2>
+          <p className="text-base text-text/55 max-w-md mx-auto">
+            Cada genio tiene una historia que merece ser contada.
+          </p>
+        </div>
 
-      <Reveal>
         <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
           {testimonials.map((t) => (
             <div
               key={t.id}
-              className="bg-white rounded-2xl p-7 flex flex-col gap-5 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300"
+              className="bg-white rounded-2xl p-7 flex flex-col gap-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300"
             >
               {/* Avatar + name */}
               <div className="flex items-center gap-3">
@@ -52,12 +53,12 @@ const SuccessStories: React.FC = () => {
                 />
                 <div>
                   <p className="font-heading font-semibold text-sm text-text leading-tight">{t.name}</p>
-                  <p className="text-xs text-ink-mint mt-0.5">{t.service}</p>
+                  <p className="text-xs text-text/40 mt-0.5">{t.service}</p>
                 </div>
               </div>
 
               {/* Quote */}
-              <p className="text-sm text-text/70 italic leading-relaxed flex-1">
+              <p className="text-sm text-text/65 italic leading-relaxed flex-1">
                 "{t.quote}"
               </p>
             </div>
@@ -67,14 +68,14 @@ const SuccessStories: React.FC = () => {
         <div className="text-center mt-10">
           <a
             href="#leer-mas"
-            className="inline-flex items-center gap-1.5 text-sm text-ink-mint hover:text-text transition-colors duration-200"
+            className="inline-flex items-center gap-1.5 text-sm text-text/40 hover:text-primary transition-colors duration-200"
           >
             Ver más historias
             <ArrowRight className="w-3.5 h-3.5" />
           </a>
         </div>
-      </Reveal>
-    </Section>
+      </div>
+    </section>
   );
 };
 
