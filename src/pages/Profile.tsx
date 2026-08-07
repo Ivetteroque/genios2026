@@ -379,20 +379,15 @@ const Profile: React.FC = () => {
   );
 
   // La disponibilidad no depende del portafolio: un genio sin trabajos
-  // cargados igual necesita mostrar su calendario, así que la sección se
-  // dibuja siempre y solo la columna de trabajos es condicional.
+  // cargados igual necesita mostrar su calendario, así que vive junto al
+  // resumen de valoraciones y esta sección solo aparece si hay trabajos.
   const hasPortfolio = portfolio.length > 0;
 
-  const portfolioSection = (
+  const portfolioSection = hasPortfolio && (
     <section className="py-12 bg-white">
       <div className="container mx-auto px-4">
-        <div
-          className={`grid grid-cols-1 gap-8 mx-auto ${
-            hasPortfolio ? 'lg:grid-cols-3 max-w-7xl' : 'max-w-md'
-          }`}
-        >
-          {hasPortfolio && (
-          <div className="lg:col-span-2">
+        <div className="max-w-7xl mx-auto">
+          <div>
             <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">Trabajos realizados</h2>
             <div className="relative">
               <button
@@ -427,12 +422,6 @@ const Profile: React.FC = () => {
               </button>
             </div>
           </div>
-          )}
-
-          <div className="lg:col-span-1">
-            <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">Disponibilidad</h2>
-            <PublicAvailabilityCalendar geniusId={geniusData.id} compact={true} />
-          </div>
         </div>
       </div>
     </section>
@@ -442,11 +431,28 @@ const Profile: React.FC = () => {
   const reviewsSection = (
     <section className="py-12 bg-gray-50">
       <div className="container mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+        {/* Disponibilidad y valoraciones comparten fila: son las dos señales
+            que el cliente contrasta antes de escribir, y por separado dejaban
+            media pantalla vacía en los perfiles sin portafolio. */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start mb-8">
+          <div>
+            <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">Disponibilidad</h2>
+            <PublicAvailabilityCalendar geniusId={geniusData.id} compact={true} />
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <h2 className="font-heading text-xl sm:text-2xl font-bold">⭐ VALORACIONES DEL GENIO</h2>
-              <div className="flex items-center">
+              <button
+                onClick={() => setShowReviewModal(true)}
+                className="text-primary hover:text-primary-dark transition-colors text-sm sm:text-base whitespace-nowrap"
+              >
+                🔽 Ver más comentarios
+              </button>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <div className="flex items-center mb-3">
                 <div className="flex">
                   {[...Array(5)].map((_, i) => (
                     <Star
@@ -460,42 +466,36 @@ const Profile: React.FC = () => {
                   {ratingSummary(ratingStats.average, ratingStats.count, 'valoración', 'valoraciones')}
                 </span>
               </div>
-            </div>
-            <button
-              onClick={() => setShowReviewModal(true)}
-              className="text-primary hover:text-primary-dark transition-colors text-sm sm:text-base text-left lg:text-right whitespace-nowrap"
-            >
-              🔽 Ver más comentarios
-            </button>
-          </div>
 
-          {/* Rating Distribution */}
-          {ratingStats.count > 0 && (
-            <div className="mb-6 p-3 bg-gray-50 rounded-lg">
-              <h4 className="font-medium text-text text-sm mb-2">Distribución de calificaciones:</h4>
-              <div className="space-y-1.5">
-                {[5, 4, 3, 2, 1].map((rating) => (
-                  <div key={rating} className="flex items-center space-x-2">
-                    <span className="text-xs font-medium w-6 text-text/70">{rating}★</span>
-                    <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                      <div 
-                        className="bg-primary h-1.5 rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${ratingStats.count > 0 
-                            ? (ratingStats.distribution[rating as keyof typeof ratingStats.distribution] / ratingStats.count) * 100 
-                            : 0}%` 
-                        }}
-                      ></div>
-                    </div>
-                    <span className="text-xs text-text/60 w-6 text-right">
-                      {ratingStats.distribution[rating as keyof typeof ratingStats.distribution]}
-                    </span>
+              {/* Rating Distribution */}
+              {ratingStats.count > 0 && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <h4 className="font-medium text-text text-sm mb-2">Distribución de calificaciones:</h4>
+                  <div className="space-y-1.5">
+                    {[5, 4, 3, 2, 1].map((rating) => (
+                      <div key={rating} className="flex items-center space-x-2">
+                        <span className="text-xs font-medium w-6 text-text/70">{rating}★</span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                          <div
+                            className="bg-primary h-1.5 rounded-full transition-all duration-500"
+                            style={{
+                              width: `${(ratingStats.distribution[rating as keyof typeof ratingStats.distribution] / ratingStats.count) * 100}%`
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-text/60 w-6 text-right">
+                          {ratingStats.distribution[rating as keyof typeof ratingStats.distribution]}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        </div>
 
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
           <div className="space-y-4">
             {reviews.length > 0 ? reviews.slice(0, 3).map((review) => (
               <div key={review.id} className="p-5 bg-background rounded-xl hover:shadow-md transition-all duration-300 border border-gray-100">

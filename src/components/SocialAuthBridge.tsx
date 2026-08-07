@@ -5,7 +5,7 @@ import {
   getCurrentUser,
   setCurrentUser,
   getRegisteredUsers,
-  addRegisteredUser,
+  saveRegisteredUser,
   User,
 } from '../utils/authUtils';
 import { getGeniusProfile } from '../services/supabaseGeniusService';
@@ -21,6 +21,9 @@ import { getGeniusProfile } from '../services/supabaseGeniusService';
  *    set `isGenius` accordingly (that's what enables the header's Cliente/Genio
  *    switch). A brand-new account is created as a plain client.
  *  - If the app is already logged in as that email → do nothing (reload/no-op).
+ *
+ * No navega a ninguna página: al iniciar sesión el usuario permanece donde
+ * estaba y solo se actualiza el header con su cuenta.
  */
 
 const SocialAuthBridge: React.FC = () => {
@@ -42,11 +45,19 @@ const SocialAuthBridge: React.FC = () => {
 
       const emailKey = email.toLowerCase();
 
-      // Already logged into the app as this same person → nothing to do
-      // (the normal case on every page reload with a live session).
+      // Already logged into the app as this same person → nothing que hacer
+      // (el caso normal en cada recarga con sesión viva), salvo que la sesión
+      // guardada arrastre un id distinto al de Supabase Auth: ese id es la
+      // identidad con la que se guardan reseñas y favoritos, así que se corrige
+      // aquí mismo en vez de esperar a un nuevo login.
       const current = getCurrentUser();
       if (current && current.email.toLowerCase() === emailKey) {
         processedEmail.current = emailKey;
+        if (current.id !== su.id) {
+          const fixed: User = { ...current, id: su.id };
+          saveRegisteredUser(fixed);
+          setCurrentUser(fixed);
+        }
         return;
       }
 
@@ -66,16 +77,21 @@ const SocialAuthBridge: React.FC = () => {
         console.error('No se pudo verificar el perfil de Genio:', err);
       }
 
-      // Returning user → refresh their capability flag and land them in the
-      // view they last used (genio panel only if they actually are a genio).
+      // Returning user → refresh their capability flag. No redirigimos: el
+      // usuario se queda donde estaba y solo cambia el header (setCurrentUser
+      // emite `authStateChanged`).
       const existing = getRegisteredUsers().find(
         (u) => u.email.toLowerCase() === emailKey
       );
       if (existing) {
-        const updated: User = { ...existing, isGenius };
+        // El id SIEMPRE es el de Supabase Auth: es la identidad estable con la
+        // que se guardan reseñas, favoritos y el perfil de cliente. Una entrada
+        // de localStorage con un id heredado haría que el usuario no reconozca
+        // sus propios datos (p. ej. volvería a ofrecerle reseñar a un genio que
+        // ya reseñó).
+        const updated: User = { ...existing, id: su.id, isGenius };
+        saveRegisteredUser(updated);
         setCurrentUser(updated);
-        window.location.href =
-          updated.role === 'genius' && isGenius ? '/genius-profile' : '/client-profile';
         return;
       }
 
@@ -91,9 +107,8 @@ const SocialAuthBridge: React.FC = () => {
         registeredAt: new Date().toISOString(),
         profileImage,
       };
-      addRegisteredUser(newUser);
+      saveRegisteredUser(newUser);
       setCurrentUser(newUser);
-      window.location.href = '/client-profile';
     };
 
     // Handle a session already present in the URL / storage on first load.

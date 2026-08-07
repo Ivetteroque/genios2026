@@ -143,11 +143,18 @@ export const getRegisteredUsers = (): User[] => {
   }
 };
 
-// Add user to registered users list
-export const addRegisteredUser = (user: User): void => {
-  const existingUsers = getRegisteredUsers();
-  existingUsers.push(user);
-  localStorage.setItem('registeredUsers', JSON.stringify(existingUsers));
+/**
+ * Guarda al usuario en `registeredUsers` usando el email como clave (lo único
+ * estable entre dispositivos y entre esquemas de id antiguos). Si ya existe una
+ * entrada con ese email, se reemplaza — así una cuenta creada con un id local
+ * heredado adopta el id de Supabase Auth en el siguiente login, y sus reseñas y
+ * favoritos vuelven a reconocerse como suyos.
+ */
+export const saveRegisteredUser = (user: User): void => {
+  const emailKey = user.email.toLowerCase();
+  const users = getRegisteredUsers().filter(u => u.email.toLowerCase() !== emailKey);
+  users.push(user);
+  localStorage.setItem('registeredUsers', JSON.stringify(users));
 };
 
 // Check if email already exists
