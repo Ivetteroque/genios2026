@@ -37,7 +37,7 @@ const toProfessional = (genius: DirectoryGenius): Professional => ({
   reviews: genius.reviews_count,
   category: genius.category,
   subcategory: genius.subcategories[0] || genius.service_name || genius.category,
-  verified: genius.has_documents,
+  verified: genius.is_verified,
   available: genius.is_available_today,
   description: genius.description,
   phone: genius.phone,

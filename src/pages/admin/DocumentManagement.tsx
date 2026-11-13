@@ -1,512 +1,302 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  FileText, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
-  Eye, 
-  Download, 
-  Search, 
-  Filter, 
-  User,
-  Calendar,
-  AlertTriangle,
-  X,
-  Save
-} from 'lucide-react';
-import { 
-  getGenios, 
-  getGeniosWithPendingDocuments,
-  updateGeniusDocumentStatus,
-  Genius,
-  Document 
-} from '../../utils/geniusUtils';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { CheckCircle, Clock, ExternalLink, FileText, Search, ShieldCheck, X, XCircle } from 'lucide-react';
 import { getCurrentAdmin } from '../../utils/adminAuthUtils';
-import StatusBadge from '../../components/StatusBadge';
+import {
+  type GeniusDocument,
+  type GeniusWithDocuments,
+  approveVerification,
+  listGeniusesWithDocuments,
+  rejectVerification,
+} from '../../services/adminGeniusService';
+import { IDENTITY_DOCUMENTS_BUCKET, getPrivateFileUrl } from '../../services/membershipService';
+
+/**
+ * Verificación de identidad. El genio sube su DNI a un bucket privado; aquí el
+ * admin lo revisa y lo aprueba (insignia "Verificado" en el directorio) o lo
+ * rechaza con un motivo que el genio verá. Si el genio cambia su DNI, la base
+ * lo devuelve solo a "pendiente".
+ */
+
+type Filter = 'pending' | 'verified' | 'rejected' | 'all';
+
+const STATUS: Record<GeniusWithDocuments['verification_status'], { label: string; cls: string; icon: React.FC<{ className?: string }> }> = {
+  none:     { label: 'Sin DNI',     cls: 'bg-gray-100 text-text/45',   icon: FileText },
+  pending:  { label: 'Por revisar', cls: 'bg-amber-50 text-amber-700', icon: Clock },
+  verified: { label: 'Verificado',  cls: 'bg-green-50 text-green-700', icon: CheckCircle },
+  rejected: { label: 'Rechazado',   cls: 'bg-red-50 text-red-600',     icon: XCircle },
+};
+
+const DOC_LABEL: Record<string, string> = { dni: 'DNI', certificate: 'Certificado Único Laboral', other: 'Documento' };
+
+const fmtDate = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
 const DocumentManagement: React.FC = () => {
-  const [currentAdmin, setCurrentAdmin] = useState(getCurrentAdmin());
-  const [genios, setGenios] = useState<Genius[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('all');
-  const [documentTypeFilter, setDocumentTypeFilter] = useState<'all' | 'dni' | 'certificate' | 'other'>('all');
-  const [selectedDocument, setSelectedDocument] = useState<{genius: Genius, document: Document} | null>(null);
-  const [showDocumentModal, setShowDocumentModal] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [genios, setGenios] = useState<GeniusWithDocuments[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [filter, setFilter] = useState<Filter>('pending');
+  const [search, setSearch] = useState('');
+  const [rejecting, setRejecting] = useState<GeniusWithDocuments | null>(null);
+  const [reason, setReason] = useState('');
+  const [processing, setProcessing] = useState<string | null>(null);
 
-  // Load genios on component mount
-  useEffect(() => {
-    loadGenios();
+  const load = useCallback(async () => {
+    setLoadError('');
+    try {
+      setGenios(await listGeniusesWithDocuments());
+    } catch (error) {
+      console.error('Error cargando documentos:', error);
+      setLoadError('No se pudieron cargar los documentos. Revisa tu sesión de admin.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Listen for genius changes
-  useEffect(() => {
-    const handleGeniosChange = () => {
-      loadGenios();
-    };
+  useEffect(() => { load(); }, [load]);
 
-    window.addEventListener('geniosChanged', handleGeniosChange);
-    return () => window.removeEventListener('geniosChanged', handleGeniosChange);
-  }, []);
+  const counts = useMemo(() => ({
+    pending: genios.filter((g) => g.verification_status === 'pending').length,
+    verified: genios.filter((g) => g.verification_status === 'verified').length,
+    rejected: genios.filter((g) => g.verification_status === 'rejected').length,
+    all: genios.length,
+  }), [genios]);
 
-  const loadGenios = () => {
-    const allGenios = getGenios();
-    // Only show genios that have uploaded documents
-    const geniosWithDocuments = allGenios.filter(genius => genius.documents.length > 0);
-    setGenios(geniosWithDocuments);
-  };
+  const visible = useMemo(() => {
+    const q = search.toLowerCase();
+    return genios.filter((g) =>
+      (filter === 'all' || g.verification_status === filter) &&
+      (!q || `${g.full_name} ${g.email}`.toLowerCase().includes(q))
+    );
+  }, [genios, filter, search]);
 
-  // Get all documents from all genios for filtering
-  const getAllDocuments = () => {
-    const allDocuments: Array<{genius: Genius, document: Document}> = [];
-    
-    genios.forEach(genius => {
-      genius.documents.forEach(document => {
-        allDocuments.push({ genius, document });
-      });
-    });
+  const adminEmail = getCurrentAdmin()?.email ?? 'admin';
 
-    return allDocuments;
-  };
-
-  // Filter documents
-  const filteredDocuments = getAllDocuments().filter(item => {
-    const matchesSearch = item.genius.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.document.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || item.document.status === statusFilter;
-    const matchesType = documentTypeFilter === 'all' || item.document.type === documentTypeFilter;
-    
-    return matchesSearch && matchesStatus && matchesType;
-  });
-
-  const handleApproveDocument = async (geniusId: string, documentId: string) => {
-    if (!currentAdmin) return;
-
-    const confirmApprove = window.confirm('¿Estás seguro de que quieres aprobar este documento?');
-    if (!confirmApprove) return;
-
-    setIsProcessing(true);
-
+  const approve = async (g: GeniusWithDocuments) => {
+    if (!window.confirm(`¿Aprobar el DNI de ${g.full_name}?\nAparecerá como "Verificado" en el directorio.`)) return;
+    setProcessing(g.id);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      updateGeniusDocumentStatus(geniusId, documentId, 'verified', undefined, currentAdmin.email);
-      
-      loadGenios();
-      setShowDocumentModal(false);
-      setSelectedDocument(null);
-      
-      alert('✅ Documento aprobado exitosamente\n\nSi era el último documento pendiente, el genio ahora aparecerá como VERIFICADO.');
+      await approveVerification(g.id, adminEmail);
+      await load();
     } catch (error) {
-      console.error('Error approving document:', error);
-      alert('❌ Error al aprobar el documento');
+      console.error('Error aprobando el DNI:', error);
+      alert('No se pudo aprobar. Inténtalo de nuevo.');
     } finally {
-      setIsProcessing(false);
+      setProcessing(null);
     }
   };
 
-  const handleRejectDocument = async (geniusId: string, documentId: string) => {
-    if (!currentAdmin || !rejectionReason.trim()) {
-      alert('Por favor, proporciona una razón para el rechazo');
-      return;
-    }
-
-    setIsProcessing(true);
-
+  const reject = async () => {
+    if (!rejecting || !reason.trim()) return;
+    setProcessing(rejecting.id);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      updateGeniusDocumentStatus(geniusId, documentId, 'rejected', rejectionReason, currentAdmin.email);
-      
-      loadGenios();
-      setShowDocumentModal(false);
-      setSelectedDocument(null);
-      setRejectionReason('');
-      
-      alert('❌ Documento rechazado\n\nEl genio será notificado sobre el rechazo y podrá subir un nuevo documento.');
+      await rejectVerification(rejecting.id, adminEmail, reason.trim());
+      setRejecting(null);
+      setReason('');
+      await load();
     } catch (error) {
-      console.error('Error rejecting document:', error);
-      alert('❌ Error al rechazar el documento');
+      console.error('Error rechazando el DNI:', error);
+      alert('No se pudo rechazar. Inténtalo de nuevo.');
     } finally {
-      setIsProcessing(false);
+      setProcessing(null);
     }
   };
 
-  const getDocumentTypeLabel = (type: string) => {
-    switch (type) {
-      case 'dni':
-        return 'DNI';
-      case 'certificate':
-        return 'Certificado Único de Trabajo';
-      case 'other':
-        return 'Otro Documento';
-      default:
-        return type;
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'rejected':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'pending':
-        return <Clock className="w-4 h-4 text-orange-500" />;
-      default:
-        return null;
-    }
-  };
-
-  const pendingCount = filteredDocuments.filter(item => item.document.status === 'pending').length;
-  const verifiedCount = filteredDocuments.filter(item => item.document.status === 'verified').length;
-  const rejectedCount = filteredDocuments.filter(item => item.document.status === 'rejected').length;
+  const tabs: { id: Filter; label: string }[] = [
+    { id: 'pending', label: 'Por revisar' },
+    { id: 'verified', label: 'Verificados' },
+    { id: 'rejected', label: 'Rechazados' },
+    { id: 'all', label: 'Todos' },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-text">Gestión de Documentos</h1>
-          <p className="text-text/60 mt-1">Revisa y aprueba documentos de verificación de genios</p>
-        </div>
+    <div className="space-y-5 max-w-3xl">
+      <div>
+        <h1 className="font-heading text-lg font-semibold text-text">Documentos</h1>
+        <p className="text-sm text-text/40 mt-0.5">
+          Revisa el DNI de cada genio. Al aprobarlo, su perfil muestra la insignia "Verificado".
+        </p>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text/60 text-sm font-medium">Pendientes</p>
-              <p className="text-2xl font-bold text-text">{pendingCount}</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text/60 text-sm font-medium">Verificados</p>
-              <p className="text-2xl font-bold text-text">{verifiedCount}</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text/60 text-sm font-medium">Rechazados</p>
-              <p className="text-2xl font-bold text-text">{rejectedCount}</p>
-            </div>
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-              <XCircle className="w-6 h-6 text-red-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text/60 text-sm font-medium">Total Documentos</p>
-              <p className="text-2xl font-bold text-text">{filteredDocuments.length}</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Buscar genio o documento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-64 pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text/40 w-4 h-4" />
-            </div>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+      <div className="bg-white rounded-xl border border-gray-100 px-4 py-3 flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Estado de verificación">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={filter === t.id}
+              onClick={() => setFilter(t.id)}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                filter === t.id ? 'bg-text text-white' : 'text-text/55 hover:bg-gray-50'
+              }`}
             >
-              <option value="all">Todos los estados</option>
-              <option value="pending">Pendientes</option>
-              <option value="verified">Verificados</option>
-              <option value="rejected">Rechazados</option>
-            </select>
-
-            <select
-              value={documentTypeFilter}
-              onChange={(e) => setDocumentTypeFilter(e.target.value as any)}
-              className="px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
-            >
-              <option value="all">Todos los tipos</option>
-              <option value="dni">DNI</option>
-              <option value="certificate">Certificado</option>
-              <option value="other">Otros</option>
-            </select>
-          </div>
-
-          <div className="text-text/60 text-sm">
-            {filteredDocuments.length} documentos encontrados
-          </div>
+              {t.label} <span className="opacity-60">{counts[t.id]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1 min-w-[160px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/25" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar genio..."
+            aria-label="Buscar genio"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-text/15 placeholder:text-text/25"
+          />
         </div>
       </div>
 
-      {/* Documents Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-6">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-text/80">Genio</th>
-                  <th className="text-left py-3 px-4 font-medium text-text/80">Documento</th>
-                  <th className="text-left py-3 px-4 font-medium text-text/80">Tipo</th>
-                  <th className="text-left py-3 px-4 font-medium text-text/80">Estado</th>
-                  <th className="text-left py-3 px-4 font-medium text-text/80">Subido</th>
-                  <th className="text-left py-3 px-4 font-medium text-text/80">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredDocuments.map((item, index) => (
-                  <tr key={`${item.genius.id}-${item.document.id}`} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-3">
-                        <img
-                          src={item.genius.profilePhoto || 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2'}
-                          alt={item.genius.fullName}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-                        />
-                        <div>
-                          <p className="font-medium text-text">{item.genius.fullName}</p>
-                          <p className="text-text/60 text-sm">{item.genius.category}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="text-text/80 text-sm">{item.document.name}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="text-text/80">{getDocumentTypeLabel(item.document.type)}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-2">
-                        {getStatusIcon(item.document.status)}
-                        <StatusBadge status={item.document.status} />
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="text-text/60 text-sm">
-                        {new Date(item.document.uploadedAt).toLocaleDateString('es-ES')}
+      {loading ? (
+        <div className="space-y-3">
+          {[0, 1].map((i) => <div key={i} className="h-28 bg-white rounded-xl border border-gray-100 animate-pulse" />)}
+        </div>
+      ) : loadError ? (
+        <div className="bg-white rounded-xl border border-red-100 py-10 text-center">
+          <p className="text-sm text-red-600 mb-3">{loadError}</p>
+          <button onClick={load} className="text-sm text-text/60 underline">Reintentar</button>
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-100 py-14 text-center">
+          <ShieldCheck className="w-8 h-8 text-text/20 mx-auto mb-3" />
+          <p className="text-sm font-medium text-text mb-1">
+            {filter === 'pending' ? 'No hay DNI pendientes de revisión' : 'No hay genios en esta lista'}
+          </p>
+          <p className="text-sm text-text/40">Cuando un genio sube su DNI, aparece aquí para revisarlo.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {visible.map((g) => {
+            const status = STATUS[g.verification_status] ?? STATUS.none;
+            const StatusIcon = status.icon;
+            const hasDni = g.documents.some((d) => d.type === 'dni');
+            return (
+              <div key={g.id} className="bg-white rounded-xl border border-gray-100 px-5 py-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-text">{g.full_name || 'Sin nombre'}</p>
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${status.cls}`}>
+                        <StatusIcon className="w-3 h-3" />
+                        {status.label}
                       </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedDocument(item);
-                            setShowDocumentModal(true);
-                          }}
-                          className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                          title="Ver documento"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        
-                        {item.document.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleApproveDocument(item.genius.id, item.document.id)}
-                              disabled={isProcessing}
-                              className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
-                              title="Aprobar documento"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                            
-                            <button
-                              onClick={() => {
-                                setSelectedDocument(item);
-                                setShowDocumentModal(true);
-                              }}
-                              disabled={isProcessing}
-                              className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                              title="Rechazar documento"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                    <p className="text-xs text-text/40 mt-0.5 truncate">{g.email}</p>
+                    {g.verification_status === 'rejected' && g.verification_note && (
+                      <p className="text-xs text-red-500 mt-1">Motivo: {g.verification_note}</p>
+                    )}
+                    {g.verification_status === 'verified' && (
+                      <p className="text-[11px] text-text/35 mt-1">Verificado el {fmtDate(g.verified_at)} por {g.verified_by || 'admin'}</p>
+                    )}
+                  </div>
+                  {g.verification_status === 'pending' && hasDni && (
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => approve(g)}
+                        disabled={processing === g.id}
+                        className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        Aprobar
+                      </button>
+                      <button
+                        onClick={() => { setRejecting(g); setReason(''); }}
+                        disabled={processing === g.id}
+                        className="px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-            {filteredDocuments.length === 0 && (
-              <div className="text-center py-12 text-text/60">
-                <FileText className="w-12 h-12 mx-auto mb-4 text-text/40" />
-                <p className="text-lg font-medium mb-2">No se encontraron documentos</p>
-                <p>Los documentos subidos por los genios aparecerán aquí</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {g.documents.map((doc, i) => <DocumentLink key={doc.id ?? `${doc.type}-${i}`} doc={doc} />)}
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })}
         </div>
-      </div>
+      )}
 
-      {/* Document Details Modal */}
-      {showDocumentModal && selectedDocument && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white p-6 border-b flex justify-between items-center">
-              <h3 className="font-heading text-xl font-bold text-text">
-                Revisar Documento: {getDocumentTypeLabel(selectedDocument.document.type)}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowDocumentModal(false);
-                  setSelectedDocument(null);
-                  setRejectionReason('');
-                }}
-                className="text-text/60 hover:text-text transition-colors"
-              >
-                <X className="w-6 h-6" />
+      {rejecting && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-text">Rechazar DNI de {rejecting.full_name}</h3>
+              <button onClick={() => setRejecting(null)} aria-label="Cerrar" className="p-1 text-text/30 hover:text-text/60">
+                <X className="w-4 h-4" />
               </button>
             </div>
-
-            <div className="p-6 space-y-6">
-              {/* Genius Info */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center space-x-4">
-                  <img
-                    src={selectedDocument.genius.profilePhoto || 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2'}
-                    alt={selectedDocument.genius.fullName}
-                    className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
-                  />
-                  <div>
-                    <h4 className="font-heading text-lg font-bold text-text">{selectedDocument.genius.fullName}</h4>
-                    <p className="text-text/60">{selectedDocument.genius.category}</p>
-                    <p className="text-text/60 text-sm">ID: {selectedDocument.genius.id}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Document Image */}
-              <div>
-                <label className="block text-sm font-medium text-text/80 mb-2">Documento:</label>
-                <img
-                  src={selectedDocument.document.url}
-                  alt={selectedDocument.document.name}
-                  className="w-full max-h-96 object-contain rounded-lg border border-gray-200"
-                />
-              </div>
-
-              {/* Document Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Nombre del archivo:</label>
-                  <p className="text-text">{selectedDocument.document.name}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Tipo:</label>
-                  <p className="text-text">{getDocumentTypeLabel(selectedDocument.document.type)}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Estado actual:</label>
-                  <div className="flex items-center space-x-2">
-                    {getStatusIcon(selectedDocument.document.status)}
-                    <StatusBadge status={selectedDocument.document.status} />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-1">Subido:</label>
-                  <p className="text-text">{new Date(selectedDocument.document.uploadedAt).toLocaleString('es-ES')}</p>
-                </div>
-
-                {selectedDocument.document.reviewedAt && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-text/80 mb-1">Revisado por:</label>
-                      <p className="text-text">{selectedDocument.document.reviewedBy}</p>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-text/80 mb-1">Fecha de revisión:</label>
-                      <p className="text-text">{new Date(selectedDocument.document.reviewedAt).toLocaleString('es-ES')}</p>
-                    </div>
-                  </>
-                )}
-
-                {selectedDocument.document.rejectionReason && (
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-text/80 mb-1">Razón del rechazo:</label>
-                    <p className="text-red-600 bg-red-50 p-3 rounded-lg">{selectedDocument.document.rejectionReason}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Rejection Reason Input (for pending documents) */}
-              {selectedDocument.document.status === 'pending' && (
-                <div>
-                  <label className="block text-sm font-medium text-text/80 mb-2">
-                    Razón de Rechazo (opcional):
-                  </label>
-                  <textarea
-                    value={rejectionReason}
-                    onChange={(e) => setRejectionReason(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 resize-none"
-                    placeholder="Explica por qué se rechaza este documento..."
-                  />
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              {selectedDocument.document.status === 'pending' && (
-                <div className="flex space-x-4">
-                  <button
-                    onClick={() => handleApproveDocument(selectedDocument.genius.id, selectedDocument.document.id)}
-                    disabled={isProcessing}
-                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Procesando...' : 'Aprobar Documento'}
-                  </button>
-                  
-                  <button
-                    onClick={() => handleRejectDocument(selectedDocument.genius.id, selectedDocument.document.id)}
-                    disabled={isProcessing}
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
-                  >
-                    {isProcessing ? 'Procesando...' : 'Rechazar Documento'}
-                  </button>
-                </div>
-              )}
+            <p className="text-xs text-text/45 mb-2">El genio verá este motivo y podrá subir otro documento.</p>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Ej. La foto está borrosa o no se ve el número."
+              className="w-full h-24 p-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-text/15 resize-none placeholder:text-text/25"
+            />
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={reject}
+                disabled={!reason.trim() || processing === rejecting.id}
+                className="flex-1 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
+              >
+                Rechazar
+              </button>
+              <button onClick={() => setRejecting(null)} className="flex-1 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+};
+
+/** Abre el documento con un enlace temporal (bucket privado) o el base64 antiguo. */
+const DocumentLink: React.FC<{ doc: GeniusDocument }> = ({ doc }) => {
+  const [opening, setOpening] = useState(false);
+
+  const open = async () => {
+    setOpening(true);
+    // La pestaña se abre antes del await para que el navegador no la bloquee.
+    const tab = window.open('', '_blank');
+    const url = await getPrivateFileUrl(IDENTITY_DOCUMENTS_BUCKET, doc.url);
+    setOpening(false);
+    if (!url) {
+      tab?.close();
+      alert('No se pudo abrir el documento.');
+      return;
+    }
+    if (!tab) return;
+
+    if (!url.startsWith('data:')) {
+      tab.location.href = url;
+      return;
+    }
+
+    // Documento antiguo en base64: se abre como blob, y solo si es imagen o
+    // PDF. Un data-URL de otro tipo (p. ej. HTML) correría en el origen del
+    // panel con la sesión del admin.
+    const blob = await (await fetch(url)).blob();
+    if (!blob.type.startsWith('image/') && blob.type !== 'application/pdf') {
+      tab.close();
+      alert('Formato de documento no admitido.');
+      return;
+    }
+    tab.location.href = URL.createObjectURL(blob);
+  };
+
+  return (
+    <button
+      onClick={open}
+      disabled={opening}
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-text/60 border border-gray-200 rounded-lg hover:border-gray-300 hover:text-text transition-colors disabled:opacity-50"
+    >
+      <FileText className="w-3.5 h-3.5" />
+      {DOC_LABEL[doc.type] ?? 'Documento'}
+      <ExternalLink className="w-3 h-3 opacity-50" />
+    </button>
   );
 };
 

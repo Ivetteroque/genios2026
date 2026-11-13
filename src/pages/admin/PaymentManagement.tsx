@@ -6,7 +6,44 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getCurrentAdmin } from '../../utils/adminAuthUtils';
-import { formatDateToSpanish } from '../../utils/commonUtils';
+import { PAYMENT_VOUCHERS_BUCKET, getPrivateFileUrl } from '../../services/membershipService';
+
+/** El voucher está en un bucket privado: se muestra con un enlace temporal. */
+const VoucherPreview: React.FC<{ pathOrUrl: string }> = ({ pathOrUrl }) => {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getPrivateFileUrl(PAYMENT_VOUCHERS_BUCKET, pathOrUrl).then((signed) => {
+      if (!active) return;
+      if (signed) setUrl(signed);
+      else setFailed(true);
+    });
+    return () => { active = false; };
+  }, [pathOrUrl]);
+
+  const isPdf = pathOrUrl.toLowerCase().endsWith('.pdf');
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-text/45 mb-1.5">Comprobante</p>
+      {failed ? (
+        <p className="text-xs text-red-500">No se pudo cargar el comprobante.</p>
+      ) : !url ? (
+        <div className="h-32 rounded-lg border border-gray-100 bg-gray-50 animate-pulse" />
+      ) : isPdf ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-ink-blue underline">
+          Abrir comprobante (PDF)
+        </a>
+      ) : (
+        <a href={url} target="_blank" rel="noopener noreferrer" title="Abrir en tamaño completo">
+          <img src={url} alt="Comprobante de pago" className="w-full max-h-60 object-contain rounded-lg border border-gray-100" />
+        </a>
+      )}
+    </div>
+  );
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -192,55 +229,31 @@ const PaymentManagement: React.FC = () => {
 
   // ─── Actions ───────────────────────────────────────────────────────────────
 
+  // Aprobar y rechazar son RPCs: la solicitud, la membresía y el historial se
+  // actualizan juntos en una transacción, o no se actualiza nada.
   const approveRequest = async (req: PaymentRequest) => {
-    if (!window.confirm(`¿Aprobar pago de ${req.genius_name}?\nEsto activará su membresía por 365 días.`)) return;
+    if (!window.confirm(`¿Aprobar pago de ${req.genius_name}?\nSe activa (o renueva) su plan anual por 365 días; los días que le queden se suman.`)) return;
     setProcessing(true);
-    const now = new Date().toISOString();
-    const endsAt = new Date(Date.now() + 365 * 86400000).toISOString();
-    await supabase.from('payment_requests').update({
-      status: 'approved', reviewed_by: admin?.email ?? '', reviewed_at: now, updated_at: now,
-    }).eq('id', req.id);
-    await supabase.from('memberships').upsert({
-      genius_profile_id: req.genius_profile_id,
-      genius_name: req.genius_name,
-      genius_email: req.genius_email,
-      genius_phone: req.genius_phone,
-      type: 'annual',
-      starts_at: now,
-      ends_at: endsAt,
-      status: 'active',
-      payment_request_id: req.id,
-    }, { onConflict: 'genius_profile_id' });
-    await supabase.from('payment_history').insert({
-      genius_profile_id: req.genius_profile_id,
-      genius_name: req.genius_name,
-      genius_email: req.genius_email,
-      amount: req.amount,
-      payment_method: req.payment_method,
-      operation_reference: req.operation_reference,
-      voucher_url: req.voucher_url,
-      status: 'approved',
-      approved_by: admin?.email ?? '',
-      approved_at: now,
-    });
+    const { error } = await supabase.rpc('approve_payment_request', { p_request_id: req.id, p_days: 365 });
     setProcessing(false);
+    if (error) {
+      console.error('Error aprobando el pago:', error);
+      alert(`No se pudo aprobar el pago: ${error.message}`);
+      return;
+    }
     setDetailRequest(null);
     load();
   };
 
   const rejectRequest = async (req: PaymentRequest, reason: string) => {
-    const now = new Date().toISOString();
-    await supabase.from('payment_requests').update({
-      status: 'rejected', reviewed_by: admin?.email ?? '', reviewed_at: now,
-      internal_notes: reason, updated_at: now,
-    }).eq('id', req.id);
-    await supabase.from('payment_history').insert({
-      genius_profile_id: req.genius_profile_id, genius_name: req.genius_name,
-      genius_email: req.genius_email, amount: req.amount,
-      payment_method: req.payment_method, operation_reference: req.operation_reference,
-      status: 'rejected', rejected_by: admin?.email ?? '',
-      rejected_at: now, rejection_reason: reason,
-    });
+    setProcessing(true);
+    const { error } = await supabase.rpc('reject_payment_request', { p_request_id: req.id, p_reason: reason });
+    setProcessing(false);
+    if (error) {
+      console.error('Error rechazando el pago:', error);
+      alert(`No se pudo rechazar el pago: ${error.message}`);
+      return;
+    }
     setDetailRequest(null);
     load();
   };
@@ -256,7 +269,7 @@ const PaymentManagement: React.FC = () => {
   const createBetaCode = async () => {
     if (!betaForm.code.trim()) return;
     setProcessing(true);
-    await supabase.from('beta_codes').insert({
+    const { error } = await supabase.from('beta_codes').insert({
       code: betaForm.code.trim().toUpperCase(),
       description: betaForm.description,
       duration_days: parseInt(betaForm.duration_days) || 30,
@@ -268,6 +281,10 @@ const PaymentManagement: React.FC = () => {
       created_by: admin?.email ?? '',
     });
     setProcessing(false);
+    if (error) {
+      alert(error.code === '23505' ? 'Ya existe un código con ese nombre.' : `No se pudo crear el código: ${error.message}`);
+      return;
+    }
     setShowBetaModal(false);
     setBetaForm({ code: '', description: '', duration_days: '30', max_uses: '10', scope_department: '', expires_at: '' });
     load();
@@ -718,12 +735,7 @@ const PaymentManagement: React.FC = () => {
               {detailRequest.operation_reference && <DetailRow label="Referencia" value={detailRequest.operation_reference} mono />}
               <DetailRow label="Fecha" value={fmtDate(detailRequest.created_at)} />
             </div>
-            {detailRequest.voucher_url && (
-              <div>
-                <p className="text-xs font-medium text-text/45 mb-1.5">Comprobante</p>
-                <img src={detailRequest.voucher_url} alt="Comprobante" className="w-full max-h-60 object-contain rounded-lg border border-gray-100" />
-              </div>
-            )}
+            {detailRequest.voucher_url && <VoucherPreview pathOrUrl={detailRequest.voucher_url} />}
             {detailRequest.internal_notes && (
               <div className="bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                 <p className="text-xs text-amber-700">{detailRequest.internal_notes}</p>

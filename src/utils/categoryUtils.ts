@@ -1,5 +1,7 @@
 // Category management utility functions
 
+import { fetchCatalog, publishCatalogInBackground } from '../services/catalogService';
+
 export interface Subcategory {
   id: string;
   name: string;
@@ -162,21 +164,38 @@ export const getCategories = (): Category[] => {
     console.error('Error loading categories:', error);
   }
   
-  // Initialize with default categories
-  saveCategories(defaultCategories);
+  // Sin caché todavía: valores por defecto del código (no se publican).
+  cacheCategories(defaultCategories);
   return defaultCategories;
 };
 
-// Save categories to localStorage
-export const saveCategories = (categories: Category[]): void => {
+/** Guarda la caché local y avisa a los componentes. No toca el servidor. */
+const cacheCategories = (categories: Category[]): void => {
   try {
     localStorage.setItem('categories', JSON.stringify(categories));
-    
-    // Dispatch event to notify components of category changes
     window.dispatchEvent(new CustomEvent('categoriesChanged', { detail: categories }));
   } catch (error) {
     console.error('Error saving categories:', error);
   }
+};
+
+/**
+ * Guarda un cambio del admin: actualiza la caché y lo publica en Supabase
+ * (`site_catalogs`) para que lo vean todos los visitantes.
+ */
+export const saveCategories = (categories: Category[]): void => {
+  cacheCategories(categories);
+  publishCatalogInBackground('categories', categories);
+};
+
+/**
+ * Trae del servidor la versión vigente y refresca la caché. Se llama al
+ * cargar la app; si el servidor aún no tiene catálogo, se mantienen los
+ * valores por defecto.
+ */
+export const syncCategoriesFromServer = async (): Promise<void> => {
+  const remote = await fetchCatalog<Category[]>('categories');
+  if (Array.isArray(remote) && remote.length > 0) cacheCategories(remote);
 };
 
 // Get only active categories (for public display)

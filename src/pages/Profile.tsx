@@ -124,7 +124,7 @@ const Profile: React.FC = () => {
     reviews: ratingStats.count,
     location: locationLabel,
     available: isAvailableToday,
-    verified: genius?.has_documents ?? false,
+    verified: genius?.is_verified ?? false,
     description: genius?.description ?? '',
     profileImage: genius?.profile_photo ?? '',
     instagram: genius?.instagram ?? '',
