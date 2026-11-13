@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Search,
-  Plus,
   MoreVertical,
   MessageCircle,
   Eye,
@@ -28,7 +27,6 @@ import { getSubscriptionByGenius } from '../../utils/paymentUtils';
 import { handleWhatsAppContact } from '../../utils/whatsappUtils';
 import { formatDateToSpanish } from '../../utils/commonUtils';
 import GeniusProfilePreviewModal from '../../components/GeniusProfilePreviewModal';
-import AdminGeniusWizard from '../../components/AdminGeniusWizard';
 
 const DEFAULT_AVATAR = 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop';
 
@@ -48,7 +46,6 @@ const GeniusManagement: React.FC = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [showAddWizard, setShowAddWizard] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [notesText, setNotesText] = useState('');
 
@@ -154,13 +151,6 @@ const GeniusManagement: React.FC = () => {
               <Download style={{ width: '14px', height: '14px' }} />
               Exportar CSV
             </button>
-            <button
-              onClick={() => setShowAddWizard(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-white bg-text hover:bg-text/85 transition-colors"
-            >
-              <Plus style={{ width: '14px', height: '14px' }} />
-              Añadir Genio
-            </button>
           </div>
         </div>
 
@@ -216,14 +206,9 @@ const GeniusManagement: React.FC = () => {
           <div className="bg-white rounded-xl border border-gray-100 py-16 text-center">
             <div className="text-3xl mb-3">👋</div>
             <p className="text-sm font-medium text-text mb-1">Aún no tienes genios registrados</p>
-            <p className="text-sm text-text/40 mb-5">Comienza agregando tu primer genio a la plataforma.</p>
-            <button
-              onClick={() => setShowAddWizard(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm text-white bg-text hover:bg-text/85 transition-colors"
-            >
-              <Plus style={{ width: '14px', height: '14px' }} />
-              Añadir Genio
-            </button>
+            <p className="text-sm text-text/40">
+              Los genios aparecen aquí cuando se registran con Google y completan su perfil.
+            </p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -395,14 +380,6 @@ const GeniusManagement: React.FC = () => {
 
       {/* Backdrop for dropdown */}
       {activeDropdown && <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)} />}
-
-      {/* Add Genius Wizard */}
-      {showAddWizard && (
-        <AdminGeniusWizard
-          onComplete={() => { setShowAddWizard(false); loadGenios(); }}
-          onCancel={() => setShowAddWizard(false)}
-        />
-      )}
     </>
   );
 };

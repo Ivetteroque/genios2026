@@ -30,12 +30,11 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
-# Sin argumentos, las tres migraciones que quedaron pendientes tras conectar
-# el buscador a datos reales. El orden importa.
+# Sin argumentos, las migraciones pendientes en producción. Al 2026-11-13 todas
+# las anteriores (hasta 20260806160000) ya están aplicadas. Al agregar una
+# migración nueva, súmala aquí y regenera el esquema con `pnpm db:schema`.
 DEFAULT_MIGRATIONS=(
-  "supabase/migrations/20260806120000_create_public_genius_directory.sql"
-  "supabase/migrations/20260806130000_unify_reviews_in_supabase.sql"
-  "supabase/migrations/20260806140000_create_media_buckets.sql"
+  "supabase/migrations/20261113120000_lock_down_rls.sql"
 )
 
 if [[ $# -gt 0 ]]; then

@@ -59,11 +59,10 @@ export const getCurrentUser = (): User | null => {
 // 42501. Instead we INSERT, and if the row already exists (unique violation) we
 // fall back to an UPDATE — both allowed by the existing policies.
 //
-// The table has TWO unique constraints: id (PK) and email. We key the fallback
-// UPDATE on EMAIL, not id: email is the stable identity across logins, whereas a
-// user's app id can differ from the row that already exists (e.g. a row created
-// under an older id scheme). Updating by id in that case matches 0 rows and
-// silently drops profile edits, so email is the robust key here.
+// The fallback UPDATE is keyed on the id, which is always the Supabase Auth id:
+// RLS only lets a user touch the row whose id is their own auth.uid(). Rows
+// created under the older local-id scheme were re-keyed by email in migration
+// 20261113120000_lock_down_rls.sql, so they match too.
 const syncClientProfile = async (user: User): Promise<void> => {
   if (user.role !== 'client') return;
 
@@ -84,14 +83,14 @@ const syncClientProfile = async (user: User): Promise<void> => {
   const { error } = await supabase.from('client_profiles').insert(row);
   if (!error) return;
 
-  // 23505 = unique_violation → a row with this id OR email already exists.
-  // Update it by email (the stable key), leaving the immutable id/email as-is.
+  // 23505 = unique_violation → the row already exists. Update it, leaving the
+  // immutable id/email as-is.
   if (error.code === '23505') {
     const { id: _id, email: _email, ...updates } = row;
     const { error: updateError } = await supabase
       .from('client_profiles')
       .update(updates)
-      .eq('email', user.email);
+      .eq('id', user.id);
     if (updateError) console.error('client_profiles update error:', updateError);
   } else {
     console.error('client_profiles insert error:', error);

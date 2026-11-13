@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { validateAdminCredentials, setCurrentAdmin, isAdminAuthenticated } from '../../utils/adminAuthUtils';
+import { validateAdminCredentials, setCurrentAdmin, getVerifiedAdmin } from '../../utils/adminAuthUtils';
 
 const AdminLogin: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -12,11 +12,11 @@ const AdminLogin: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Redirect if already authenticated
+  // Si ya hay una sesión de admin verificada, ir directo al panel.
   useEffect(() => {
-    if (isAdminAuthenticated()) {
-      window.location.href = '/admin/dashboard';
-    }
+    getVerifiedAdmin().then((admin) => {
+      if (admin) window.location.href = '/admin/dashboard';
+    });
   }, []);
 
   // Auto-focus on email field

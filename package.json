@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "db:migrate": "bash supabase/apply-migrations.sh",
+    "db:schema": "node scripts/build-schema.mjs",
     "images:compress": "node scripts/compress-existing-images.mjs",
     "admin:create": "node scripts/create-admin.mjs"
   },

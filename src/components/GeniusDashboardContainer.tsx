@@ -2,20 +2,10 @@ import React, { useEffect, useState } from 'react';
 import GeniusDashboard from './GeniusDashboard';
 import GeniusProfileWizard from './GeniusProfileWizard';
 import GeniusAvailabilityCalendar from './GeniusAvailabilityCalendar';
-import ForcePasswordChange from './ForcePasswordChange';
 import { getCurrentUser, updateUser } from '../utils/authUtils';
 import { getGeniusProfile } from '../services/supabaseGeniusService';
 
 type ViewMode = 'dashboard' | 'wizard' | 'calendar' | 'subscription';
-
-const getPendingAccessForUser = (email: string) => {
-  try {
-    const list: any[] = JSON.parse(localStorage.getItem('geniusPendingAccess') || '[]');
-    return list.find(a => a.email === email && a.mustChangePassword);
-  } catch {
-    return null;
-  }
-};
 
 const GeniusDashboardContainer: React.FC = () => {
   const currentUser = getCurrentUser();
@@ -44,20 +34,6 @@ const GeniusDashboardContainer: React.FC = () => {
       active = false;
     };
   }, [currentUser?.id]);
-
-  // Check if current user must change password (admin-created genius first login)
-  const pendingAccess = currentUser?.email ? getPendingAccessForUser(currentUser.email) : null;
-  const mustChange = pendingAccess !== null && pendingAccess !== undefined;
-
-  if (mustChange) {
-    return (
-      <ForcePasswordChange
-        geniusName={pendingAccess.geniusName || currentUser?.name || ''}
-        email={pendingAccess.email}
-        onComplete={() => window.location.reload()}
-      />
-    );
-  }
 
   const handleEditProfile = () => {
     setViewMode('wizard');

@@ -3,6 +3,9 @@
 -- Genera todo el esquema (tablas, RLS, policies, funciones y seeds).
 -- Pegar completo en el SQL Editor de un proyecto Supabase NUEVO y ejecutar.
 -- Orden respetado por dependencias de claves foráneas.
+--
+-- ARCHIVO GENERADO: no editar a mano. Se regenera con `pnpm db:schema`
+-- a partir de supabase/migrations (20 migraciones).
 -- ============================================================================
 
 
@@ -213,6 +216,7 @@ CREATE POLICY "Users can delete own availability"
     )
   );
 
+
 -- ############################################################################
 -- MIGRATION: 20260308021942_create_genius_subscriptions.sql
 -- ############################################################################
@@ -302,6 +306,7 @@ CREATE POLICY "Users can insert own subscription"
 CREATE INDEX IF NOT EXISTS idx_genius_subscriptions_genius_id ON genius_subscriptions(genius_id);
 CREATE INDEX IF NOT EXISTS idx_genius_subscriptions_is_active ON genius_subscriptions(is_active);
 
+
 -- ############################################################################
 -- MIGRATION: 20260310024341_add_completion_tracking_fields.sql
 -- ############################################################################
@@ -340,6 +345,7 @@ BEGIN
     ALTER TABLE genius_profiles ADD COLUMN last_wizard_step integer DEFAULT 1;
   END IF;
 END $$;
+
 
 -- ############################################################################
 -- MIGRATION: 20260518015936_create_payment_settings.sql
@@ -1256,3 +1262,888 @@ BEGIN
   END IF;
 END $$;
 
+
+-- ############################################################################
+-- MIGRATION: 20260806120000_create_public_genius_directory.sql
+-- ############################################################################
+
+/*
+  # Directorio público de genios
+
+  Hasta ahora la búsqueda pública (`/categories`) mostraba 8 personas inventadas
+  escritas a mano en `src/pages/Categories.tsx`. Un genio que completaba el
+  wizard quedaba guardado en `genius_profiles` pero no aparecía nunca.
+
+  El motivo de fondo: `genius_profiles` solo tiene política de lectura para el
+  propio dueño (`auth.uid() = user_id`), así que un visitante anónimo no lee
+  ninguna fila. Y no se puede simplemente abrir la tabla al público, porque
+  guarda `dni`, `email` y `documents` (documentos de identidad).
+
+  ## Qué crea esta migración
+
+  1. Vista `public_genius_profiles`
+     - Expone SOLO las columnas que la tarjeta de resultados necesita.
+     - Excluye deliberadamente: user_id, dni, email, documents,
+       completion_percentage, last_wizard_step, profile_views, whatsapp_clicks.
+     - De `documents` solo deriva un booleano `has_documents` (para el filtro
+       "verificado"), nunca el contenido.
+     - Solo lista perfiles publicables: con nombre, categoría y teléfono.
+
+  2. Lectura pública de `genius_availability`
+     - Sin esto el badge de disponibilidad de cada tarjeta devuelve vacío para
+       visitantes anónimos. Solo lectura; escribir sigue restringido al dueño.
+
+  ## Decisiones tomadas
+
+  - **Sin filtro por suscripción.** Durante el periodo de prueba (2 meses desde
+    el registro) aparece todo genio con el perfil completo, haya pagado o no.
+    Cuando toque cerrar la puerta, el filtro va en el WHERE de la vista usando
+    `genius_subscriptions` y/o `created_at` (que la vista ya expone).
+  - **El teléfono viaja en la vista.** Es lo que hace funcionar el botón de
+    WhatsApp sin pasos extra. Contrapartida asumida: cualquiera puede leer todos
+    los teléfonos listados en una sola petición.
+  - **`security_invoker = false` (definer).** Es intencional: la vista corre con
+    los permisos de su dueño para poder saltarse la RLS de la tabla base. El
+    control de qué se expone lo hace la lista de columnas del SELECT, no la RLS.
+*/
+
+-- Vista pública: solo columnas seguras, solo perfiles publicables
+CREATE OR REPLACE VIEW public_genius_profiles AS
+SELECT
+  gp.id,
+  gp.full_name,
+  gp.profile_photo,
+  gp.description,
+  gp.category,
+  gp.subcategories,
+  gp.service_name,
+  gp.phone,
+  gp.instagram,
+  gp.facebook,
+  gp.tiktok,
+  gp.home_location,
+  gp.coverage_type,
+  gp.work_locations,
+  gp.portfolio,
+  -- Booleano derivado para el filtro "verificado": nunca el contenido de los documentos
+  (jsonb_array_length(COALESCE(gp.documents, '[]'::jsonb)) > 0) AS has_documents,
+  gp.created_at
+FROM genius_profiles gp
+WHERE COALESCE(gp.full_name, '') <> ''
+  AND COALESCE(gp.category, '') <> ''
+  AND COALESCE(gp.phone, '') <> '';
+
+-- La vista debe correr como definer para atravesar la RLS de genius_profiles.
+-- Lo que se expone está acotado por el SELECT de arriba, no por la RLS.
+ALTER VIEW public_genius_profiles SET (security_invoker = false);
+
+GRANT SELECT ON public_genius_profiles TO anon, authenticated;
+
+-- Lectura pública de disponibilidad (fechas y estado; nada sensible).
+-- Las políticas de escritura existentes siguen intactas.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'genius_availability'
+      AND policyname = 'Anyone can read genius availability'
+  ) THEN
+    CREATE POLICY "Anyone can read genius availability"
+      ON genius_availability FOR SELECT
+      TO anon, authenticated
+      USING (true);
+  END IF;
+END $$;
+
+-- Índices para el listado y el filtro por categoría
+CREATE INDEX IF NOT EXISTS genius_profiles_category_idx ON genius_profiles(category);
+CREATE INDEX IF NOT EXISTS genius_availability_date_idx ON genius_availability(date);
+
+
+-- ############################################################################
+-- MIGRATION: 20260806130000_unify_reviews_in_supabase.sql
+-- ############################################################################
+
+/*
+  # Unificar las reseñas en Supabase
+
+  Había dos sistemas de reseñas que no se conocían entre sí:
+
+  - **Clientes → genio**: en `localStorage['reviews']` (src/utils/reviewUtils.ts).
+    Invisible para el panel de admin, invisible desde otro dispositivo, y con las
+    fotos guardadas como data-URLs base64 (de ahí el manejo de QuotaExceededError
+    en ReviewForm).
+  - **Genio → genio**: en la tabla `genius_reviews`.
+
+  Resultado: el mismo genio mostraba una estrella en el buscador (calculada sobre
+  `genius_reviews`) y otra distinta al abrir su perfil (calculada sobre
+  localStorage).
+
+  ## Qué hace esta migración
+
+  1. Convierte `genius_reviews` en la única tabla de reseñas, con un
+     discriminador `reviewer_type` ('client' | 'genius'). El nombre de la tabla
+     sigue siendo correcto: son reseñas *de* un genio, venga de quien venga.
+  2. Añade las columnas que solo tenían las reseñas de cliente: quién la escribió
+     (`reviewer_user_id`, `reviewer_name`), la fecha del servicio y las fotos.
+  3. Sustituye la restricción única por dos índices parciales, uno por tipo.
+  4. Crea el bucket `review-images` para que las fotos dejen de viajar como
+     base64.
+
+  ## Sobre la moderación
+
+  La migración 20260522211709 dice en su cabecera que "public SELECT now only
+  returns reviews where moderation_status = 'visible'", pero no incluye ninguna
+  sentencia de política: la política permisiva original sigue vigente y ocultar
+  una reseña no la oculta en ninguna parte.
+
+  No se puede arreglar en la base de datos todavía: el panel de admin se
+  autentica por localStorage y usa la misma anon key que un visitante, así que
+  una política que filtre por `moderation_status` dejaría al admin sin poder ver
+  la cola de moderación. El filtro queda por ahora en las consultas públicas
+  (supabaseGeniusReviewsService). Cerrarlo de verdad exige mover el admin a
+  Supabase Auth.
+*/
+
+-- 1. Discriminador y columnas propias de las reseñas de cliente
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'genius_reviews' AND column_name = 'reviewer_type') THEN
+    ALTER TABLE genius_reviews
+      ADD COLUMN reviewer_type text NOT NULL DEFAULT 'genius'
+      CHECK (reviewer_type IN ('client', 'genius'));
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'genius_reviews' AND column_name = 'reviewer_user_id') THEN
+    ALTER TABLE genius_reviews ADD COLUMN reviewer_user_id text;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'genius_reviews' AND column_name = 'reviewer_name') THEN
+    ALTER TABLE genius_reviews ADD COLUMN reviewer_name text DEFAULT '';
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'genius_reviews' AND column_name = 'service_date') THEN
+    ALTER TABLE genius_reviews ADD COLUMN service_date date;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'genius_reviews' AND column_name = 'images') THEN
+    ALTER TABLE genius_reviews ADD COLUMN images jsonb NOT NULL DEFAULT '[]'::jsonb;
+  END IF;
+END $$;
+
+-- 2. Una reseña de cliente no tiene perfil de genio como autor
+ALTER TABLE genius_reviews ALTER COLUMN reviewer_genius_id DROP NOT NULL;
+
+-- 3. Cada tipo necesita su propio autor
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'genius_reviews_reviewer_identity_check') THEN
+    ALTER TABLE genius_reviews ADD CONSTRAINT genius_reviews_reviewer_identity_check CHECK (
+      (reviewer_type = 'genius' AND reviewer_genius_id IS NOT NULL) OR
+      (reviewer_type = 'client' AND reviewer_user_id IS NOT NULL)
+    );
+  END IF;
+END $$;
+
+-- 4. Una reseña por autor y por genio, calculada por separado para cada tipo.
+--    La restricción única original solo contemplaba autores genio.
+ALTER TABLE genius_reviews DROP CONSTRAINT IF EXISTS genius_reviews_reviewer_genius_id_reviewed_genius_id_key;
+
+CREATE UNIQUE INDEX IF NOT EXISTS genius_reviews_peer_unique_idx
+  ON genius_reviews (reviewer_genius_id, reviewed_genius_id)
+  WHERE reviewer_type = 'genius';
+
+CREATE UNIQUE INDEX IF NOT EXISTS genius_reviews_client_unique_idx
+  ON genius_reviews (reviewer_user_id, reviewed_genius_id)
+  WHERE reviewer_type = 'client';
+
+-- 5. Índice para el listado público de un perfil
+CREATE INDEX IF NOT EXISTS genius_reviews_reviewed_visible_idx
+  ON genius_reviews (reviewed_genius_id, reviewer_type, moderation_status);
+
+-- 6. Bucket para las fotos de reseñas.
+--    Hasta ahora se guardaban como data-URLs base64 dentro de localStorage, lo
+--    que agotaba la cuota del navegador con dos fotos.
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'review-images',
+  'review-images',
+  true,
+  2097152, -- 2 MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO NOTHING;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                 WHERE schemaname = 'storage' AND tablename = 'objects'
+                   AND policyname = 'Public read review images') THEN
+    CREATE POLICY "Public read review images"
+      ON storage.objects FOR SELECT
+      TO anon, authenticated
+      USING (bucket_id = 'review-images');
+  END IF;
+
+  -- La escritura queda abierta a la anon key, igual que el resto de tablas de
+  -- esta app (el auth de clientes es localStorage, no Supabase Auth). El límite
+  -- de 2 MB y la lista de mime types del bucket son el único control real.
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                 WHERE schemaname = 'storage' AND tablename = 'objects'
+                   AND policyname = 'Anyone can upload review images') THEN
+    CREATE POLICY "Anyone can upload review images"
+      ON storage.objects FOR INSERT
+      TO anon, authenticated
+      WITH CHECK (bucket_id = 'review-images');
+  END IF;
+END $$;
+
+
+-- ############################################################################
+-- MIGRATION: 20260806140000_create_media_buckets.sql
+-- ############################################################################
+
+/*
+  # Buckets para fotos de perfil y portafolio
+
+  Hasta ahora las imágenes se guardaban como data-URLs base64 dentro de las
+  columnas de `genius_profiles`: `profile_photo` (text) y `portfolio` (jsonb).
+  La UI acepta hasta 5 MB por imagen y base64 infla un ~33%, así que un genio
+  con foto y portafolio lleno podía ocupar decenas de MB en una sola fila —
+  descargados enteros en cada consulta que tocara esas columnas.
+
+  ## Qué crea
+
+  - `profile-photos`: público, 5 MB, jpeg/png/webp
+  - `portfolios`: público, 5 MB, jpeg/png/webp
+
+  Ambos son públicos a propósito: es material que la ficha del genio muestra a
+  cualquier visitante.
+
+  ## Qué NO se mueve, y por qué
+
+  Los documentos (`genius_profiles.documents`: DNI, certificados) se quedan
+  donde están. Esa columna está protegida por la RLS de solo-dueño de
+  `genius_profiles` y queda fuera de la vista pública `public_genius_profiles`.
+  Como el auth de clientes de esta app es localStorage y no Supabase Auth,
+  cualquier bucket tendría que ser accesible con la anon key: mover los
+  documentos allí los haría *menos* privados de lo que están hoy. Se quedan en
+  base64 hasta que exista Supabase Auth de verdad.
+
+  ## Sobre las políticas de escritura
+
+  Igual que el resto de esta base (`user_favorites`, `genius_reviews`,
+  `reports`, `review-images`), la subida queda abierta a la anon key porque no
+  hay identidad verificable en el servidor. El límite de tamaño y la lista de
+  mime types del bucket son el único control real.
+
+  No se crea política de DELETE a propósito: con la anon key, permitir borrar
+  significaría que cualquiera puede borrar los archivos de cualquiera. El coste
+  es que reemplazar una foto deja huérfano el archivo anterior; limpiarlos
+  requiere una tarea con service_role, no una política.
+*/
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES
+  ('profile-photos', 'profile-photos', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp']),
+  ('portfolios',     'portfolios',     true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+ON CONFLICT (id) DO NOTHING;
+
+DO $$
+DECLARE
+  bucket_name text;
+BEGIN
+  FOREACH bucket_name IN ARRAY ARRAY['profile-photos', 'portfolios']
+  LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_policies
+                   WHERE schemaname = 'storage' AND tablename = 'objects'
+                     AND policyname = 'Public read ' || bucket_name) THEN
+      EXECUTE format(
+        'CREATE POLICY %I ON storage.objects FOR SELECT TO anon, authenticated USING (bucket_id = %L)',
+        'Public read ' || bucket_name, bucket_name
+      );
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies
+                   WHERE schemaname = 'storage' AND tablename = 'objects'
+                     AND policyname = 'Anyone can upload ' || bucket_name) THEN
+      EXECUTE format(
+        'CREATE POLICY %I ON storage.objects FOR INSERT TO anon, authenticated WITH CHECK (bucket_id = %L)',
+        'Anyone can upload ' || bucket_name, bucket_name
+      );
+    END IF;
+  END LOOP;
+END $$;
+
+
+-- ############################################################################
+-- MIGRATION: 20260806150000_add_reviewer_photo_to_genius_reviews.sql
+-- ############################################################################
+
+/*
+  # Foto del autor en las reseñas de clientes
+
+  La ficha de un genio muestra la inicial del nombre en un círculo donde debería
+  ir el avatar de quien reseñó. No era un olvido de la UI: la foto de un cliente
+  vive en `client_profiles.profile_image`, y esa tabla NO tiene política de
+  SELECT a propósito (guarda email, DNI, teléfono y ubicación). El navegador,
+  que solo cuenta con la anon key, no puede leerla.
+
+  ## Qué agrega
+
+  - `genius_reviews.reviewer_photo` (text): la foto del autor, guardada junto a
+    la reseña en el momento de publicarla.
+
+  ## Por qué una copia y no una vista pública
+
+  La alternativa era exponer una vista con el avatar de todos los clientes. Un
+  snapshot en la fila evita publicar cualquier dato de clientes y es el mismo
+  patrón que ya usa `user_favorites.genius_snapshot`.
+
+  El costo es que la foto queda congelada: si el cliente cambia su avatar, las
+  reseñas que ya publicó siguen mostrando el anterior. Para un material que se
+  lee como "así se veía cuando opinó", es un costo aceptable.
+
+  ## Reseñas entre colegas
+
+  No las toca. Ahí el autor es un genio y su foto se sigue leyendo en vivo desde
+  `public_genius_profiles`, que sí es pública: la columna queda vacía y el
+  servicio la completa al vuelo.
+
+  ## Reseñas ya publicadas
+
+  Quedan con la columna vacía y siguen mostrando la inicial. No hay forma de
+  recuperar la foto retroactivamente sin leer `client_profiles` con service
+  role; si hiciera falta, es una tarea aparte.
+*/
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'genius_reviews' AND column_name = 'reviewer_photo') THEN
+    ALTER TABLE genius_reviews ADD COLUMN reviewer_photo text NOT NULL DEFAULT '';
+  END IF;
+END $$;
+
+
+-- ############################################################################
+-- MIGRATION: 20260806160000_admin_read_access.sql
+-- ############################################################################
+
+/*
+  # Lectura del panel de administración
+
+  El panel mostraba ceros en todos sus indicadores. No era un error de la UI: el
+  login de admin vivía solo en el navegador (`adminAuthUtils` comparaba contra
+  dos usuarios escritos en el código con la contraseña `admin123`), así que para
+  Supabase el panel era un visitante anónimo idéntico a cualquiera que abra la
+  web, y RLS le devolvía cero filas.
+
+  A partir de esta migración los admins inician sesión con Supabase Auth de
+  verdad, y se los reconoce por `app_metadata.role`.
+
+  ## Por qué app_metadata y no una tabla
+
+  `app_metadata` solo se puede escribir con la service_role: ni el propio
+  usuario puede ascenderse a admin editando su perfil. Con `user_metadata` sí
+  podría, y una tabla `admin_users` obligaría a una consulta extra en cada
+  política. El rol viaja dentro del JWT, así que `is_admin()` no toca disco.
+
+  Los admins se crean con `node scripts/create-admin.mjs` (usa la service_role).
+
+  ## Qué abre y qué no
+
+  Se agrega lectura para admins en las tres tablas que el panel necesita y no
+  podía ver: `genius_profiles`, `client_profiles` y `reports`. Son políticas
+  aditivas: las de dueño-de-su-propia-fila siguen intactas, y nadie más gana
+  acceso.
+
+  `payment_requests`, `memberships` y `payment_history` no se tocan: ya tenían
+  SELECT para cualquier usuario autenticado. Conviene revisarlas —hoy un cliente
+  que entra con Google puede leer los pagos de toda la plataforma—, pero eso es
+  un cambio aparte, con riesgo de romper el alta de solicitudes de los genios.
+*/
+
+-- Un admin es quien tiene el rol grabado en app_metadata, dentro de su JWT.
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT coalesce(auth.jwt() -> 'app_metadata' ->> 'role', '') IN ('admin', 'super_admin');
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                 WHERE tablename = 'genius_profiles' AND policyname = 'Admins can read all genius profiles') THEN
+    CREATE POLICY "Admins can read all genius profiles"
+      ON genius_profiles FOR SELECT
+      TO authenticated
+      USING (is_admin());
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                 WHERE tablename = 'client_profiles' AND policyname = 'Admins can read all client profiles') THEN
+    CREATE POLICY "Admins can read all client profiles"
+      ON client_profiles FOR SELECT
+      TO authenticated
+      USING (is_admin());
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                 WHERE tablename = 'reports' AND policyname = 'Admins can read all reports') THEN
+    CREATE POLICY "Admins can read all reports"
+      ON reports FOR SELECT
+      TO authenticated
+      USING (is_admin());
+  END IF;
+
+  -- Moderar un reporte es cambiarle el estado; sin esto el panel puede verlos
+  -- pero no resolverlos.
+  IF NOT EXISTS (SELECT 1 FROM pg_policies
+                 WHERE tablename = 'reports' AND policyname = 'Admins can update reports') THEN
+    CREATE POLICY "Admins can update reports"
+      ON reports FOR UPDATE
+      TO authenticated
+      USING (is_admin())
+      WITH CHECK (is_admin());
+  END IF;
+END $$;
+
+
+-- ############################################################################
+-- MIGRATION: 20261113120000_lock_down_rls.sql
+-- ############################################################################
+
+/*
+  # Sprint 0 — Cerrar las reglas de acceso (RLS)
+
+  Hasta ahora varias tablas aceptaban escrituras de cualquiera: `USING (true)`
+  para `authenticated` y, en algunos casos, sin rol (o sea, también `anon`).
+  Las razones históricas (el admin y los clientes se autenticaban en
+  localStorage, sin identidad en el servidor) ya no aplican: los clientes y
+  genios entran con Google por Supabase Auth y el admin tiene su rol en
+  `app_metadata`, que lee `is_admin()`.
+
+  ## Qué cambia
+
+  | Tabla | Leer | Escribir |
+  |---|---|---|
+  | payment_settings, platform_settings | todos | solo admin |
+  | payment_requests | dueño (genio) o admin | el genio crea la suya en 'pending'; el resto, admin |
+  | memberships, payment_history, genius_subscriptions | dueño o admin | solo admin |
+  | beta_codes | solo admin | solo admin (el canje llegará por RPC en el Sprint 1) |
+  | genius_reviews | visibles: todos; propias: el autor; todas: admin | el autor la suya; moderar y borrar: admin |
+  | client_profiles | el propio cliente o admin | el propio cliente; estado y notas: admin |
+  | user_favorites | los propios o admin | los propios |
+  | whatsapp_clicks | admin | cualquiera (analítica) |
+  | reports | autor o admin | cualquiera crea en 'pending'; el resto, admin |
+  | storage (fotos, portafolio, reseñas) | todos | usuario con sesión, solo en su carpeta `<auth.uid()>/…` |
+
+  Los campos que solo debe tocar un admin (`moderation_status`, `status`,
+  `internal_notes`…) se protegen con triggers: una política no puede limitar
+  columnas, y el admin usa el mismo rol `authenticated` que cualquier usuario.
+
+  ## Datos
+
+  - Se elimina `genius_access_credentials` (guardaba contraseñas sin cifrar).
+    Las altas de genios pasan a ser por invitación + Google.
+  - Los perfiles de cliente creados con un id anterior a Supabase Auth se
+    re-asocian por email al id real, junto con sus favoritos y reseñas, para
+    que las nuevas reglas (que comparan contra `auth.uid()`) los reconozcan.
+
+  La migración es idempotente: se puede volver a correr sin efectos extra.
+*/
+
+-- ---------------------------------------------------------------------------
+-- 0. Helpers
+-- ---------------------------------------------------------------------------
+
+-- ¿Quién ejecuta? Las migraciones (postgres) y la service_role no deben
+-- quedar limitadas por los triggers de "solo admin". Los triggers que la usan
+-- son SECURITY INVOKER, así que `current_user` es el rol de quien escribe:
+-- `anon`/`authenticated` vía la API, `service_role` con esa clave, `postgres`
+-- en el SQL Editor o con psql.
+CREATE OR REPLACE FUNCTION is_privileged()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT is_admin()
+      OR current_user IN ('postgres', 'supabase_admin', 'service_role');
+$$;
+
+-- ¿Es `p_genius_id` (texto o uuid) un perfil de genio del usuario actual?
+CREATE OR REPLACE FUNCTION owns_genius_profile(p_genius_id text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM genius_profiles gp
+    WHERE gp.id::text = p_genius_id AND gp.user_id = auth.uid()
+  );
+$$;
+
+REVOKE ALL ON FUNCTION owns_genius_profile(text) FROM public;
+GRANT EXECUTE ON FUNCTION owns_genius_profile(text) TO anon, authenticated;
+
+-- Borra TODAS las políticas de una tabla de `public` para recrearlas limpias.
+-- Así no dependemos de los nombres que tuvieran en migraciones anteriores.
+CREATE OR REPLACE FUNCTION pg_temp.drop_all_policies(p_table text)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  pol record;
+BEGIN
+  FOR pol IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = p_table
+  LOOP
+    EXECUTE format('DROP POLICY %I ON public.%I', pol.policyname, p_table);
+  END LOOP;
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 1. Credenciales en texto plano: fuera
+-- ---------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS genius_access_credentials;
+
+-- ---------------------------------------------------------------------------
+-- 2. Re-asociar clientes con id heredado al id de Supabase Auth
+-- ---------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS pg_temp.client_id_remap;
+CREATE TEMP TABLE client_id_remap AS
+SELECT cp.id AS old_id, u.id::text AS new_id
+FROM client_profiles cp
+JOIN auth.users u ON lower(u.email) = lower(cp.email)
+WHERE cp.id <> u.id::text
+  AND NOT EXISTS (SELECT 1 FROM client_profiles other WHERE other.id = u.id::text);
+
+UPDATE client_profiles cp
+SET id = r.new_id
+FROM client_id_remap r
+WHERE cp.id = r.old_id;
+
+-- Favoritos: si el usuario ya tiene el mismo genio con el id nuevo, se descarta
+-- el duplicado heredado.
+DELETE FROM user_favorites f
+USING client_id_remap r
+WHERE f.user_id = r.old_id
+  AND EXISTS (SELECT 1 FROM user_favorites n
+              WHERE n.user_id = r.new_id AND n.genius_id = f.genius_id);
+
+UPDATE user_favorites f
+SET user_id = r.new_id
+FROM client_id_remap r
+WHERE f.user_id = r.old_id;
+
+-- Reseñas de cliente: misma lógica (una por cliente y genio).
+UPDATE genius_reviews g
+SET reviewer_user_id = r.new_id
+FROM client_id_remap r
+WHERE g.reviewer_type = 'client'
+  AND g.reviewer_user_id = r.old_id
+  AND NOT EXISTS (SELECT 1 FROM genius_reviews n
+                  WHERE n.reviewer_type = 'client'
+                    AND n.reviewer_user_id = r.new_id
+                    AND n.reviewed_genius_id = g.reviewed_genius_id);
+
+DROP TABLE client_id_remap;
+
+-- ---------------------------------------------------------------------------
+-- 3. Configuración: lectura pública, escritura solo admin
+-- ---------------------------------------------------------------------------
+
+SELECT pg_temp.drop_all_policies('payment_settings');
+SELECT pg_temp.drop_all_policies('platform_settings');
+
+CREATE POLICY "Public read payment settings"
+  ON payment_settings FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Admins insert payment settings"
+  ON payment_settings FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY "Admins update payment settings"
+  ON payment_settings FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+CREATE POLICY "Public read platform settings"
+  ON platform_settings FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Admins insert platform settings"
+  ON platform_settings FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY "Admins update platform settings"
+  ON platform_settings FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+-- ---------------------------------------------------------------------------
+-- 4. Pagos y membresías
+-- ---------------------------------------------------------------------------
+
+SELECT pg_temp.drop_all_policies('payment_requests');
+SELECT pg_temp.drop_all_policies('beta_codes');
+SELECT pg_temp.drop_all_policies('memberships');
+SELECT pg_temp.drop_all_policies('payment_history');
+SELECT pg_temp.drop_all_policies('genius_subscriptions');
+
+-- payment_requests: el genio ve y crea las suyas (pendientes); el admin todo.
+CREATE POLICY "Owner or admin read payment requests"
+  ON payment_requests FOR SELECT TO authenticated
+  USING (is_admin() OR owns_genius_profile(genius_profile_id::text));
+CREATE POLICY "Genius creates own pending payment request"
+  ON payment_requests FOR INSERT TO authenticated
+  WITH CHECK (
+    is_admin()
+    OR (owns_genius_profile(genius_profile_id::text) AND status = 'pending')
+  );
+CREATE POLICY "Admins update payment requests"
+  ON payment_requests FOR UPDATE TO authenticated
+  USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admins delete payment requests"
+  ON payment_requests FOR DELETE TO authenticated USING (is_admin());
+
+-- beta_codes: solo admin. El canje del genio se hará con una RPC.
+CREATE POLICY "Admins manage beta codes"
+  ON beta_codes FOR ALL TO authenticated
+  USING (is_admin()) WITH CHECK (is_admin());
+
+-- memberships
+CREATE POLICY "Owner or admin read memberships"
+  ON memberships FOR SELECT TO authenticated
+  USING (is_admin() OR owns_genius_profile(genius_profile_id::text));
+CREATE POLICY "Admins insert memberships"
+  ON memberships FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY "Admins update memberships"
+  ON memberships FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admins delete memberships"
+  ON memberships FOR DELETE TO authenticated USING (is_admin());
+
+-- payment_history
+CREATE POLICY "Owner or admin read payment history"
+  ON payment_history FOR SELECT TO authenticated
+  USING (is_admin() OR owns_genius_profile(genius_profile_id::text));
+CREATE POLICY "Admins insert payment history"
+  ON payment_history FOR INSERT TO authenticated WITH CHECK (is_admin());
+
+-- genius_subscriptions (modelo antiguo; se unifica con memberships en Sprint 1)
+CREATE POLICY "Owner or admin read subscription"
+  ON genius_subscriptions FOR SELECT TO authenticated
+  USING (is_admin() OR owns_genius_profile(genius_id::text));
+CREATE POLICY "Admins manage subscriptions"
+  ON genius_subscriptions FOR INSERT TO authenticated WITH CHECK (is_admin());
+CREATE POLICY "Admins update subscriptions"
+  ON genius_subscriptions FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+-- ---------------------------------------------------------------------------
+-- 5. Reseñas
+-- ---------------------------------------------------------------------------
+
+SELECT pg_temp.drop_all_policies('genius_reviews');
+
+-- Autor de la fila: el cliente por su id de Auth, o el genio por su perfil.
+CREATE OR REPLACE FUNCTION is_review_author(
+  p_reviewer_type text,
+  p_reviewer_user_id text,
+  p_reviewer_genius_id text
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT auth.uid() IS NOT NULL AND (
+    (p_reviewer_type = 'client' AND p_reviewer_user_id = auth.uid()::text)
+    OR (p_reviewer_type = 'genius' AND owns_genius_profile(p_reviewer_genius_id))
+  );
+$$;
+
+CREATE POLICY "Read visible, own or all if admin"
+  ON genius_reviews FOR SELECT TO anon, authenticated
+  USING (
+    moderation_status = 'visible'
+    OR is_admin()
+    OR is_review_author(reviewer_type, reviewer_user_id, reviewer_genius_id)
+  );
+
+-- Nadie se reseña a sí mismo como genio.
+CREATE POLICY "Authors insert own review"
+  ON genius_reviews FOR INSERT TO authenticated
+  WITH CHECK (
+    is_admin()
+    OR (
+      is_review_author(reviewer_type, reviewer_user_id, reviewer_genius_id)
+      AND NOT owns_genius_profile(reviewed_genius_id)
+    )
+  );
+
+CREATE POLICY "Authors update own review"
+  ON genius_reviews FOR UPDATE TO authenticated
+  USING (is_admin() OR is_review_author(reviewer_type, reviewer_user_id, reviewer_genius_id))
+  WITH CHECK (is_admin() OR is_review_author(reviewer_type, reviewer_user_id, reviewer_genius_id));
+
+CREATE POLICY "Admins delete reviews"
+  ON genius_reviews FOR DELETE TO authenticated USING (is_admin());
+
+-- Moderación e identidad: solo las cambia un admin.
+CREATE OR REPLACE FUNCTION protect_review_admin_fields()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF is_privileged() THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    NEW.moderation_status := 'visible';
+    NEW.moderation_note   := '';
+    NEW.moderated_at      := NULL;
+  ELSE
+    NEW.moderation_status  := OLD.moderation_status;
+    NEW.moderation_note    := OLD.moderation_note;
+    NEW.moderated_at       := OLD.moderated_at;
+    NEW.reviewer_type      := OLD.reviewer_type;
+    NEW.reviewer_user_id   := OLD.reviewer_user_id;
+    NEW.reviewer_genius_id := OLD.reviewer_genius_id;
+    NEW.reviewed_genius_id := OLD.reviewed_genius_id;
+    NEW.created_at         := OLD.created_at;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS genius_reviews_protect_admin_fields ON genius_reviews;
+CREATE TRIGGER genius_reviews_protect_admin_fields
+  BEFORE INSERT OR UPDATE ON genius_reviews
+  FOR EACH ROW EXECUTE FUNCTION protect_review_admin_fields();
+
+-- ---------------------------------------------------------------------------
+-- 6. Perfiles de cliente
+-- ---------------------------------------------------------------------------
+
+SELECT pg_temp.drop_all_policies('client_profiles');
+
+CREATE POLICY "Client or admin read profile"
+  ON client_profiles FOR SELECT TO authenticated
+  USING (is_admin() OR id = auth.uid()::text);
+
+-- El id y el email deben ser los de la sesión: nadie crea el perfil de otro.
+CREATE POLICY "Client inserts own profile"
+  ON client_profiles FOR INSERT TO authenticated
+  WITH CHECK (
+    id = auth.uid()::text
+    AND lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
+
+CREATE POLICY "Client or admin update profile"
+  ON client_profiles FOR UPDATE TO authenticated
+  USING (is_admin() OR id = auth.uid()::text)
+  WITH CHECK (is_admin() OR id = auth.uid()::text);
+
+CREATE OR REPLACE FUNCTION protect_client_admin_fields()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF is_privileged() THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    NEW.status         := 'active';
+    NEW.internal_notes := '';
+  ELSE
+    NEW.status         := OLD.status;
+    NEW.internal_notes := OLD.internal_notes;
+    NEW.id             := OLD.id;
+    NEW.email          := OLD.email;
+    NEW.created_at     := OLD.created_at;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS client_profiles_protect_admin_fields ON client_profiles;
+CREATE TRIGGER client_profiles_protect_admin_fields
+  BEFORE INSERT OR UPDATE ON client_profiles
+  FOR EACH ROW EXECUTE FUNCTION protect_client_admin_fields();
+
+-- ---------------------------------------------------------------------------
+-- 7. Favoritos
+-- ---------------------------------------------------------------------------
+
+SELECT pg_temp.drop_all_policies('user_favorites');
+
+CREATE POLICY "Owner or admin read favorites"
+  ON user_favorites FOR SELECT TO authenticated
+  USING (is_admin() OR user_id = auth.uid()::text);
+CREATE POLICY "Owner inserts favorites"
+  ON user_favorites FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid()::text);
+CREATE POLICY "Owner deletes favorites"
+  ON user_favorites FOR DELETE TO authenticated
+  USING (user_id = auth.uid()::text);
+
+-- ---------------------------------------------------------------------------
+-- 8. Analítica de WhatsApp: cualquiera registra, solo admin lee
+-- ---------------------------------------------------------------------------
+
+SELECT pg_temp.drop_all_policies('whatsapp_clicks');
+
+CREATE POLICY "Anyone records whatsapp click"
+  ON whatsapp_clicks FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Admins read whatsapp clicks"
+  ON whatsapp_clicks FOR SELECT TO authenticated USING (is_admin());
+
+-- Las RPC de contadores corren como definer: fijar search_path evita que un
+-- esquema ajeno suplante `genius_profiles`.
+ALTER FUNCTION increment_genius_whatsapp_clicks(text) SET search_path = public;
+ALTER FUNCTION increment_genius_profile_views(text) SET search_path = public;
+
+-- ---------------------------------------------------------------------------
+-- 9. Reportes: también los visitantes sin sesión pueden reportar
+-- ---------------------------------------------------------------------------
+
+SELECT pg_temp.drop_all_policies('reports');
+
+CREATE POLICY "Anyone submits pending report"
+  ON reports FOR INSERT TO anon, authenticated
+  WITH CHECK (
+    status = 'pending'
+    AND coalesce(admin_notes, '') = ''
+    AND (reporter_id IS NULL OR reporter_id = auth.uid())
+  );
+CREATE POLICY "Reporter or admin read reports"
+  ON reports FOR SELECT TO authenticated
+  USING (is_admin() OR reporter_id = auth.uid());
+CREATE POLICY "Admins update reports"
+  ON reports FOR UPDATE TO authenticated
+  USING (is_admin()) WITH CHECK (is_admin());
+CREATE POLICY "Admins delete reports"
+  ON reports FOR DELETE TO authenticated USING (is_admin());
+
+-- ---------------------------------------------------------------------------
+-- 10. Storage: subir solo con sesión y dentro de la carpeta propia
+-- ---------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS "Anyone can upload profile-photos" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can upload portfolios" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can upload review images" ON storage.objects;
+DROP POLICY IF EXISTS "Users upload to own folder" ON storage.objects;
+
+CREATE POLICY "Users upload to own folder"
+  ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id IN ('profile-photos', 'portfolios', 'review-images')
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );

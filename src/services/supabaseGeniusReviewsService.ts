@@ -63,10 +63,11 @@ export const getReviewsForGenius = async (reviewedGeniusId: string): Promise<Gen
 
   if (!data || data.length === 0) return [];
 
-  // Enrich with reviewer profile data
+  // Enrich with reviewer profile data. La vista pública, no la tabla: la RLS de
+  // genius_profiles solo deja leer el perfil propio.
   const reviewerIds = [...new Set(data.map((r) => r.reviewer_genius_id))];
   const { data: profiles } = await supabase
-    .from('genius_profiles')
+    .from('public_genius_profiles')
     .select('id, full_name, profile_photo, category')
     .in('id', reviewerIds);
 
@@ -220,6 +221,16 @@ export const uploadReviewImages = async (
 ): Promise<string[]> => {
   const uploaded: string[] = [];
 
+  // Storage solo acepta subidas dentro de la carpeta del propio usuario
+  // (`<auth.uid()>/…`); sin sesión no hay dónde subir.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const userId = sessionData.session?.user.id;
+  if (!userId) {
+    console.error('Error uploading review images: no hay sesión iniciada');
+    return images.filter((image): image is string =>
+      typeof image === 'string' && !image.startsWith('data:'));
+  }
+
   for (const [index, image] of images.entries()) {
     // Una URL ya subida no se vuelve a subir
     if (typeof image === 'string' && !image.startsWith('data:')) {
@@ -231,7 +242,7 @@ export const uploadReviewImages = async (
       const original = typeof image === 'string' ? await (await fetch(image)).blob() : image;
       const blob = await compressImage(original, GALLERY_PRESET);
       const extension = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
-      const path = `${reviewedGeniusId}/${Date.now()}-${index}.${extension}`;
+      const path = `${userId}/${reviewedGeniusId}-${Date.now()}-${index}.${extension}`;
 
       const { error } = await supabase.storage
         .from(REVIEW_IMAGES_BUCKET)

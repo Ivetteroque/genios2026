@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { X, Flag, CheckCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { getCurrentUser } from '../utils/authUtils';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -39,18 +38,22 @@ const ReportModal: React.FC<ReportModalProps> = ({
   const [details, setDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
 
   const reasons = targetType === 'profile' ? PROFILE_REASONS : COMMENT_REASONS;
-  const currentUser = getCurrentUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedReason) return;
 
     setSubmitting(true);
+    setSubmitError(false);
     try {
-      await supabase.from('reports').insert({
-        reporter_id: currentUser?.id ?? null,
+      // El autor es quien tiene sesión en Supabase (la RLS lo exige); sin
+      // sesión el reporte va como anónimo.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const { error } = await supabase.from('reports').insert({
+        reporter_id: sessionData.session?.user.id ?? null,
         target_type: targetType,
         target_id: targetId,
         genius_profile_id: geniusProfileId ?? (targetType === 'profile' ? targetId : null),
@@ -58,6 +61,7 @@ const ReportModal: React.FC<ReportModalProps> = ({
         details: details.trim(),
         status: 'pending',
       });
+      if (error) throw error;
       setSubmitted(true);
       setTimeout(() => {
         setSubmitted(false);
@@ -65,8 +69,9 @@ const ReportModal: React.FC<ReportModalProps> = ({
         setDetails('');
         onClose();
       }, 2200);
-    } catch {
-      // silently fail — report attempt is best-effort
+    } catch (error) {
+      console.error('Error enviando el reporte:', error);
+      setSubmitError(true);
     } finally {
       setSubmitting(false);
     }
@@ -163,6 +168,12 @@ const ReportModal: React.FC<ReportModalProps> = ({
                     <p className="text-[10px] text-[#2F2F2F]/25 mt-0.5 text-right">{details.length}/300</p>
                   )}
                 </div>
+
+                {submitError && (
+                  <p className="text-xs text-red-500 text-center" role="alert">
+                    No pudimos enviar el reporte. Inténtalo de nuevo en un momento.
+                  </p>
+                )}
 
                 {/* Submit */}
                 <button
