@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Conexión directa a la base de Supabase (incluye la contraseña de la base).
+# Se usa para aplicar migraciones; nunca debe subirse al repositorio.
+# Ya lo cubre *.local, pero se deja explícito para que no dependa de esa regla.
+.env.db.local
