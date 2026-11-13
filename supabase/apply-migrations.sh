@@ -30,11 +30,11 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
-# Sin argumentos, las migraciones pendientes en producción. Al 2026-11-13 todas
-# las anteriores (hasta 20260806160000) ya están aplicadas. Al agregar una
+# Sin argumentos, las migraciones pendientes en producción. Al 2026-11-14 todas
+# las anteriores (hasta 20261113120000) ya están aplicadas. Al agregar una
 # migración nueva, súmala aquí y regenera el esquema con `pnpm db:schema`.
 DEFAULT_MIGRATIONS=(
-  "supabase/migrations/20261113120000_lock_down_rls.sql"
+  "supabase/migrations/20261114120000_business_model.sql"
 )
 
 if [[ $# -gt 0 ]]; then

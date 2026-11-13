@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, Upload, X, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { IDENTITY_DOCUMENTS_BUCKET, uploadPrivateFile } from '../services/membershipService';
 
 interface DocumentUploadFieldProps {
   label: string;
@@ -81,25 +82,27 @@ const DocumentUploadField: React.FC<DocumentUploadFieldProps> = ({
     setIsLoading(true);
     setError('');
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setIsLoading(false);
-      
-      const document = {
-        name: file.name,
-        type: documentType,
-        url: reader.result as string,
-        uploadedAt: new Date().toISOString(),
-        verified: false // Will be verified by admin
-      };
-      
-      onDocumentChange(document);
-    };
-    reader.onerror = () => {
-      setIsLoading(false);
-      setError('Error al cargar el archivo');
-    };
-    reader.readAsDataURL(file);
+    // El documento va a un bucket PRIVADO (solo lo ven su dueño y el admin).
+    // En `url` se guarda la ruta dentro del bucket, no un enlace público ni el
+    // archivo en base64: para verlo hace falta un enlace firmado temporal.
+    uploadPrivateFile(IDENTITY_DOCUMENTS_BUCKET, file, documentType)
+      .then((path) => {
+        onDocumentChange({
+          name: file.name,
+          type: documentType,
+          url: path,
+          uploadedAt: new Date().toISOString(),
+          verified: false, // Lo verifica el admin
+        });
+      })
+      .catch((uploadError) => {
+        console.error('Error subiendo el documento:', uploadError);
+        setError('No pudimos subir el archivo. Revisa tu conexión e inténtalo de nuevo.');
+      })
+      .finally(() => {
+        setIsLoading(false);
+        e.target.value = '';
+      });
   };
 
   const getStatusIcon = () => {

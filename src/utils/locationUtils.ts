@@ -1,5 +1,7 @@
 // Location management utility functions for Peru
 
+import { fetchCatalog, publishCatalogInBackground } from '../services/catalogService';
+
 export interface District {
   id: string;
   name: string;
@@ -754,21 +756,34 @@ export const getLocations = (): Department[] => {
     console.error('Error loading locations:', error);
   }
   
-  // Initialize with default locations
-  saveLocations(defaultPeruLocations);
+  // Sin caché todavía: valores por defecto del código (no se publican).
+  cacheLocations(defaultPeruLocations);
   return defaultPeruLocations;
 };
 
-// Save locations to localStorage
-export const saveLocations = (locations: Department[]): void => {
+/** Guarda la caché local y avisa a los componentes. No toca el servidor. */
+const cacheLocations = (locations: Department[]): void => {
   try {
     localStorage.setItem('peruLocations', JSON.stringify(locations));
-    
-    // Dispatch event to notify components of location changes
     window.dispatchEvent(new CustomEvent('locationsChanged', { detail: locations }));
   } catch (error) {
     console.error('Error saving locations:', error);
   }
+};
+
+/**
+ * Guarda un cambio del admin: actualiza la caché y lo publica en Supabase
+ * (`site_catalogs`) para que lo vean todos los visitantes.
+ */
+export const saveLocations = (locations: Department[]): void => {
+  cacheLocations(locations);
+  publishCatalogInBackground('locations', locations);
+};
+
+/** Trae del servidor la versión vigente y refresca la caché. */
+export const syncLocationsFromServer = async (): Promise<void> => {
+  const remote = await fetchCatalog<Department[]>('locations');
+  if (Array.isArray(remote) && remote.length > 0) cacheLocations(remote);
 };
 
 // Get only active departments (for public display)

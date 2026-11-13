@@ -43,10 +43,6 @@ const GeniusDashboardContainer: React.FC = () => {
     setViewMode('calendar');
   };
 
-  const handleManageSubscription = () => {
-    alert('Funcionalidad de suscripción en desarrollo');
-  };
-
   const handleWizardComplete = () => {
     // Completing the wizard is what turns a client into a Genio: they now have a
     // genius_profile in the DB, so grant the capability locally too.
@@ -93,7 +89,6 @@ const GeniusDashboardContainer: React.FC = () => {
     <GeniusDashboard
       onEditProfile={handleEditProfile}
       onConfigureCalendar={handleConfigureCalendar}
-      onManageSubscription={handleManageSubscription}
     />
   );
 };

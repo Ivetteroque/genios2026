@@ -2,23 +2,30 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-import { initializeMockPaymentData } from './utils/paymentUtils';
-import { getCategories } from './utils/categoryUtils';
-import { getLocations } from './utils/locationUtils';
+import { syncCategoriesFromServer } from './utils/categoryUtils';
+import { syncLocationsFromServer } from './utils/locationUtils';
 
-// Inicializar datos mock al inicio de la aplicación
-initializeMockPaymentData();
-getCategories(); // Esto inicializa las categorías si no existen
-getLocations(); // Esto inicializa las ubicaciones si no existen
+// Categorías y ubicaciones viven en Supabase (`site_catalogs`); el navegador
+// guarda una caché para leerlas al instante. Se refresca en cada visita, sin
+// bloquear el primer render: los componentes escuchan `categoriesChanged` y
+// `locationsChanged`.
+syncCategoriesFromServer().catch((error) => console.error('Error sincronizando categorías:', error));
+syncLocationsFromServer().catch((error) => console.error('Error sincronizando ubicaciones:', error));
 
-// El antiguo alta de genios por el admin guardaba en este navegador las
-// contraseñas iniciales sin cifrar. Ese flujo ya no existe: se borra el rastro.
+// Limpieza de datos que ya no se usan en este navegador:
+// - geniusPendingAccess: contraseñas iniciales sin cifrar del antiguo alta de
+//   genios por el admin.
+// - paymentVouchers, trialCodes, geniusSubscriptions: datos de pago de prueba
+//   que se sembraban en cada visita; los reales están en Supabase.
+// - genios: copia local que leía el panel admin antes de usar Supabase.
 //
 // Ya no se rescatan aquí las reseñas antiguas de localStorage
 // (migrateLegacyReviews): con la RLS actual solo su autor, con sesión, puede
 // publicarlas, así que para cualquier otro visitante fallaría en cada carga.
 try {
-  localStorage.removeItem('geniusPendingAccess');
+  ['geniusPendingAccess', 'paymentVouchers', 'trialCodes', 'geniusSubscriptions', 'genios'].forEach((key) =>
+    localStorage.removeItem(key)
+  );
 } catch {
   // Sin acceso a localStorage no hay nada que limpiar.
 }

@@ -26,6 +26,42 @@ import { getGeniusProfile } from '../services/supabaseGeniusService';
  * estaba y solo se actualiza el header con su cuenta.
  */
 
+/** ¿El admin suspendió esta cuenta de cliente? (RLS deja leer la fila propia) */
+const isSuspendedAccount = async (userId: string): Promise<boolean> => {
+  const { data, error } = await supabase
+    .from('client_profiles')
+    .select('status')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) {
+    // Ante un error de red no se expulsa a nadie: la RLS sigue protegiendo.
+    console.error('No se pudo comprobar el estado de la cuenta:', error);
+    return false;
+  }
+  return data?.status === 'suspended';
+};
+
+// getSession() y onAuthStateChange pueden procesar la misma sesión a la vez:
+// el aviso se muestra una sola vez.
+let suspendedHandled = false;
+
+const logoutSuspended = async () => {
+  if (suspendedHandled) return;
+  suspendedHandled = true;
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('isAuthenticated');
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+  } catch (err) {
+    console.error('Supabase signOut error:', err);
+  }
+  window.dispatchEvent(new Event('authStateChanged'));
+  alert(
+    'Tu cuenta está suspendida y no puedes iniciar sesión por ahora.\n\n' +
+      'Si crees que es un error, escríbenos por WhatsApp desde la sección de contacto.'
+  );
+};
+
 const SocialAuthBridge: React.FC = () => {
   // Guards against the initial getSession() and onAuthStateChange both firing
   // for the same sign-in and processing it twice.
@@ -42,6 +78,14 @@ const SocialAuthBridge: React.FC = () => {
       // panel dejaría al admin "logueado" como usuario en la web pública.
       const role = (su.app_metadata as { role?: string } | undefined)?.role;
       if (role === 'admin' || role === 'super_admin') return;
+
+      // Una cuenta suspendida por el admin no puede entrar. Se comprueba en
+      // cada carga, no solo al iniciar sesión, para expulsar también una
+      // sesión que ya estaba abierta cuando se la suspendió.
+      if (await isSuspendedAccount(su.id)) {
+        await logoutSuspended();
+        return;
+      }
 
       const emailKey = email.toLowerCase();
 

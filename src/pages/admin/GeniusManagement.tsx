@@ -1,136 +1,175 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Search,
   MoreVertical,
   MessageCircle,
   Eye,
-  FileText,
-  UserCheck,
   Star,
   Activity,
   StickyNote,
   Download,
   MapPin,
   X,
-  ChevronDown,
+  Ban,
+  RotateCcw,
 } from 'lucide-react';
-import {
-  getGenios,
-  updateGeniusStatus,
-  markGeniusAsNew,
-  markGeniusAsFeatured,
-  updateGeniusInternalNotes,
-  exportGeniosData,
-  type Genius,
-} from '../../utils/geniusUtils';
-import { getSubscriptionByGenius } from '../../utils/paymentUtils';
-import { handleWhatsAppContact } from '../../utils/whatsappUtils';
 import { formatDateToSpanish } from '../../utils/commonUtils';
 import GeniusProfilePreviewModal from '../../components/GeniusProfilePreviewModal';
+import { convertGeniusProfileToGenius } from '../../services/supabaseGeniusService';
+import {
+  type AdminGenius,
+  getFullGeniusProfile,
+  listGeniusesForAdmin,
+  reactivateGenius,
+  suspendGenius,
+  updateGeniusAsAdmin,
+} from '../../services/adminGeniusService';
+import { daysUntil, isMembershipActive, EXPIRING_SOON_DAYS } from '../../services/membershipService';
+import type { Genius } from '../../utils/geniusUtils';
 
 const DEFAULT_AVATAR = 'https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&fit=crop';
+const NEW_DAYS = 30;
 
-const STATUS_CONFIG: Record<string, { label: string; classes: string; dot: string }> = {
+const STATUS_CONFIG: Record<AdminGenius['status'], { label: string; classes: string; dot: string }> = {
   active:    { label: 'Activo',     classes: 'bg-green-50 text-green-700',  dot: 'bg-green-400' },
-  inactive:  { label: 'Inactivo',   classes: 'bg-gray-100 text-text/50',    dot: 'bg-gray-300' },
   suspended: { label: 'Suspendido', classes: 'bg-red-50 text-red-600',      dot: 'bg-red-400' },
 };
 
+const isNew = (g: AdminGenius) => Date.now() - new Date(g.created_at).getTime() < NEW_DAYS * 86400000;
+
+/** Etiqueta de membresía: lo que decide si aparece en el directorio. */
+const membershipInfo = (g: AdminGenius) => {
+  const m = g.membership;
+  if (!m) return { label: 'Sin acceso', classes: 'bg-gray-100 text-text/40', visible: false };
+  if (m.status === 'suspended') return { label: 'Membresía suspendida', classes: 'bg-red-50 text-red-600', visible: false };
+  if (!isMembershipActive(m)) return { label: 'Vencida', classes: 'bg-gray-100 text-text/45', visible: false };
+  const days = daysUntil(m.ends_at);
+  const base = m.type === 'beta' ? 'Beta' : 'Anual';
+  return {
+    label: `${base} · ${days} d`,
+    classes: days <= EXPIRING_SOON_DAYS ? 'bg-amber-50 text-amber-700' : m.type === 'beta' ? 'bg-[#A0C4FF]/30 text-blue-700' : 'bg-[#C0FDFB]/50 text-teal-700',
+    visible: true,
+  };
+};
+
+const locationLabel = (g: AdminGenius) =>
+  [g.home_location?.districtName, g.home_location?.provinceName].filter(Boolean).join(', ');
+
+/** WhatsApp del equipo al genio. No usa handleWhatsAppContact: esa cuenta el clic como contacto de un cliente. */
+const contactGenius = (g: AdminGenius) => {
+  const msg = encodeURIComponent(`Hola ${g.full_name}, te escribimos del equipo de Genios.`);
+  window.open(`https://wa.me/51${g.phone.replace(/\D/g, '')}?text=${msg}`, '_blank', 'noopener');
+};
+
+const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
 const GeniusManagement: React.FC = () => {
-  const [genios, setGenios] = useState<Genius[]>([]);
-  const [filteredGenios, setFilteredGenios] = useState<Genius[]>([]);
+  const [genios, setGenios] = useState<AdminGenius[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [tagFilter, setTagFilter] = useState<string>('all');
-  const [selectedGenius, setSelectedGenius] = useState<Genius | null>(null);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedGenius, setSelectedGenius] = useState<AdminGenius | null>(null);
+  const [previewData, setPreviewData] = useState<Genius | null>(null);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [notesText, setNotesText] = useState('');
+  const [suspendReason, setSuspendReason] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => { loadGenios(); }, []);
-  useEffect(() => { filterGenios(); }, [genios, searchTerm, statusFilter, tagFilter]);
-
-  const loadGenios = () => setGenios(getGenios());
-
-  const filterGenios = () => {
-    let filtered = genios;
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (g) => g.name.toLowerCase().includes(q) || g.category.toLowerCase().includes(q) || g.location.district.toLowerCase().includes(q)
-      );
+  const loadGenios = useCallback(async () => {
+    setLoadError('');
+    try {
+      setGenios(await listGeniusesForAdmin());
+    } catch (error) {
+      console.error('Error cargando genios:', error);
+      setLoadError('No se pudieron cargar los genios. Revisa tu sesión de admin.');
+    } finally {
+      setLoading(false);
     }
-    if (statusFilter !== 'all') filtered = filtered.filter((g) => g.status === statusFilter);
-    if (tagFilter !== 'all') {
-      filtered = filtered.filter((g) => {
-        if (tagFilter === 'new') return g.isNew;
-        if (tagFilter === 'verified') return g.isVerified;
-        if (tagFilter === 'featured') return g.isFeatured;
-        return true;
-      });
+  }, []);
+
+  useEffect(() => { loadGenios(); }, [loadGenios]);
+
+  const filteredGenios = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return genios.filter((g) => {
+      if (q && !`${g.full_name} ${g.category} ${locationLabel(g)} ${g.email}`.toLowerCase().includes(q)) return false;
+      if (statusFilter === 'visible' && !(g.status === 'active' && membershipInfo(g).visible)) return false;
+      if (statusFilter === 'no_access' && membershipInfo(g).visible) return false;
+      if (statusFilter === 'suspended' && g.status !== 'suspended') return false;
+      if (tagFilter === 'new' && !isNew(g)) return false;
+      if (tagFilter === 'verified' && g.verification_status !== 'verified') return false;
+      if (tagFilter === 'pending_dni' && g.verification_status !== 'pending') return false;
+      if (tagFilter === 'featured' && !g.is_featured) return false;
+      return true;
+    });
+  }, [genios, searchTerm, statusFilter, tagFilter]);
+
+  /** Ejecuta una acción, avisa si falla y recarga la lista. */
+  const run = async (action: () => Promise<void>) => {
+    setSaving(true);
+    try {
+      await action();
+      await loadGenios();
+    } catch (error) {
+      console.error('Error actualizando genio:', error);
+      alert('No se pudo guardar el cambio. Inténtalo de nuevo.');
+    } finally {
+      setSaving(false);
+      setActiveDropdown(null);
     }
-    setFilteredGenios(filtered);
   };
 
-  const handleStatusChange = async (id: string, status: 'active' | 'inactive' | 'suspended') => {
-    await updateGeniusStatus(id, status).catch(console.error);
-    loadGenios();
-    setActiveDropdown(null);
-  };
-
-  const handleToggleNew = async (id: string, isNew: boolean) => {
-    await markGeniusAsNew(id, !isNew).catch(console.error);
-    loadGenios();
-    setActiveDropdown(null);
-  };
-
-  const handleToggleFeatured = async (id: string, isFeatured: boolean) => {
-    await markGeniusAsFeatured(id, !isFeatured).catch(console.error);
-    loadGenios();
-    setActiveDropdown(null);
-  };
-
-  const handleNotesSubmit = async () => {
-    if (!selectedGenius) return;
-    await updateGeniusInternalNotes(selectedGenius.id, notesText).catch(console.error);
-    loadGenios();
+  const closeModals = () => {
     setShowNotesModal(false);
+    setShowActivityModal(false);
+    setShowSuspendModal(false);
     setSelectedGenius(null);
     setNotesText('');
+    setSuspendReason('');
   };
 
-  const getSubscriptionInfo = (id: string) => {
-    const sub = getSubscriptionByGenius(id);
-    if (!sub) return { label: 'Sin plan', classes: 'bg-gray-100 text-text/40' };
-    if (sub.type === 'trial') return { label: 'Beta', classes: 'bg-[#A0C4FF]/30 text-blue-700' };
-    return { label: `Vence ${formatDateToSpanish(sub.endDate)}`, classes: 'bg-[#C0FDFB]/50 text-teal-700' };
+  const openPreview = async (g: AdminGenius) => {
+    setActiveDropdown(null);
+    try {
+      const full = await getFullGeniusProfile(g.id);
+      if (full) setPreviewData(convertGeniusProfileToGenius(full));
+    } catch (error) {
+      console.error('Error cargando el perfil:', error);
+      alert('No se pudo abrir el perfil.');
+    }
   };
 
   const handleExportData = () => {
-    try {
-      exportGeniosData('csv');
-    } catch {
-      alert('Error al exportar los datos.');
-    }
+    const header = ['Nombre', 'Correo', 'Teléfono', 'Categoría', 'Ubicación', 'Estado', 'Acceso', 'Vence', 'DNI', 'Visitas', 'WhatsApp', 'Registrado'];
+    const rows = genios.map((g) => [
+      g.full_name, g.email, g.phone, g.category, locationLabel(g), STATUS_CONFIG[g.status].label,
+      membershipInfo(g).label, g.membership?.ends_at?.slice(0, 10) ?? '', g.verification_status,
+      g.profile_views, g.whatsapp_clicks, g.created_at.slice(0, 10),
+    ]);
+    const csv = [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([`${String.fromCharCode(0xfeff)}${csv}`], { type: 'text/csv;charset=utf-8' }));
+    link.download = `genios_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   // Summary metrics
-  const total = genios.length;
-  const activos = genios.filter((g) => g.status === 'active').length;
-  const beta = genios.filter((g) => {
-    const sub = getSubscriptionByGenius(g.id);
-    return sub?.type === 'trial';
-  }).length;
-  const pendientes = genios.filter((g) => g.status === 'inactive').length;
+  const visibles = genios.filter((g) => g.status === 'active' && membershipInfo(g).visible).length;
+  const beta = genios.filter((g) => g.membership?.type === 'beta' && isMembershipActive(g.membership)).length;
+  const sinAcceso = genios.filter((g) => g.status === 'active' && !membershipInfo(g).visible).length;
   const suspendidos = genios.filter((g) => g.status === 'suspended').length;
 
   const metrics = [
-    { label: 'Total', value: total, bg: 'bg-white', border: 'border-gray-100' },
-    { label: 'Activos', value: activos, bg: 'bg-[#C0FDFB]/30', border: 'border-[#C0FDFB]' },
-    { label: 'Beta', value: beta, bg: 'bg-[#A0C4FF]/20', border: 'border-[#A0C4FF]/60' },
-    { label: 'Inactivos', value: pendientes, bg: 'bg-gray-50', border: 'border-gray-200' },
+    { label: 'Total', value: genios.length, bg: 'bg-white', border: 'border-gray-100' },
+    { label: 'Visibles', value: visibles, bg: 'bg-[#C0FDFB]/30', border: 'border-[#C0FDFB]' },
+    { label: 'En beta', value: beta, bg: 'bg-[#A0C4FF]/20', border: 'border-[#A0C4FF]/60' },
+    { label: 'Sin acceso', value: sinAcceso, bg: 'bg-gray-50', border: 'border-gray-200' },
     { label: 'Suspendidos', value: suspendidos, bg: 'bg-[#FFADAD]/20', border: 'border-[#FFADAD]/60' },
   ];
 
@@ -141,17 +180,18 @@ const GeniusManagement: React.FC = () => {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="font-heading text-lg font-semibold text-text">Genios</h1>
-            <p className="text-sm text-text/40 mt-0.5">Gestiona los profesionales registrados en la plataforma</p>
+            <p className="text-sm text-text/40 mt-0.5">
+              Un genio aparece en el directorio si está activo y tiene un acceso vigente (beta o anual).
+            </p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={handleExportData}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text/55 bg-white border border-gray-200 hover:border-gray-300 hover:text-text transition-colors"
-            >
-              <Download style={{ width: '14px', height: '14px' }} />
-              Exportar CSV
-            </button>
-          </div>
+          <button
+            onClick={handleExportData}
+            disabled={genios.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-text/55 bg-white border border-gray-200 hover:border-gray-300 hover:text-text transition-colors disabled:opacity-40 flex-shrink-0"
+          >
+            <Download style={{ width: '14px', height: '14px' }} />
+            Exportar CSV
+          </button>
         </div>
 
         {/* Metrics */}
@@ -170,7 +210,7 @@ const GeniusManagement: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/25" />
             <input
               type="text"
-              placeholder="Buscar genios..."
+              placeholder="Buscar por nombre, oficio, distrito o correo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-text/15 focus:border-text/25 placeholder:text-text/25 transition-colors"
@@ -179,21 +219,24 @@ const GeniusManagement: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filtrar por estado"
             className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-text/15 text-text/60 transition-colors"
           >
             <option value="all">Todos los estados</option>
-            <option value="active">Activo</option>
-            <option value="inactive">Inactivo</option>
-            <option value="suspended">Suspendido</option>
+            <option value="visible">Visibles</option>
+            <option value="no_access">Sin acceso vigente</option>
+            <option value="suspended">Suspendidos</option>
           </select>
           <select
             value={tagFilter}
             onChange={(e) => setTagFilter(e.target.value)}
+            aria-label="Filtrar por etiqueta"
             className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-text/15 text-text/60 transition-colors"
           >
             <option value="all">Todas las etiquetas</option>
             <option value="new">Nuevo</option>
             <option value="verified">Verificado</option>
+            <option value="pending_dni">DNI por revisar</option>
             <option value="featured">Destacado</option>
           </select>
           <span className="text-xs text-text/30 ml-auto whitespace-nowrap">
@@ -202,19 +245,32 @@ const GeniusManagement: React.FC = () => {
         </div>
 
         {/* Cards list */}
-        {filteredGenios.length === 0 ? (
+        {loading ? (
+          <div className="space-y-3">
+            {[0, 1, 2].map((i) => <div key={i} className="h-20 bg-white rounded-xl border border-gray-100 animate-pulse" />)}
+          </div>
+        ) : loadError ? (
+          <div className="bg-white rounded-xl border border-red-100 py-10 text-center">
+            <p className="text-sm text-red-600 mb-3">{loadError}</p>
+            <button onClick={loadGenios} className="text-sm text-text/60 underline">Reintentar</button>
+          </div>
+        ) : filteredGenios.length === 0 ? (
           <div className="bg-white rounded-xl border border-gray-100 py-16 text-center">
             <div className="text-3xl mb-3">👋</div>
-            <p className="text-sm font-medium text-text mb-1">Aún no tienes genios registrados</p>
+            <p className="text-sm font-medium text-text mb-1">
+              {genios.length === 0 ? 'Aún no tienes genios registrados' : 'Ningún genio coincide con los filtros'}
+            </p>
             <p className="text-sm text-text/40">
-              Los genios aparecen aquí cuando se registran con Google y completan su perfil.
+              {genios.length === 0
+                ? 'Los genios aparecen aquí cuando se registran con Google y completan su perfil.'
+                : 'Prueba con otra búsqueda o limpia los filtros.'}
             </p>
           </div>
         ) : (
           <div className="space-y-3">
             {filteredGenios.map((genius) => {
-              const sub = getSubscriptionInfo(genius.id);
-              const statusCfg = STATUS_CONFIG[genius.status] || STATUS_CONFIG.inactive;
+              const access = membershipInfo(genius);
+              const statusCfg = STATUS_CONFIG[genius.status] ?? STATUS_CONFIG.active;
               const isOpen = activeDropdown === genius.id;
 
               return (
@@ -224,51 +280,59 @@ const GeniusManagement: React.FC = () => {
                 >
                   {/* Avatar */}
                   <img
-                    src={genius.profileImage || DEFAULT_AVATAR}
-                    alt={genius.name}
+                    src={genius.profile_photo || DEFAULT_AVATAR}
+                    alt=""
                     className="w-11 h-11 rounded-full object-cover flex-shrink-0"
                   />
 
                   {/* Main info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium text-text">{genius.name}</p>
-                      {genius.isNew && (
+                      <p className="text-sm font-medium text-text">{genius.full_name || 'Sin nombre'}</p>
+                      {isNew(genius) && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#A0C4FF]/30 text-blue-700">Nuevo</span>
                       )}
-                      {genius.isVerified && (
+                      {genius.verification_status === 'verified' && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#C0FDFB]/50 text-teal-700">Verificado</span>
                       )}
-                      {genius.isFeatured && (
+                      {genius.verification_status === 'pending' && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700">DNI por revisar</span>
+                      )}
+                      {genius.is_featured && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">Destacado</span>
                       )}
                     </div>
-                    <p className="text-xs text-text/45 mt-0.5 truncate">{genius.category}</p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <MapPin style={{ width: '10px', height: '10px' }} className="text-text/25 flex-shrink-0" />
-                      <p className="text-[10px] text-text/30 truncate">{genius.location?.district}</p>
-                    </div>
+                    <p className="text-xs text-text/45 mt-0.5 truncate">{genius.category || 'Sin categoría'}</p>
+                    {locationLabel(genius) && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <MapPin style={{ width: '10px', height: '10px' }} className="text-text/25 flex-shrink-0" />
+                        <p className="text-[10px] text-text/30 truncate">{locationLabel(genius)}</p>
+                      </div>
+                    )}
+                    {genius.status === 'suspended' && genius.suspension_reason && (
+                      <p className="text-[10px] text-red-500 mt-1 truncate">Motivo: {genius.suspension_reason}</p>
+                    )}
                   </div>
 
                   {/* Quick metrics */}
                   <div className="hidden sm:flex items-center gap-4 text-center flex-shrink-0">
                     <div>
-                      <p className="text-xs font-medium text-text">{genius.stats?.profileViews ?? 0}</p>
+                      <p className="text-xs font-medium text-text">{genius.profile_views ?? 0}</p>
                       <p className="text-[10px] text-text/30">Visitas</p>
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-text">{genius.stats?.whatsappClicks ?? 0}</p>
+                      <p className="text-xs font-medium text-text">{genius.whatsapp_clicks ?? 0}</p>
                       <p className="text-[10px] text-text/30">WhatsApp</p>
                     </div>
                     <div>
-                      <p className="text-xs font-medium text-text">{genius.stats?.favoritesCount ?? 0}</p>
+                      <p className="text-xs font-medium text-text">{genius.favorites_count}</p>
                       <p className="text-[10px] text-text/30">Favoritos</p>
                     </div>
                   </div>
 
-                  {/* Subscription */}
-                  <span className={`hidden md:inline-flex text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${sub.classes}`}>
-                    {sub.label}
+                  {/* Access */}
+                  <span className={`hidden md:inline-flex text-[10px] font-medium px-2 py-1 rounded-full flex-shrink-0 ${access.classes}`}>
+                    {access.label}
                   </span>
 
                   {/* Status badge */}
@@ -279,16 +343,17 @@ const GeniusManagement: React.FC = () => {
 
                   {/* WhatsApp */}
                   <button
-                    onClick={() => handleWhatsAppContact(genius.phone, genius.name)}
+                    onClick={() => contactGenius(genius)}
                     className="p-1.5 text-text/25 hover:text-green-500 hover:bg-green-50 rounded-lg transition-colors flex-shrink-0"
                     title="Contactar por WhatsApp"
+                    aria-label={`Contactar a ${genius.full_name} por WhatsApp`}
                   >
                     <MessageCircle style={{ width: '15px', height: '15px' }} />
                   </button>
 
                   {/* View profile */}
                   <button
-                    onClick={() => { setSelectedGenius(genius); setShowProfileModal(true); }}
+                    onClick={() => openPreview(genius)}
                     className="hidden sm:inline-flex items-center gap-1 px-3 py-1.5 text-xs text-text/55 border border-gray-200 rounded-lg hover:border-gray-300 hover:text-text transition-colors flex-shrink-0"
                   >
                     <Eye style={{ width: '12px', height: '12px' }} />
@@ -300,28 +365,40 @@ const GeniusManagement: React.FC = () => {
                     <button
                       onClick={() => setActiveDropdown(isOpen ? null : genius.id)}
                       className="p-1.5 text-text/25 hover:text-text/55 hover:bg-gray-50 rounded-lg transition-colors"
+                      aria-label="Más acciones"
+                      aria-expanded={isOpen}
                     >
                       <MoreVertical style={{ width: '15px', height: '15px' }} />
                     </button>
 
                     {isOpen && (
-                      <div className="absolute right-0 mt-1.5 w-52 bg-white rounded-xl border border-gray-100 shadow-lg z-20 overflow-hidden">
+                      <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl border border-gray-100 shadow-lg z-20 overflow-hidden">
                         <div className="py-1.5">
-                          <DropdownItem icon={Eye} label="Ver perfil completo" onClick={() => { setSelectedGenius(genius); setShowProfileModal(true); setActiveDropdown(null); }} />
-                          <DropdownItem icon={FileText} label="Documentos" onClick={() => setActiveDropdown(null)} />
-
-                          <DropdownDivider label="Cambiar estado" />
-                          <DropdownItem label="Activo" onClick={() => handleStatusChange(genius.id, 'active')} dot="bg-green-400" />
-                          <DropdownItem label="Inactivo" onClick={() => handleStatusChange(genius.id, 'inactive')} dot="bg-gray-300" />
-                          <DropdownItem label="Suspendido" onClick={() => handleStatusChange(genius.id, 'suspended')} dot="bg-red-400" />
-
-                          <DropdownDivider label="Etiquetas" />
-                          <DropdownItem icon={UserCheck} label={genius.isNew ? 'Quitar "Nuevo"' : 'Marcar "Nuevo"'} onClick={() => handleToggleNew(genius.id, genius.isNew)} />
-                          <DropdownItem icon={Star} label={genius.isFeatured ? 'Quitar "Destacado"' : 'Marcar "Destacado"'} onClick={() => handleToggleFeatured(genius.id, genius.isFeatured)} />
-
-                          <DropdownDivider />
+                          <DropdownItem icon={Eye} label="Ver perfil completo" onClick={() => openPreview(genius)} />
                           <DropdownItem icon={Activity} label="Ver actividad" onClick={() => { setSelectedGenius(genius); setShowActivityModal(true); setActiveDropdown(null); }} />
-                          <DropdownItem icon={StickyNote} label="Nota interna" onClick={() => { setSelectedGenius(genius); setNotesText(genius.internalNotes || ''); setShowNotesModal(true); setActiveDropdown(null); }} />
+                          <DropdownItem icon={StickyNote} label="Nota interna" onClick={() => { setSelectedGenius(genius); setNotesText(genius.internal_notes || ''); setShowNotesModal(true); setActiveDropdown(null); }} />
+
+                          <DropdownDivider label="Directorio" />
+                          <DropdownItem
+                            icon={Star}
+                            label={genius.is_featured ? 'Quitar "Destacado"' : 'Marcar como destacado'}
+                            onClick={() => run(() => updateGeniusAsAdmin(genius.id, { is_featured: !genius.is_featured }))}
+                          />
+
+                          <DropdownDivider label="Estado" />
+                          {genius.status === 'active' ? (
+                            <DropdownItem
+                              icon={Ban}
+                              label="Suspender"
+                              onClick={() => { setSelectedGenius(genius); setShowSuspendModal(true); setActiveDropdown(null); }}
+                            />
+                          ) : (
+                            <DropdownItem
+                              icon={RotateCcw}
+                              label="Reactivar"
+                              onClick={() => run(() => reactivateGenius(genius.id))}
+                            />
+                          )}
                         </div>
                       </div>
                     )}
@@ -334,39 +411,71 @@ const GeniusManagement: React.FC = () => {
       </div>
 
       {/* Profile Modal */}
-      {showProfileModal && selectedGenius && (
+      {previewData && (
         <GeniusProfilePreviewModal
-          isOpen={showProfileModal}
-          geniusData={selectedGenius}
-          onClose={() => { setShowProfileModal(false); setSelectedGenius(null); }}
+          isOpen
+          geniusData={previewData}
+          onClose={() => setPreviewData(null)}
         />
       )}
 
       {/* Notes Modal */}
       {showNotesModal && selectedGenius && (
-        <MiniModal title={`Nota interna — ${selectedGenius.name}`} onClose={() => { setShowNotesModal(false); setSelectedGenius(null); setNotesText(''); }}>
+        <MiniModal title={`Nota interna — ${selectedGenius.full_name}`} onClose={closeModals}>
           <textarea
             value={notesText}
             onChange={(e) => setNotesText(e.target.value)}
-            placeholder="Añadir notas internas sobre este genio..."
+            placeholder="Añadir notas internas sobre este genio (solo las ve el equipo)..."
             className="w-full h-28 p-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-text/15 resize-none placeholder:text-text/25"
           />
           <div className="flex gap-2 mt-3">
-            <button onClick={handleNotesSubmit} className="flex-1 py-2 text-sm font-medium text-white bg-text hover:bg-text/85 rounded-lg transition-colors">Guardar</button>
-            <button onClick={() => { setShowNotesModal(false); setSelectedGenius(null); setNotesText(''); }} className="flex-1 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
+            <button
+              disabled={saving}
+              onClick={() => run(() => updateGeniusAsAdmin(selectedGenius.id, { internal_notes: notesText })).then(closeModals)}
+              className="flex-1 py-2 text-sm font-medium text-white bg-text hover:bg-text/85 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Guardar
+            </button>
+            <button onClick={closeModals} className="flex-1 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
+          </div>
+        </MiniModal>
+      )}
+
+      {/* Suspend Modal */}
+      {showSuspendModal && selectedGenius && (
+        <MiniModal title={`Suspender a ${selectedGenius.full_name}`} onClose={closeModals}>
+          <p className="text-sm text-text/50 mb-3">
+            Su perfil deja de aparecer en el directorio de inmediato. El genio verá el motivo en su panel.
+          </p>
+          <textarea
+            value={suspendReason}
+            onChange={(e) => setSuspendReason(e.target.value)}
+            placeholder="Motivo (obligatorio)"
+            className="w-full h-24 p-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-text/15 resize-none placeholder:text-text/25"
+          />
+          <div className="flex gap-2 mt-3">
+            <button
+              disabled={saving || !suspendReason.trim()}
+              onClick={() => run(() => suspendGenius(selectedGenius.id, suspendReason.trim())).then(closeModals)}
+              className="flex-1 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
+            >
+              Suspender
+            </button>
+            <button onClick={closeModals} className="flex-1 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
           </div>
         </MiniModal>
       )}
 
       {/* Activity Modal */}
       {showActivityModal && selectedGenius && (
-        <MiniModal title={`Actividad — ${selectedGenius.name}`} onClose={() => { setShowActivityModal(false); setSelectedGenius(null); }}>
+        <MiniModal title={`Actividad — ${selectedGenius.full_name}`} onClose={closeModals}>
           <div className="space-y-2.5">
             {[
-              { label: 'Visitas al perfil', value: selectedGenius.stats?.profileViews ?? 0 },
-              { label: 'Clicks en WhatsApp', value: selectedGenius.stats?.whatsappClicks ?? 0 },
-              { label: 'Veces en favoritos', value: selectedGenius.stats?.favoritesCount ?? 0 },
-              { label: 'Registrado', value: formatDateToSpanish(selectedGenius.registeredAt) },
+              { label: 'Visitas al perfil', value: selectedGenius.profile_views ?? 0 },
+              { label: 'Clicks en WhatsApp', value: selectedGenius.whatsapp_clicks ?? 0 },
+              { label: 'Veces en favoritos', value: selectedGenius.favorites_count },
+              { label: 'Acceso', value: membershipInfo(selectedGenius).label },
+              { label: 'Registrado', value: formatDateToSpanish(selectedGenius.created_at) },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                 <span className="text-sm text-text/45">{label}</span>
@@ -374,7 +483,7 @@ const GeniusManagement: React.FC = () => {
               </div>
             ))}
           </div>
-          <button onClick={() => { setShowActivityModal(false); setSelectedGenius(null); }} className="w-full mt-4 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cerrar</button>
+          <button onClick={closeModals} className="w-full mt-4 py-2 text-sm text-text/50 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cerrar</button>
         </MiniModal>
       )}
 

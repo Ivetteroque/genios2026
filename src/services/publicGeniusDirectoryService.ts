@@ -27,6 +27,9 @@ export interface PublicGeniusProfile {
   work_locations: Array<Partial<HomeLocation>>;
   portfolio: string[];
   has_documents: boolean;
+  /** DNI revisado y aprobado por el admin. */
+  is_verified: boolean;
+  is_featured: boolean;
   created_at: string;
 }
 
@@ -127,7 +130,7 @@ export const getPublicGeniusDirectory = async (): Promise<DirectoryGenius[]> => 
   // El select va como literal porque supabase-js infiere los tipos del string.
   const { data: profiles, error } = await supabase
     .from('public_genius_profiles')
-    .select('id, full_name, profile_photo, description, category, subcategories, service_name, phone, home_location, coverage_type, work_locations, has_documents, created_at')
+    .select('id, full_name, profile_photo, description, category, subcategories, service_name, phone, home_location, coverage_type, work_locations, has_documents, is_verified, is_featured, created_at')
     .order('created_at', { ascending: false });
 
   if (error) {
