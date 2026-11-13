@@ -1,3 +1,4 @@
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
 // Admin authentication utility functions
@@ -11,9 +12,55 @@ export interface AdminUser {
   permissions: string[];
 }
 
-// Check if admin is authenticated
+/**
+ * Pista rápida y NO confiable: solo dice si este navegador guardó una sesión de
+ * admin. Cualquiera puede escribir esa bandera a mano, así que nunca debe
+ * decidir el acceso; para eso está `getVerifiedAdmin()`.
+ */
 export const isAdminAuthenticated = (): boolean => {
   return localStorage.getItem('isAdminAuthenticated') === 'true';
+};
+
+/** Datos de admin a partir de un usuario de Supabase Auth, o null si no lo es. */
+const toAdminUser = (user: SupabaseUser): AdminUser | null => {
+  const metadata = (user.app_metadata ?? {}) as {
+    role?: string;
+    name?: string;
+    permissions?: string[];
+  };
+
+  if (metadata.role !== 'admin' && metadata.role !== 'super_admin') return null;
+
+  return {
+    id: user.id,
+    email: user.email ?? '',
+    name: metadata.name || 'Administrador',
+    role: metadata.role,
+    lastLogin: new Date().toISOString(),
+    permissions: metadata.permissions ?? [],
+  };
+};
+
+/**
+ * Comprueba contra el servidor de Supabase que hay una sesión viva y que su
+ * `app_metadata.role` es de admin. `app_metadata` solo se escribe con la
+ * service_role, así que nadie puede otorgarse el rol desde el navegador.
+ */
+export const getVerifiedAdmin = async (): Promise<AdminUser | null> => {
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) return null;
+    return toAdminUser(data.user);
+  } catch (error) {
+    console.error('Error verificando la sesión de admin:', error);
+    return null;
+  }
+};
+
+/** Borra la copia local de la sesión de admin, sin cerrar la sesión de Supabase. */
+export const clearAdminSession = (): void => {
+  localStorage.removeItem('currentAdmin');
+  localStorage.removeItem('isAdminAuthenticated');
 };
 
 // Get current admin user data
@@ -44,9 +91,8 @@ export const logoutAdmin = (): void => {
   // seguiría teniendo permisos de admin contra la base.
   supabase.auth.signOut().catch(() => {});
 
-  localStorage.removeItem('currentAdmin');
-  localStorage.removeItem('isAdminAuthenticated');
-  
+  clearAdminSession();
+
   // Dispatch custom event to notify components of admin auth state change
   window.dispatchEvent(new Event('adminAuthStateChanged'));
   
@@ -73,27 +119,15 @@ export const validateAdminCredentials = async (
 
   if (error || !data.user) return null;
 
-  const metadata = (data.user.app_metadata ?? {}) as {
-    role?: string;
-    name?: string;
-    permissions?: string[];
-  };
-
   // Una cuenta común (un cliente que entró con Google, por ejemplo) puede
   // autenticarse, pero no es admin: se cierra la sesión para no dejarla abierta.
-  if (metadata.role !== 'admin' && metadata.role !== 'super_admin') {
+  const admin = toAdminUser(data.user);
+  if (!admin) {
     await supabase.auth.signOut();
     return null;
   }
 
-  return {
-    id: data.user.id,
-    email: data.user.email ?? email,
-    name: metadata.name || 'Administrador',
-    role: metadata.role,
-    lastLogin: new Date().toISOString(),
-    permissions: metadata.permissions ?? [],
-  };
+  return { ...admin, email: admin.email || email };
 };
 
 // Check if admin has specific permission
