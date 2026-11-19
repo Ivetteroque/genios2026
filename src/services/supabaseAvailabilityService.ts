@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { localDateISO } from '../utils/dateUtils';
 
 export type AvailabilityStatus = 'available' | 'full' | 'vacation';
 
@@ -22,8 +23,8 @@ export const getAvailabilityForMonth = async (
   year: number,
   month: number
 ): Promise<GeniusAvailability[]> => {
-  const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
-  const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+  const startDate = localDateISO(new Date(year, month - 1, 1));
+  const endDate = localDateISO(new Date(year, month, 0));
 
   const { data, error } = await supabase
     .from('genius_availability')
@@ -125,7 +126,8 @@ export const getAvailabilitySummary = async (
 export const getTodayAvailability = async (
   geniusId: string
 ): Promise<GeniusAvailability | null> => {
-  const today = new Date().toISOString().split('T')[0];
+  // Hoy en la hora de Perú, no en UTC (después de las 7 p. m. UTC ya es mañana).
+  const today = localDateISO();
 
   const { data, error } = await supabase
     .from('genius_availability')
@@ -235,4 +237,20 @@ export const getMultipleGeniusAvailability = async (
   );
 
   return availabilityMap;
+};
+
+/**
+ * Cambia el estado de un día y lo guarda al instante. "Disponible" es el
+ * estado por defecto (sin fila), así que marcarlo borra la fila de ese día.
+ */
+export const setDayStatus = async (
+  geniusId: string,
+  date: string,
+  status: AvailabilityStatus
+): Promise<void> => {
+  if (status === 'available') {
+    await deleteAvailabilityRecord(geniusId, date);
+  } else {
+    await updateDayAvailability(geniusId, date, status);
+  }
 };

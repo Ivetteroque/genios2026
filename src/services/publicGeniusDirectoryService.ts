@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { localDateISO } from '../utils/dateUtils';
 import { HomeLocation } from '../utils/locationUtils';
 
 /**
@@ -45,7 +46,8 @@ export interface DirectoryGenius extends PublicGeniusProfile {
   is_available_today: boolean;
 }
 
-const todayISO = () => new Date().toISOString().split('T')[0];
+// Hoy en hora local: en UTC, después de las 7 p. m. de Perú ya sería mañana.
+const todayISO = () => localDateISO();
 
 const normalizeArrays = (profile: any): PublicGeniusProfile => ({
   ...profile,
