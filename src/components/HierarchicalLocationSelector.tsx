@@ -21,20 +21,20 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
       return;
     }
 
+    // Si el departamento tiene una sola provincia, se elige sola; el distrito
+    // siempre lo elige la persona (antes se llenaba el primero en silencio y
+    // muchos genios quedaban ubicados en un distrito que no era el suyo).
     const dept = departments.find(d => d.id === deptId);
-    if (dept && dept.provinces.length > 0) {
-      const firstProvince = dept.provinces[0];
-      if (firstProvince.districts.length > 0) {
-        const firstDistrict = firstProvince.districts[0];
-        onChange({
-          departmentId: dept.id,
-          departmentName: dept.name,
-          provinceId: firstProvince.id,
-          provinceName: firstProvince.name,
-          districtId: firstDistrict.id,
-          districtName: firstDistrict.name
-        });
-      }
+    if (dept) {
+      const onlyProvince = dept.provinces.length === 1 ? dept.provinces[0] : null;
+      onChange({
+        departmentId: dept.id,
+        departmentName: dept.name,
+        provinceId: onlyProvince?.id ?? '',
+        provinceName: onlyProvince?.name ?? '',
+        districtId: '',
+        districtName: ''
+      });
     }
   };
 
@@ -43,15 +43,14 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
     if (!selectedDepartment || !provId) return;
 
     const prov = selectedDepartment.provinces.find(p => p.id === provId);
-    if (prov && prov.districts.length > 0) {
-      const firstDistrict = prov.districts[0];
+    if (prov) {
       onChange({
         departmentId: selectedDepartment.id,
         departmentName: selectedDepartment.name,
         provinceId: prov.id,
         provinceName: prov.name,
-        districtId: firstDistrict.id,
-        districtName: firstDistrict.name
+        districtId: '',
+        districtName: ''
       });
     }
   };
@@ -78,12 +77,12 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
       <div className="flex items-center gap-2">
         <MapPin className="w-5 h-5 text-blue-600" />
         <label className="block text-sm font-medium text-gray-700">
-          Ubicación del Genio - ¿Dónde vives?
+          ¿En qué distrito vives? <span className="text-red-500">*</span>
         </label>
       </div>
 
       <p className="text-sm text-gray-500">
-        Tu domicilio ayuda a los clientes cercanos a encontrarte
+        Ayuda a que los clientes cercanos te encuentren. No mostramos tu dirección.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -126,7 +125,7 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Distrito
+            Distrito <span className="text-red-500">*</span>
           </label>
           <select
             value={value?.districtId || ''}

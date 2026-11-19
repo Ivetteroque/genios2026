@@ -763,7 +763,7 @@ const Categories: React.FC = () => {
                     <p className="text-lg font-medium text-text mb-2">Todavía no hay genios publicados</p>
                     <p>Sé el primero: completa tu perfil y aparecerás aquí.</p>
                     <Link
-                      to="/#ser-genio"
+                      to="/ser-genio"
                       className="inline-block mt-4 bg-secondary text-gray-900 font-semibold px-6 py-2.5 rounded-full hover:bg-secondary-dark transition-colors"
                     >
                       Quiero ser un Genio

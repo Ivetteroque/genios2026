@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const PLACEHOLDERS = ['albañil', 'maquilladora', 'DJ', 'gasfitero', 'electricista', 'payaso'];
 const PILLS = ['Maquilladora', 'Albañil', 'DJ', 'Payaso', 'Electricista', 'Gasfitero'];
@@ -159,12 +159,12 @@ const Hero: React.FC = () => {
                 El vecino que enseña, la amiga que diseña, o tú con tu habilidad.
                 Conecta con personas reales listas para ayudarte.
               </p>
-              <a
-                href="#ser-genio"
+              <Link
+                to="/ser-genio"
                 className="inline-flex items-center bg-secondary hover:bg-secondary-dark text-gray-900 font-semibold px-8 py-3.5 rounded-full transition-colors duration-200 shadow-sm hover:shadow text-sm"
               >
                 Quiero ser un Genio
-              </a>
+              </Link>
             </div>
           </div>
         </div>

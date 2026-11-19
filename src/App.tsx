@@ -20,6 +20,7 @@ const Categories = lazy(() => import('./pages/Categories'));
 const Profile = lazy(() => import('./pages/Profile'));
 const ClientProfile = lazy(() => import('./pages/ClientProfile'));
 const GeniusProfile = lazy(() => import('./pages/GeniusProfile'));
+const BecomeGenius = lazy(() => import('./pages/BecomeGenius'));
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 
@@ -62,6 +63,7 @@ function App() {
                       <Route path="/profile/:id" element={<Profile />} />
                       <Route path="/client-profile" element={<ClientProfile />} />
                       <Route path="/genius-profile" element={<GeniusProfile />} />
+                      <Route path="/ser-genio" element={<BecomeGenius />} />
                     </Routes>
                   </Suspense>
                 </main>
