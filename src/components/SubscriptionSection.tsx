@@ -15,6 +15,7 @@ import {
   redeemBetaCode,
   submitPaymentRequest,
 } from '../services/membershipService';
+import { clearPendingInviteCode, getPendingInviteCode } from '../utils/onboardingUtils';
 
 const SUPPORT_WHATSAPP = '51952719641';
 
@@ -214,7 +215,8 @@ function PendingNotice() {
 }
 
 function BetaCodeCard({ onRedeemed }: { onRedeemed: () => void }) {
-  const [code, setCode] = useState('');
+  // Si llegó con un enlace de invitación, el código ya viene escrito.
+  const [code, setCode] = useState(getPendingInviteCode() ?? '');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -227,6 +229,7 @@ function BetaCodeCard({ onRedeemed }: { onRedeemed: () => void }) {
     setLoading(false);
 
     if (result.ok) {
+      clearPendingInviteCode();
       setMessage({ type: 'success', text: `¡Listo! Tu perfil ya es visible hasta el ${fmtDate(result.endsAt)}.` });
       setTimeout(onRedeemed, 1200);
     } else {

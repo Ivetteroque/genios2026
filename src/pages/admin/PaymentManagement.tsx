@@ -586,6 +586,14 @@ const PaymentManagement: React.FC = () => {
                                 : <Copy style={{ width: 12, height: 12 }} className="text-text/30 group-hover:text-text/55" />
                               }
                             </button>
+                            {/* Enlace listo para mandar por WhatsApp: el código se aplica solo al terminar el perfil. */}
+                            <button
+                              onClick={() => copyCode(`${window.location.origin}/ser-genio?codigo=${encodeURIComponent(code.code)}`)}
+                              title="Copiar enlace de invitación"
+                              className="mt-1.5 block text-[11px] text-ink-blue hover:underline"
+                            >
+                              {copied?.endsWith(`codigo=${encodeURIComponent(code.code)}`) ? '✓ Enlace copiado' : 'Copiar enlace de invitación'}
+                            </button>
                           </div>
 
                           {/* Info */}

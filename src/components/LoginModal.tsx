@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { signInWithGoogle } from '../utils/socialAuthUtils';
+import { rememberPostLoginRedirect } from '../utils/onboardingUtils';
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Texto según el contexto (p. ej. "Crea tu perfil de genio"). */
+  title?: string;
+  subtitle?: string;
+  /** Ruta a la que volver después de entrar con Google. */
+  redirectTo?: string;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
+const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, title, subtitle, redirectTo }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Auto-focus the Google button when the modal opens
@@ -23,6 +29,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
+    // Google devuelve a la persona a la página de inicio; SocialAuthBridge la
+    // lleva después a donde iba (por ejemplo, al formulario del genio).
+    rememberPostLoginRedirect(redirectTo ?? window.location.pathname + window.location.search);
     try {
       // Real Supabase OAuth: this redirects away to Google. When the browser
       // returns to the app, SocialAuthBridge resumes the flow (logs the user in
@@ -51,6 +60,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
         {/* Close Button */}
         <button
           onClick={onClose}
+          aria-label="Cerrar"
           className="absolute top-5 right-5 text-[#2F2F2F]/30 hover:text-[#2F2F2F]/55 transition-colors z-10"
         >
           <X className="w-5 h-5" />
@@ -60,10 +70,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
           {/* Header */}
           <div className="text-center">
             <h1 className="font-heading text-2xl font-semibold text-[#2F2F2F] leading-snug tracking-tight">
-              Bienvenido 👋
+              {title ?? 'Bienvenido 👋'}
             </h1>
             <p className="text-[#2F2F2F]/45 text-sm font-body mt-1.5">
-              Conecta con personas increíbles cerca de ti
+              {subtitle ?? 'Conecta con personas increíbles cerca de ti'}
             </p>
           </div>
 

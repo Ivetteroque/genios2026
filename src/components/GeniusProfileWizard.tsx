@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowRight, Eye, Save, CheckCircle, X, Sparkles } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, Eye, Save, CheckCircle, X, Sparkles } from 'lucide-react';
 import WizardStepsIndicator from './WizardStepsIndicator';
 import ImageUploadField from './ImageUploadField';
 import MultiImageUploadField from './MultiImageUploadField';
@@ -11,7 +11,7 @@ import { getCurrentUser } from '../utils/authUtils';
 import { getActiveCategories, Category } from '../utils/categoryUtils';
 import { saveDraft, loadDraft, saveGeniusProfile, deleteDraft } from '../services/supabaseGeniusService';
 import GeniusProfilePreviewModal from './GeniusProfilePreviewModal';
-import ProfileValidationModal from './ProfileValidationModal';
+import WizardSuccess from './WizardSuccess';
 import { CoverageType, expandCoverageToDistricts } from '../utils/locationUtils';
 import { SelectedLocation } from './FlexibleLocationSelector';
 import { calculateProfileCompletion, getMissingFields } from '../utils/profileCompletionUtils';
@@ -32,20 +32,27 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [activeCategories, setActiveCategories] = useState<Category[]>([]);
   const [showPreview, setShowPreview] = useState(false);
-  const [showValidationModal, setShowValidationModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [savedProfileId, setSavedProfileId] = useState<string | null>(null);
+  // Qué falta para poder avanzar (se muestra arriba de los botones).
+  const [stepErrors, setStepErrors] = useState<string[]>([]);
+  const [saveError, setSaveError] = useState('');
+  const [subcategoryLimitHit, setSubcategoryLimitHit] = useState(false);
+  // Un perfil nuevo no trae id; uno que se edita, sí.
+  const isNewProfile = !initialData?.id;
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [formData, setFormData] = useState<Genius>({
     id: '',
     profilePhoto: '',
-    fullName: '',
+    // Nombre y correo vienen de la cuenta de Google: un paso menos.
+    fullName: currentUser?.name ?? '',
     dni: '',
     phone: '',
-    email: '',
+    email: currentUser?.email ?? '',
     description: '',
     instagram: '',
     facebook: '',
@@ -55,7 +62,8 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
     subcategories: [],
     serviceName: '',
     location: '',
-    homeLocation: null,
+    // Genios es de Tacna: departamento y provincia vienen elegidos; el distrito lo elige la persona.
+    homeLocation: { departmentId: 'tacna', departmentName: 'Tacna', provinceId: 'tacna-prov', provinceName: 'Tacna', districtId: '', districtName: '' },
     coverageType: 'my-district',
     workLocations: [],
     documents: [],
@@ -128,6 +136,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
   };
 
   const handleInputChange = (field: keyof Genius, value: any) => {
+    setSaveError('');
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -143,7 +152,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
           data.dni.length === 8 &&
           data.email.trim() &&
           data.phone.length === 9 &&
-          data.homeLocation
+          data.homeLocation?.districtId
         );
       case 2:
         return data.description.length >= 20;
@@ -162,71 +171,112 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
     }
   };
 
-  const handleNext = () => {
-    if (validateStep(currentStep)) {
-      if (!completedSteps.includes(currentStep)) {
-        setCompletedSteps([...completedSteps, currentStep]);
-      }
+  /** Lo que falta en un paso, en palabras simples. Pasos 4 y 5 son opcionales. */
+  const missingForStep = (step: number, data: Genius = formData): string[] => {
+    const missing: string[] = [];
+    if (step === 1) {
+      if (!data.profilePhoto) missing.push('Tu foto de perfil');
+      if (!data.fullName.trim()) missing.push('Tu nombre completo');
+      if (data.dni.length !== 8) missing.push('Tu DNI (8 números)');
+      if (!data.email.trim()) missing.push('Tu correo');
+      if (data.phone.length !== 9) missing.push('Tu celular (9 números)');
+      if (!data.homeLocation?.districtId) missing.push('El distrito donde vives');
     }
-
-    if (currentStep < 5) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (step === 2 && data.description.trim().length < 20) {
+      missing.push('Una descripción de tu trabajo (mínimo 20 letras)');
     }
+    if (step === 3) {
+      if (!data.category) missing.push('La categoría de tu servicio');
+      if (data.subcategories.length === 0) missing.push('Al menos una especialidad');
+      if (!data.serviceName.trim()) missing.push('El nombre de tu servicio');
+    }
+    return missing;
   };
 
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  /** Primer paso obligatorio incompleto, o null si los tres están bien. */
+  const firstIncompleteRequiredStep = (): number | null => {
+    for (const step of [1, 2, 3]) {
+      if (missingForStep(step).length > 0) return step;
     }
+    return null;
   };
 
-  const handleStepClick = (step: number) => {
+  /** Lleva la vista al aviso de "te falta…", que está junto a los botones. */
+  const showErrors = (missing: string[]) => {
+    setStepErrors(missing);
+    setTimeout(() => {
+      document.getElementById('wizard-errors')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 50);
+  };
+
+  const goToStep = (step: number) => {
     setCurrentStep(step);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleNext = () => {
+    const missing = missingForStep(currentStep);
+    if (missing.length > 0) {
+      showErrors(missing);
+      return;
+    }
+    setStepErrors([]);
+    if (!completedSteps.includes(currentStep)) {
+      setCompletedSteps([...completedSteps, currentStep]);
+    }
+    if (currentStep < 5) goToStep(currentStep + 1);
+  };
+
+  const handleBack = () => {
+    setStepErrors([]);
+    if (currentStep > 1) goToStep(currentStep - 1);
+  };
+
+  // Volver siempre se puede; adelantarse, solo si los pasos anteriores están completos.
+  const handleStepClick = (step: number) => {
+    if (step <= currentStep) {
+      setStepErrors([]);
+      goToStep(step);
+      return;
+    }
+    const blocking = [1, 2, 3].find((s) => s < step && missingForStep(s).length > 0);
+    if (blocking) {
+      setCurrentStep(blocking);
+      showErrors(missingForStep(blocking));
+      return;
+    }
+    setStepErrors([]);
+    goToStep(step);
+  };
+
   const handleFinish = async () => {
     if (!currentUser) {
-      alert('Error: Usuario no autenticado');
+      setSaveError('Tu sesión expiró. Vuelve a iniciar sesión para guardar.');
       return;
     }
 
-    const profileForValidation = {
-      profile_photo: formData.profilePhoto,
-      full_name: formData.fullName,
-      dni: formData.dni,
-      email: formData.email,
-      phone: formData.phone,
-      description: formData.description,
-      instagram: formData.instagram,
-      facebook: formData.facebook,
-      tiktok: formData.tiktok,
-      category: formData.category,
-      subcategories: formData.subcategories,
-      service_name: formData.serviceName,
-      home_location: formData.homeLocation,
-      coverage_type: formData.coverageType,
-      work_locations: formData.workLocations,
-      portfolio: formData.portfolio,
-      documents: formData.documents
-    };
-
-    const missingFields = getMissingFields(profileForValidation);
-    const percentage = calculateProfileCompletion(profileForValidation);
-
-    setShowValidationModal(true);
+    const incomplete = firstIncompleteRequiredStep();
+    if (incomplete) {
+      setCurrentStep(incomplete);
+      showErrors(missingForStep(incomplete));
+      return;
+    }
+    await handleSaveProgress();
   };
 
   const handleSaveProgress = async () => {
     if (!currentUser) {
-      alert('Error: Usuario no autenticado');
+      setSaveError('Tu sesión expiró. Vuelve a iniciar sesión para guardar.');
+      return;
+    }
+    if (!formData.homeLocation?.districtId) {
+      setCurrentStep(1);
+      showErrors(missingForStep(1));
       return;
     }
 
     setIsSaving(true);
-    setShowValidationModal(false);
+    setSaveError('');
 
     try {
       const expandedWorkLocations = expandCoverageToDistricts(
@@ -245,32 +295,18 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
 
       const completionPercentage = calculateProfileCompletion(profileData);
 
-      await saveGeniusProfile(currentUser.id, profileData, completionPercentage, 6);
-      await deleteDraft(currentUser.id);
+      const saved = await saveGeniusProfile(currentUser.id, profileData, completionPercentage, 6);
+      await deleteDraft(currentUser.id).catch(() => undefined);
 
+      setSavedProfileId(saved.id);
       setShowSuccess(true);
-    } catch (error: any) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
       console.error('Error saving profile:', error);
-
-      let errorMessage = 'Error al guardar el perfil. ';
-      if (error?.message) {
-        errorMessage += error.message;
-      } else if (error?.code) {
-        errorMessage += `Código de error: ${error.code}`;
-      } else {
-        errorMessage += 'Por favor, verifica tu conexión e intenta nuevamente.';
-      }
-
-      alert(errorMessage);
+      setSaveError('No pudimos guardar tu perfil. Revisa tu conexión e inténtalo de nuevo; tus datos no se perdieron.');
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleCompleteFromModal = (step: number) => {
-    setShowValidationModal(false);
-    setCurrentStep(step);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSubcategoryToggle = (subcategoryName: string) => {
@@ -280,9 +316,10 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       handleInputChange('subcategories', currentSubcategories.filter(sub => sub !== subcategoryName));
     } else {
       if (currentSubcategories.length < 4) {
+        setSubcategoryLimitHit(false);
         handleInputChange('subcategories', [...currentSubcategories, subcategoryName]);
       } else {
-        alert('Máximo 4 subcategorías permitidas');
+        setSubcategoryLimitHit(true);
       }
     }
   };
@@ -323,13 +360,13 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Información Personal</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Información personal</h2>
         </div>
-        <p className="text-gray-600">Vamos a completar tu perfil paso a paso. Comencemos con tu información básica.</p>
+        <p className="text-gray-600">Empecemos con lo básico. Tu nombre y correo ya vienen de tu cuenta de Google.</p>
       </div>
 
       <ImageUploadField
-        label="Foto de Perfil"
+        label="Foto de perfil"
         currentImage={formData.profilePhoto}
         onImageChange={(imageUrl) => handleInputChange('profilePhoto', imageUrl)}
         onImageRemove={() => handleInputChange('profilePhoto', '')}
@@ -341,7 +378,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nombre Completo <span className="text-red-500">*</span>
+            Nombre completo <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
@@ -349,6 +386,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
             onChange={(e) => handleInputChange('fullName', e.target.value)}
             className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-600 focus:outline-none"
             placeholder="Tu nombre completo"
+            autoComplete="name"
           />
         </div>
 
@@ -360,6 +398,8 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
             type="text"
             value={formData.dni}
             onChange={(e) => handleInputChange('dni', e.target.value.replace(/\D/g, '').slice(0, 8))}
+            inputMode="numeric"
+            autoComplete="off"
             className={`w-full px-4 py-2 rounded-lg border-2 focus:outline-none ${
               formData.dni.length === 8
                 ? 'border-green-300 focus:border-green-600'
@@ -376,7 +416,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Email <span className="text-red-500">*</span>
+            Correo <span className="text-red-500">*</span>
           </label>
           <input
             type="email"
@@ -384,12 +424,13 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
             onChange={(e) => handleInputChange('email', e.target.value)}
             className="w-full px-4 py-2 rounded-lg border-2 border-gray-300 focus:border-blue-600 focus:outline-none"
             placeholder="tu@email.com"
+            autoComplete="email"
           />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Teléfono <span className="text-red-500">*</span>
+            Celular (WhatsApp) <span className="text-red-500">*</span>
           </label>
           <div className="flex">
             <span className="inline-flex items-center px-4 rounded-l-lg border-2 border-r-0 border-gray-300 bg-gray-100 text-gray-600 font-medium">
@@ -399,6 +440,8 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
               type="tel"
               value={formData.phone}
               onChange={(e) => handleInputChange('phone', e.target.value.replace(/\D/g, '').slice(0, 9))}
+              inputMode="numeric"
+              autoComplete="tel-national"
               className={`w-full px-4 py-2 rounded-r-lg border-2 focus:outline-none ${
                 formData.phone.length === 9
                   ? 'border-green-300 focus:border-green-600'
@@ -427,14 +470,14 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sobre Mí</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sobre mí</h2>
         </div>
         <p className="text-gray-600">¡Vas muy bien! Ahora cuéntanos sobre ti y tu trabajo. Esto ayudará a los clientes a conocerte mejor.</p>
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Descripción de tu Trabajo <span className="text-red-500">*</span>
+          Descripción de tu trabajo <span className="text-red-500">*</span>
         </label>
         <textarea
           value={formData.description}
@@ -513,14 +556,14 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Detalles del Servicio</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Detalles del servicio</h2>
         </div>
         <p className="text-gray-600">¡Excelente progreso! Define tu categoría y especialidades para que los clientes te encuentren fácilmente.</p>
       </div>
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Categoría Principal <span className="text-red-500">*</span>
+          Categoría principal <span className="text-red-500">*</span>
         </label>
         <select
           value={formData.category}
@@ -542,9 +585,14 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       {formData.category && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Subcategorías <span className="text-red-500">*</span>
+            Especialidades <span className="text-red-500">*</span>
             <span className="text-gray-500 ml-2">({formData.subcategories.length}/4)</span>
           </label>
+          {subcategoryLimitHit && (
+            <p role="status" className="text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-3">
+              Puedes elegir hasta 4. Quita una para cambiarla por otra.
+            </p>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {getAvailableSubcategories().map(subcategory => (
               <label
@@ -570,7 +618,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Nombre de tu Servicio <span className="text-red-500">*</span>
+          Nombre de tu servicio <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
@@ -581,7 +629,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         />
       </div>
 
-      {formData.homeLocation && (
+      {formData.homeLocation?.districtId && (
         <WorkZoneSelector
           homeLocation={formData.homeLocation}
           coverageType={formData.coverageType || 'my-district'}
@@ -598,13 +646,13 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Mi Portafolio</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Mi portafolio</h2>
         </div>
         <p className="text-gray-600">¡Ya casi terminas! Muestra tu mejor trabajo. Las fotos de calidad generan hasta 5 veces más consultas.</p>
       </div>
 
       <MultiImageUploadField
-        label="Fotos de tus Trabajos (Opcional)"
+        label="Fotos de tus trabajos (opcional)"
         currentImages={formData.portfolio}
         onImagesChange={(images) => handleInputChange('portfolio', images)}
         maxImages={6}
@@ -619,7 +667,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="w-5 h-5 text-blue-600" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Verificación de Identidad</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Verificación de identidad</h2>
         </div>
         <p className="text-gray-600">¡Último paso! Verifica tu identidad para generar confianza y seguridad con tus futuros clientes.</p>
       </div>
@@ -632,7 +680,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       </div>
 
       <DocumentUploadField
-        label="Documento Nacional de Identidad (DNI) (Opcional)"
+        label="Foto de tu DNI (opcional, te da la insignia de verificado)"
         documentType="dni"
         currentDocument={getCurrentDocument('dni')}
         onDocumentChange={(doc) => handleDocumentChange('dni', doc)}
@@ -641,7 +689,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       />
 
       <DocumentUploadField
-        label="Certificado Único de Trabajo"
+        label="Certificado Único Laboral (opcional)"
         documentType="certificate"
         currentDocument={getCurrentDocument('certificate')}
         onDocumentChange={(doc) => handleDocumentChange('certificate', doc)}
@@ -668,8 +716,8 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
     }
   };
 
-  if (showSuccess) {
-    const profileForValidation = {
+  if (showSuccess && savedProfileId) {
+    const missingFields = getMissingFields({
       profile_photo: formData.profilePhoto,
       full_name: formData.fullName,
       dni: formData.dni,
@@ -686,123 +734,36 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       coverage_type: formData.coverageType,
       work_locations: formData.workLocations,
       portfolio: formData.portfolio,
-      documents: formData.documents
-    };
-    const percentage = calculateProfileCompletion(profileForValidation);
-
-    const missingFields = getMissingFields(profileForValidation);
-
-    return (
-      <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-4 sm:p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-8 max-w-2xl w-full">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-12 h-12 text-green-600" />
-          </div>
-
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">
-            {percentage === 100 ? '¡Perfil completado al 100%!' : '¡Perfil guardado exitosamente!'}
-          </h2>
-
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 sm:p-6 mb-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left">
-              <div className="relative w-32 h-32 flex-shrink-0">
-                <svg className="transform -rotate-90 w-32 h-32">
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="56"
-                    stroke="currentColor"
-                    strokeWidth="8"
-                    fill="transparent"
-                    className="text-blue-200"
-                  />
-                  <circle
-                    cx="64"
-                    cy="64"
-                    r="56"
-                    stroke="currentColor"
-                    strokeWidth="8"
-                    fill="transparent"
-                    strokeDasharray={`${2 * Math.PI * 56}`}
-                    strokeDashoffset={`${2 * Math.PI * 56 * (1 - percentage / 100)}`}
-                    className="text-blue-600 transition-all duration-1000"
-                    style={{ strokeLinecap: 'round' }}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-gray-900">{percentage}%</span>
-                </div>
-              </div>
-
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Tu perfil está al {percentage}%
-                </h3>
-                <p className="text-gray-700">
-                  {percentage === 100
-                    ? '¡Excelente! Tu perfil está completo y optimizado para recibir más clientes.'
-                    : 'Tu perfil está listo, pero puedes mejorarlo completando más información.'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {percentage < 100 && missingFields.length > 0 && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 mb-6">
-              <div className="flex items-start gap-3 mb-4">
-                <Sparkles className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-bold text-gray-900 text-lg mb-1">Campos opcionales</h4>
-                  <p className="text-sm text-gray-600">
-                    Completa estos campos para aumentar tu visibilidad
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {missingFields.slice(0, 5).map((field, index) => (
-                  <div key={index} className="flex items-center gap-3 text-gray-700">
-                    <span className="flex-shrink-0 w-7 h-7 bg-gray-100 rounded-full flex items-center justify-center text-sm font-semibold text-gray-600">
-                      {field.step}
-                    </span>
-                    <span className="flex-1">{field.label}</span>
-                    <span className="text-sm text-gray-500">Opcional</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {percentage < 100 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-amber-800 text-center font-medium">
-                Los perfiles completos reciben hasta 3 veces más consultas de clientes
-              </p>
-            </div>
-          )}
-
-          <button
-            onClick={onComplete}
-            className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
-          >
-            {percentage === 100 ? 'Ver mi dashboard' : 'Ir al dashboard'}
-          </button>
-        </div>
-      </div>
-    );
+      documents: formData.documents,
+    });
+    return <WizardSuccess geniusProfileId={savedProfileId} missingFields={missingFields} onGoToPanel={onComplete} />;
   }
+
+  // Una vez mostrado, el aviso refleja lo que falta AHORA en este paso: se
+  // achica mientras la persona completa y desaparece solo.
+  const visibleErrors = stepErrors.length > 0 ? missingForStep(currentStep) : [];
 
   return (
     <div className="relative">
       <div className="mb-6 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Editar mi perfil</h2>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Completa la información en cada paso</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+            {isNewProfile ? 'Crea tu perfil de genio' : 'Editar mi perfil'}
+          </h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">
+            {isNewProfile ? '5 pasos · unos 10 minutos · los 2 últimos son opcionales' : 'Cambia lo que necesites y guarda al final'}
+          </p>
+          <p className="text-xs mt-1 h-4" role="status" aria-live="polite">
+            {saveStatus === 'saving' && <span className="text-gray-400">Guardando borrador…</span>}
+            {saveStatus === 'saved' && <span className="text-green-600">✓ Borrador guardado</span>}
+            {saveStatus === 'error' && <span className="text-red-500">No se pudo guardar el borrador</span>}
+          </p>
         </div>
         <button
           onClick={onCancel}
           className="p-2 shrink-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
           title="Cerrar"
+          aria-label="Cerrar el formulario"
         >
           <X className="w-6 h-6" />
         </button>
@@ -818,6 +779,22 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8 mb-6">
           {renderCurrentStep()}
         </div>
+
+        {(visibleErrors.length > 0 || saveError) && (
+          <div id="wizard-errors" role="alert" className="mb-4 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700 scroll-mt-28">
+            <p className="flex items-center gap-2 font-semibold mb-1">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {saveError ? 'No se pudo guardar' : 'Para continuar, completa:'}
+            </p>
+            {saveError ? (
+              <p>{saveError}</p>
+            ) : (
+              <ul className="list-disc pl-6 space-y-0.5">
+                {visibleErrors.map((e) => <li key={e}>{e}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-3">
           {currentStep > 1 && (
@@ -837,8 +814,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
               onClick={handleNext}
               className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white"
             >
-              <span className="sm:hidden">Continuar</span>
-              <span className="hidden sm:inline">Guardar y Continuar</span>
+              <span>Continuar</span>
               <ArrowRight className="w-5 h-5 shrink-0" />
             </button>
           ) : (
@@ -859,7 +835,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
               ) : (
                 <>
                   <Save className="w-5 h-5" />
-                  <span>Finalizar</span>
+                  <span>{isNewProfile ? 'Terminar' : 'Guardar cambios'}</span>
                 </>
               )}
             </button>
@@ -875,26 +851,6 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         </button>
       </div>
 
-      <div className="fixed top-24 right-4 sm:right-8 z-50">
-        {saveStatus === 'saving' && (
-          <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg shadow-md flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-800"></div>
-            <span className="text-sm font-medium">Guardando...</span>
-          </div>
-        )}
-        {saveStatus === 'saved' && (
-          <div className="bg-green-100 text-green-800 px-4 py-2 rounded-lg shadow-md flex items-center space-x-2">
-            <CheckCircle className="w-4 h-4" />
-            <span className="text-sm font-medium">Guardado</span>
-          </div>
-        )}
-        {saveStatus === 'error' && (
-          <div className="bg-red-100 text-red-800 px-4 py-2 rounded-lg shadow-md flex items-center space-x-2">
-            <span className="text-sm font-medium">Error al guardar</span>
-          </div>
-        )}
-      </div>
-
       {showPreview && (
         <GeniusProfilePreviewModal
           isOpen={showPreview}
@@ -903,41 +859,6 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
         />
       )}
 
-      {showValidationModal && (() => {
-        const profileForValidation = {
-          profile_photo: formData.profilePhoto,
-          full_name: formData.fullName,
-          dni: formData.dni,
-          email: formData.email,
-          phone: formData.phone,
-          description: formData.description,
-          instagram: formData.instagram,
-          facebook: formData.facebook,
-          tiktok: formData.tiktok,
-          category: formData.category,
-          subcategories: formData.subcategories,
-          service_name: formData.serviceName,
-          home_location: formData.homeLocation,
-          coverage_type: formData.coverageType,
-          work_locations: formData.workLocations,
-          portfolio: formData.portfolio,
-          documents: formData.documents
-        };
-
-        const missingFields = getMissingFields(profileForValidation);
-        const percentage = calculateProfileCompletion(profileForValidation);
-
-        return (
-          <ProfileValidationModal
-            isOpen={showValidationModal}
-            percentage={percentage}
-            missingFields={missingFields}
-            onComplete={handleCompleteFromModal}
-            onSaveProgress={handleSaveProgress}
-            onClose={() => setShowValidationModal(false)}
-          />
-        );
-      })()}
     </div>
   );
 };

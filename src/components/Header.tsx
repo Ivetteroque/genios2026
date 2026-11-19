@@ -4,11 +4,13 @@ import { Briefcase, Menu, X, Bell, ChevronDown, User, LogOut } from 'lucide-reac
 import { getFirstName } from '../utils/commonUtils';
 import LoginModal from './LoginModal';
 import { getCurrentUser, logout, isAuthenticated, setActiveMode } from '../utils/authUtils';
+import type { LoginIntent } from '../utils/onboardingUtils';
 
 const Header: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginIntent, setLoginIntent] = useState<LoginIntent>({});
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [isUserAuthenticated, setIsUserAuthenticated] = useState(isAuthenticated());
@@ -24,8 +26,12 @@ const Header: React.FC = () => {
 
   // Listen for custom events to open login modal
   useEffect(() => {
-    const handleOpenLoginModal = () => {
+    // Otras pantallas abren el login con un contexto (adónde volver, qué texto
+    // mostrar) mediante openLogin() de onboardingUtils.
+    const handleOpenLoginModal = (event: Event) => {
+      setLoginIntent((event as CustomEvent<LoginIntent>).detail ?? {});
       setShowLoginModal(true);
+      setMobileMenuOpen(false);
     };
 
     window.addEventListener('openLoginModal', handleOpenLoginModal);
@@ -56,6 +62,7 @@ const Header: React.FC = () => {
 
   const handleLoginClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    setLoginIntent({});
     setShowLoginModal(true);
     setMobileMenuOpen(false); // Close mobile menu if open
   };
@@ -130,8 +137,10 @@ const Header: React.FC = () => {
           
           {/* Mobile menu button */}
           <button 
-            className="md:hidden text-text"
+            className="md:hidden text-text p-2 -mr-2 rounded-lg"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label={mobileMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            aria-expanded={mobileMenuOpen}
           >
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -156,11 +165,11 @@ const Header: React.FC = () => {
                 <Link to="/" className={`text-text/80 hover:text-primary transition-colors ${location.pathname === '/' ? 'text-primary' : ''}`}>
                   Inicio
                 </Link>
-                <a href="#como-funciona" className="text-text/80 hover:text-primary transition-colors">Cómo funciona</a>
+                <a href="/#como-funciona" className="text-text/80 hover:text-primary transition-colors">Cómo funciona</a>
                 <Link to="/categories" className={`text-text/80 hover:text-primary transition-colors ${location.pathname === '/categories' ? 'text-primary' : ''}`}>
-                  Categorías
+                  Buscar genios
                 </Link>
-                <a href="#historias" className="text-text/80 hover:text-primary transition-colors">Historias</a>
+                <a href="/#historias" className="text-text/80 hover:text-primary transition-colors">Historias</a>
               </>
             )}
 
@@ -264,8 +273,8 @@ const Header: React.FC = () => {
                 >
                   Iniciar sesión
                 </a>
-                <Link to="/categories" className="bg-primary text-text px-4 py-2 rounded-full hover:bg-primary-dark transition-colors">
-                  Buscar un Genio
+                <Link to="/ser-genio" className="bg-secondary text-text px-4 py-2 rounded-full hover:bg-secondary-dark transition-colors font-medium">
+                  Ofrece tus servicios
                 </Link>
               </>
             )}
@@ -291,10 +300,10 @@ const Header: React.FC = () => {
               {/* Mobile Navigation Links */}
               {!isUserAuthenticated ? (
                 <>
-                  <Link to="/" className="text-text/80 hover:text-primary transition-colors py-2">Inicio</Link>
-                  <a href="#como-funciona" className="text-text/80 hover:text-primary transition-colors py-2">Cómo funciona</a>
-                  <Link to="/categories" className="text-text/80 hover:text-primary transition-colors py-2">Categorías</Link>
-                  <a href="#historias" className="text-text/80 hover:text-primary transition-colors py-2">Historias</a>
+                  <Link to="/" onClick={() => setMobileMenuOpen(false)} className="text-text/80 hover:text-primary transition-colors py-2">Inicio</Link>
+                  <a href="/#como-funciona" onClick={() => setMobileMenuOpen(false)} className="text-text/80 hover:text-primary transition-colors py-2">Cómo funciona</a>
+                  <Link to="/categories" onClick={() => setMobileMenuOpen(false)} className="text-text/80 hover:text-primary transition-colors py-2">Buscar genios</Link>
+                  <a href="/#historias" onClick={() => setMobileMenuOpen(false)} className="text-text/80 hover:text-primary transition-colors py-2">Historias</a>
                   <a
                     href="#login" 
                     onClick={handleLoginClick}
@@ -302,8 +311,8 @@ const Header: React.FC = () => {
                   >
                     Iniciar sesión
                   </a>
-                  <Link to="/categories" className="bg-primary text-text px-4 py-2 rounded-full text-center hover:bg-primary-dark transition-colors">
-                    Buscar un Genio
+                  <Link to="/ser-genio" onClick={() => setMobileMenuOpen(false)} className="bg-secondary text-text px-4 py-3 rounded-full text-center hover:bg-secondary-dark transition-colors font-medium">
+                    Ofrece tus servicios
                   </Link>
                 </>
               ) : (
@@ -380,9 +389,12 @@ const Header: React.FC = () => {
       </header>
 
       {/* Login Modal */}
-      <LoginModal 
-        isOpen={showLoginModal} 
-        onClose={() => setShowLoginModal(false)} 
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        title={loginIntent.title}
+        subtitle={loginIntent.subtitle}
+        redirectTo={loginIntent.redirectTo}
       />
     </>
   );

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import {
@@ -9,6 +10,7 @@ import {
   User,
 } from '../utils/authUtils';
 import { getGeniusProfile } from '../services/supabaseGeniusService';
+import { takePostLoginRedirect } from '../utils/onboardingUtils';
 
 /**
  * Bridges Supabase Auth (Google OAuth) with the app's user system. Real Google
@@ -66,8 +68,18 @@ const SocialAuthBridge: React.FC = () => {
   // Guards against the initial getSession() and onAuthStateChange both firing
   // for the same sign-in and processing it twice.
   const processedEmail = useRef<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Tras volver de Google, llevar a la persona a donde iba (p. ej. al
+    // formulario del genio), si dejó una ruta pendiente al abrir el login.
+    // La ruta caduca y se borra al usarse, así que en una recarga normal no
+    // hace nada.
+    const goToPendingRedirect = () => {
+      const path = takePostLoginRedirect();
+      if (path && path !== window.location.pathname + window.location.search) navigate(path);
+    };
+
     const handleSession = async (session: Session | null) => {
       const su = session?.user;
       const email = su?.email;
@@ -102,6 +114,7 @@ const SocialAuthBridge: React.FC = () => {
           saveRegisteredUser(fixed);
           setCurrentUser(fixed);
         }
+        goToPendingRedirect();
         return;
       }
 
@@ -136,6 +149,7 @@ const SocialAuthBridge: React.FC = () => {
         const updated: User = { ...existing, id: su.id, isGenius };
         saveRegisteredUser(updated);
         setCurrentUser(updated);
+        goToPendingRedirect();
         return;
       }
 
@@ -153,6 +167,7 @@ const SocialAuthBridge: React.FC = () => {
       };
       saveRegisteredUser(newUser);
       setCurrentUser(newUser);
+      goToPendingRedirect();
     };
 
     // Handle a session already present in the URL / storage on first load.
@@ -160,11 +175,13 @@ const SocialAuthBridge: React.FC = () => {
 
     // Handle the sign-in that arrives after returning from Google.
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') handleSession(session);
+      if (event !== 'SIGNED_IN') return;
+      // Diferido: no se llama a Supabase dentro del propio callback.
+      setTimeout(() => handleSession(session), 0);
     });
 
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   return null;
 };
