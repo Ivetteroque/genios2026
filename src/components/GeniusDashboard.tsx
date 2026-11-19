@@ -14,7 +14,6 @@ import { localDateISO } from '../utils/dateUtils';
 import { showToast } from '../utils/toast';
 import LoadingSpinner from './LoadingSpinner';
 import SubscriptionSection from './SubscriptionSection';
-import GeniusAvailabilityCalendar from './GeniusAvailabilityCalendar';
 import GeniusProfileWizard from './GeniusProfileWizard';
 import GeniusHome from './genio-panel/GeniusHome';
 import GeniusAgenda from './genio-panel/GeniusAgenda';
@@ -59,7 +58,6 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
   const [todayStatus, setTodayStatus] = useState<AvailabilityStatus>('available');
   const [section, setSection] = useState<GenioSection>('home');
   const [editingStep, setEditingStep] = useState<number | null>(null);
-  const [showMonth, setShowMonth] = useState(false);
 
   const load = useCallback(async () => {
     if (!currentUser) {
@@ -93,7 +91,6 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
   const go = (next: GenioSection) => {
     setSection(next);
     setEditingStep(null);
-    setShowMonth(false);
     window.scrollTo({ top: 0 });
   };
 
@@ -153,9 +150,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
   } else if (section === 'profile') {
     content = <GeniusProfileSections profile={profile} onEditStep={editStep} />;
   } else if (section === 'agenda') {
-    content = showMonth
-      ? <div className="max-w-4xl"><GeniusAvailabilityCalendar onClose={() => { setShowMonth(false); load(); }} /></div>
-      : <GeniusAgenda geniusId={profile.id} onOpenMonth={() => setShowMonth(true)} onTodayChange={setTodayStatus} />;
+    content = <GeniusAgenda geniusId={profile.id} onTodayChange={setTodayStatus} />;
   } else if (section === 'plan') {
     content = (
       <SubscriptionSection
