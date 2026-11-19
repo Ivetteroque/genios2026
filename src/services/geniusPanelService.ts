@@ -38,3 +38,33 @@ export const shareProfile = async (geniusId: string, text: string) => {
   }
   window.open(`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`, '_blank', 'noopener');
 };
+
+/**
+ * Guarda solo los campos de una parte del perfil (p. ej. la foto). La RLS
+ * deja al genio editar su propia fila; los campos de admin (estado,
+ * verificación, destacado) los protege un trigger en la base.
+ */
+export const updateMyGeniusProfile = async (geniusId: string, patch: Record<string, unknown>): Promise<void> => {
+  const { error } = await supabase
+    .from('genius_profiles')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', geniusId);
+  if (error) throw error;
+};
+
+/**
+ * Crea (o completa) el perfil del genio al terminar el formulario de alta.
+ * Los campos de admin (estado, verificación…) los fija un trigger en la base.
+ */
+export const createMyGeniusProfile = async (userId: string, fields: Record<string, unknown>): Promise<string> => {
+  const { data, error } = await supabase
+    .from('genius_profiles')
+    .upsert(
+      { user_id: userId, ...fields, last_wizard_step: 7, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    )
+    .select('id')
+    .single();
+  if (error) throw error;
+  return data.id as string;
+};

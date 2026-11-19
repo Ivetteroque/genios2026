@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, CalendarDays, CreditCard, Home, UserRound } from 'lucide-react';
+import { CalendarDays, CreditCard, Home, UserRound } from 'lucide-react';
 import { getCurrentUser } from '../utils/authUtils';
-import { getGeniusProfile, convertGeniusProfileToGenius } from '../services/supabaseGeniusService';
+import { getGeniusProfile } from '../services/supabaseGeniusService';
 import { AvailabilityStatus, getTodayAvailability, setDayStatus } from '../services/supabaseAvailabilityService';
 import {
   getLatestPaymentRequest,
@@ -14,11 +14,11 @@ import { localDateISO } from '../utils/dateUtils';
 import { showToast } from '../utils/toast';
 import LoadingSpinner from './LoadingSpinner';
 import SubscriptionSection from './SubscriptionSection';
-import GeniusProfileWizard from './GeniusProfileWizard';
 import GeniusHome from './genio-panel/GeniusHome';
 import GeniusAgenda from './genio-panel/GeniusAgenda';
 import GeniusProfileSections from './genio-panel/GeniusProfileSections';
-import type { GenioSection, PanelGeniusProfile } from './genio-panel/types';
+import ProfileEditor from './genio-panel/ProfileEditors';
+import type { GenioSection, PanelGeniusProfile, ProfilePart } from './genio-panel/types';
 
 /**
  * Panel del genio: Inicio · Mi perfil · Agenda · Mi plan.
@@ -38,14 +38,6 @@ const NAV: { id: GenioSection; label: string; icon: React.FC<{ className?: strin
   { id: 'plan', label: 'Mi plan', icon: CreditCard },
 ];
 
-const SECTION_TITLES: Record<number, string> = {
-  1: 'Foto y datos de contacto',
-  2: 'Sobre mí',
-  3: 'Tu servicio y zona de trabajo',
-  4: 'Fotos de tus trabajos',
-  5: 'Verificación de identidad',
-};
-
 // onEditProfile / onConfigureCalendar siguen en las props (el contenedor las
 // pasa), pero el panel maneja la edición y el calendario por su cuenta.
 const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
@@ -57,7 +49,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
   const [stats, setStats] = useState<GeniusStats | null>(null);
   const [todayStatus, setTodayStatus] = useState<AvailabilityStatus>('available');
   const [section, setSection] = useState<GenioSection>('home');
-  const [editingStep, setEditingStep] = useState<number | null>(null);
+  const [editingPart, setEditingPart] = useState<ProfilePart | null>(null);
 
   const load = useCallback(async () => {
     if (!currentUser) {
@@ -90,13 +82,13 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
 
   const go = (next: GenioSection) => {
     setSection(next);
-    setEditingStep(null);
+    setEditingPart(null);
     window.scrollTo({ top: 0 });
   };
 
-  const editStep = (step: number) => {
+  const editPart = (part: ProfilePart) => {
     setSection('profile');
-    setEditingStep(step);
+    setEditingPart(part);
     window.scrollTo({ top: 0 });
   };
 
@@ -124,31 +116,25 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
 
   if (!profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 pt-24 text-center text-gray-600">
+      <div className="min-h-screen flex items-center justify-center px-4 pt-24 text-center text-text/65">
         No encontramos tu perfil de genio. Recarga la página o vuelve a iniciar sesión.
       </div>
     );
   }
 
   let content: React.ReactNode;
-  if (section === 'profile' && editingStep) {
+  if (section === 'profile' && editingPart) {
     content = (
-      <div className="max-w-3xl">
-        <button onClick={() => setEditingStep(null)} className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 mb-3">
-          <ArrowLeft className="w-4 h-4" /> Volver a Mi perfil
-        </button>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4">{SECTION_TITLES[editingStep]}</h2>
-        <GeniusProfileWizard
-          key={editingStep}
-          sectionStep={editingStep}
-          initialData={convertGeniusProfileToGenius(profile as never)}
-          onComplete={async () => { setEditingStep(null); await load(); }}
-          onCancel={() => setEditingStep(null)}
-        />
-      </div>
+      <ProfileEditor
+        key={editingPart}
+        part={editingPart}
+        profile={profile}
+        onDone={async () => { setEditingPart(null); window.scrollTo({ top: 0 }); await load(); }}
+        onCancel={() => { setEditingPart(null); window.scrollTo({ top: 0 }); }}
+      />
     );
   } else if (section === 'profile') {
-    content = <GeniusProfileSections profile={profile} onEditStep={editStep} />;
+    content = <GeniusProfileSections profile={profile} onEdit={editPart} />;
   } else if (section === 'agenda') {
     content = <GeniusAgenda geniusId={profile.id} onTodayChange={setTodayStatus} />;
   } else if (section === 'plan') {
@@ -170,13 +156,13 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
         todayStatus={todayStatus}
         onSetToday={setToday}
         onGo={go}
-        onEditStep={editStep}
+        onEdit={editPart}
       />
     );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 pt-20">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#FAFBFF] pt-20">
       {/* Navegación en computadora */}
       <aside className="hidden lg:flex lg:flex-col w-56 shrink-0 bg-white border-r border-gray-100 p-3 pt-6">
         <nav aria-label="Panel del genio" className="space-y-1">
@@ -186,7 +172,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
               onClick={() => go(id)}
               aria-current={section === id ? 'page' : undefined}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] transition-colors ${
-                section === id ? 'bg-blue-50 text-blue-800 font-semibold' : 'text-gray-600 hover:bg-gray-50'
+                section === id ? 'bg-primary/25 text-ink-blue font-semibold' : 'text-text/65 hover:bg-surface-blue'
               }`}
             >
               <Icon className="w-5 h-5" />
@@ -210,7 +196,7 @@ const GeniusDashboard: React.FC<GeniusDashboardProps> = () => {
             onClick={() => go(id)}
             aria-current={section === id ? 'page' : undefined}
             className={`flex flex-col items-center justify-center gap-0.5 h-16 text-xs font-medium ${
-              section === id ? 'text-blue-700' : 'text-gray-500'
+              section === id ? 'text-ink-blue' : 'text-text/55'
             }`}
           >
             <Icon className="w-6 h-6" />

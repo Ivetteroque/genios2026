@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import GeniusDashboard from './GeniusDashboard';
-import GeniusProfileWizard from './GeniusProfileWizard';
+import GeniusOnboarding from './genio-panel/GeniusOnboarding';
 import { getCurrentUser, updateUser } from '../utils/authUtils';
 import { getGeniusProfile } from '../services/supabaseGeniusService';
 import { LogIn } from 'lucide-react';
@@ -103,13 +103,8 @@ const GeniusDashboardContainer: React.FC = () => {
   // para que no les tape el título ni el botón de cerrar.
   if (viewMode === 'wizard') {
     return (
-      <div className="bg-gray-50 min-h-screen pt-24 pb-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          <GeniusProfileWizard
-            onComplete={handleWizardComplete}
-            onCancel={handleWizardCancel}
-          />
-        </div>
+      <div className="bg-[#FAFBFF] min-h-screen pt-24 pb-12 px-4">
+        <GeniusOnboarding onComplete={handleWizardComplete} onCancel={handleWizardCancel} />
       </div>
     );
   }

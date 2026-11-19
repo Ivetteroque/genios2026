@@ -15,9 +15,9 @@ const STATUS_OPTIONS: {
   icon: React.FC<{ className?: string }>;
   classes: string;
 }[] = [
-  { value: 'available', label: 'Disponible', hint: 'Puedo tomar trabajos', icon: CheckCircle2, classes: 'border-green-200 bg-green-50 text-green-800' },
-  { value: 'full', label: 'Ocupado', hint: 'Tengo la agenda llena', icon: Clock, classes: 'border-amber-200 bg-amber-50 text-amber-800' },
-  { value: 'vacation', label: 'De vacaciones', hint: 'No estoy trabajando', icon: Plane, classes: 'border-sky-200 bg-sky-50 text-sky-800' },
+  { value: 'available', label: 'Disponible', hint: 'Puedo tomar trabajos', icon: CheckCircle2, classes: 'border-primary bg-primary/25 text-ink-blue' },
+  { value: 'full', label: 'Ocupado', hint: 'Tengo la agenda llena', icon: Clock, classes: 'border-secondary bg-surface-rose text-ink-rose' },
+  { value: 'vacation', label: 'De vacaciones', hint: 'No estoy trabajando', icon: Plane, classes: 'bg-gray-100 border-gray-300 text-gray-700' },
 ];
 
 interface DayStatusSheetProps {
@@ -44,7 +44,7 @@ const DayStatusSheet: React.FC<DayStatusSheetProps> = ({ date, current, onPick, 
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl p-5 pb-8 sm:pb-5 shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <p className="font-semibold text-gray-900 first-letter:uppercase">{label}</p>
+          <p className="font-semibold text-text first-letter:uppercase">{label}</p>
           <button onClick={onClose} aria-label="Cerrar" className="p-2 -mr-2 text-gray-400 hover:text-gray-600 rounded-lg">
             <X className="w-5 h-5" />
           </button>
@@ -56,7 +56,7 @@ const DayStatusSheet: React.FC<DayStatusSheetProps> = ({ date, current, onPick, 
               onClick={() => onPick(value)}
               aria-pressed={current === value}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 text-left transition-colors ${
-                current === value ? classes : 'border-gray-100 hover:border-gray-200 text-gray-800'
+                current === value ? classes : 'border-gray-100 hover:border-gray-200 text-text/90'
               }`}
             >
               <Icon className="w-6 h-6 shrink-0" />
