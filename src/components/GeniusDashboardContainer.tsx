@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import GeniusDashboard from './GeniusDashboard';
 import GeniusProfileWizard from './GeniusProfileWizard';
-import GeniusAvailabilityCalendar from './GeniusAvailabilityCalendar';
 import { getCurrentUser, updateUser } from '../utils/authUtils';
 import { getGeniusProfile } from '../services/supabaseGeniusService';
 import { LogIn } from 'lucide-react';
@@ -86,10 +85,6 @@ const GeniusDashboardContainer: React.FC = () => {
     setViewMode('dashboard');
   };
 
-  const handleCalendarClose = () => {
-    setViewMode('dashboard');
-  };
-
   // Wait until we know whether a genius_profile exists, so a brand-new Genio
   // opens the wizard instead of briefly flashing an empty dashboard.
   if (!checkedProfile) {
@@ -113,18 +108,6 @@ const GeniusDashboardContainer: React.FC = () => {
           <GeniusProfileWizard
             onComplete={handleWizardComplete}
             onCancel={handleWizardCancel}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (viewMode === 'calendar') {
-    return (
-      <div className="bg-gray-50 min-h-screen pt-24 pb-12 px-4">
-        <div className="max-w-4xl mx-auto">
-          <GeniusAvailabilityCalendar
-            onClose={handleCalendarClose}
           />
         </div>
       </div>
