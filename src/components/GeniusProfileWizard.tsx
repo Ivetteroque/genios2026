@@ -12,6 +12,7 @@ import { getActiveCategories, Category } from '../utils/categoryUtils';
 import { saveDraft, loadDraft, saveGeniusProfile, deleteDraft } from '../services/supabaseGeniusService';
 import GeniusProfilePreviewModal from './GeniusProfilePreviewModal';
 import WizardSuccess from './WizardSuccess';
+import { showToast } from '../utils/toast';
 import { CoverageType, expandCoverageToDistricts } from '../utils/locationUtils';
 import { SelectedLocation } from './FlexibleLocationSelector';
 import { calculateProfileCompletion, getMissingFields } from '../utils/profileCompletionUtils';
@@ -20,15 +21,21 @@ interface GeniusProfileWizardProps {
   initialData?: Partial<Genius>;
   onComplete: () => void;
   onCancel: () => void;
+  /**
+   * Editar una sola parte del perfil (1 a 5) desde "Mi perfil": se muestra
+   * solo ese paso, con Cancelar / Guardar cambios, sin el recorrido completo.
+   */
+  sectionStep?: number;
 }
 
 const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
   initialData,
   onComplete,
-  onCancel
+  onCancel,
+  sectionStep
 }) => {
   const [currentUser] = useState(getCurrentUser());
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(sectionStep ?? 1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [activeCategories, setActiveCategories] = useState<Category[]>([]);
   const [showPreview, setShowPreview] = useState(false);
@@ -76,7 +83,9 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
   useEffect(() => {
     const categories = getActiveCategories();
     setActiveCategories(categories);
-    loadSavedDraft();
+    // Al editar una parte se trabaja sobre el perfil guardado, no sobre un
+    // borrador viejo (que podría pisar datos más nuevos).
+    if (!sectionStep) loadSavedDraft();
   }, []);
 
   useEffect(() => {
@@ -85,7 +94,7 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
     }
 
     autoSaveTimeoutRef.current = setTimeout(() => {
-      if (currentUser) {
+      if (currentUser && !sectionStep) {
         autoSaveDraft();
       }
     }, 2000);
@@ -298,6 +307,11 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       const saved = await saveGeniusProfile(currentUser.id, profileData, completionPercentage, 6);
       await deleteDraft(currentUser.id).catch(() => undefined);
 
+      if (sectionStep) {
+        showToast('Cambios guardados');
+        onComplete();
+        return;
+      }
       setSavedProfileId(saved.id);
       setShowSuccess(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -737,6 +751,47 @@ const GeniusProfileWizard: React.FC<GeniusProfileWizardProps> = ({
       documents: formData.documents,
     });
     return <WizardSuccess geniusProfileId={savedProfileId} missingFields={missingFields} onGoToPanel={onComplete} />;
+  }
+
+  if (sectionStep) {
+    const sectionErrors = stepErrors.length > 0 ? missingForStep(sectionStep) : [];
+    const saveSection = async () => {
+      const missing = missingForStep(sectionStep);
+      if (missing.length > 0) {
+        showErrors(missing);
+        return;
+      }
+      setStepErrors([]);
+      await handleSaveProgress();
+    };
+    return (
+      <div className="max-w-3xl">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-8">
+          {renderCurrentStep()}
+        </div>
+        {(sectionErrors.length > 0 || saveError) && (
+          <div id="wizard-errors" role="alert" className="mt-4 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700 scroll-mt-28">
+            <p className="flex items-center gap-2 font-semibold mb-1">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {saveError ? 'No se pudo guardar' : 'Para guardar, completa:'}
+            </p>
+            {saveError ? <p>{saveError}</p> : (
+              <ul className="list-disc pl-6 space-y-0.5">{sectionErrors.map((e) => <li key={e}>{e}</li>)}</ul>
+            )}
+          </div>
+        )}
+        <div className="sticky bottom-20 lg:bottom-4 mt-4 flex gap-3 bg-gray-50/90 backdrop-blur py-2">
+          <button onClick={onCancel} className="flex-1 sm:flex-none px-6 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium">
+            Cancelar
+          </button>
+          <button onClick={saveSection} disabled={isSaving}
+            className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold flex items-center justify-center gap-2">
+            {isSaving ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <Save className="w-4 h-4" />}
+            {isSaving ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // Una vez mostrado, el aviso refleja lo que falta AHORA en este paso: se

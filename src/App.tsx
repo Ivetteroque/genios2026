@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import AdminRoute from './components/AdminRoute';
 import SocialAuthBridge from './components/SocialAuthBridge';
 import LoadingSpinner from './components/LoadingSpinner';
+import ToastHost from './components/ToastHost';
 
 /**
  * Cada página se descarga cuando alguien la visita, no al abrir el sitio.
@@ -35,6 +36,7 @@ function App() {
   return (
     <Router>
       <SocialAuthBridge />
+      <ToastHost />
       <div className="font-body min-h-screen flex flex-col">
         <Suspense fallback={<PageFallback />}>
           <Routes>

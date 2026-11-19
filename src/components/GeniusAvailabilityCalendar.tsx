@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Save, CheckCircle, Calendar as CalendarIcon, Plane } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, Calendar as CalendarIcon, Plane } from 'lucide-react';
 import { getCurrentUser } from '../utils/authUtils';
 import { getGeniusProfile } from '../services/supabaseGeniusService';
 import {
   getAvailabilityForMonth,
-  saveBulkAvailability,
-  deleteAvailabilityRecord,
+  setDayStatus,
   AvailabilityStatus
 } from '../services/supabaseAvailabilityService';
 import LoadingSpinner from './LoadingSpinner';
+import DayStatusSheet from './DayStatusSheet';
+import { parseLocalDate } from '../utils/dateUtils';
+import { showToast } from '../utils/toast';
 
 interface GeniusAvailabilityCalendarProps {
   onClose: () => void;
@@ -17,15 +19,11 @@ interface GeniusAvailabilityCalendarProps {
 const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({ onClose }) => {
   const [currentUser] = useState(getCurrentUser());
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [geniusId, setGeniusId] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [availability, setAvailability] = useState<Record<string, AvailabilityStatus>>({});
-  const [originalAvailability, setOriginalAvailability] = useState<Record<string, AvailabilityStatus>>({});
-  const [changedDates, setChangedDates] = useState<Set<string>>(new Set());
   const [showMenu, setShowMenu] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -60,8 +58,6 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
         });
 
         setAvailability(availabilityMap);
-        setOriginalAvailability(availabilityMap);
-        setChangedDates(new Set());
       }
     } catch (error) {
       console.error('Error loading availability:', error);
@@ -102,90 +98,39 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
     return days;
   };
 
-  const handleDayClick = (dateString: string, event: React.MouseEvent) => {
+  const handleDayClick = (dateString: string) => {
     if (!dateString) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const clickedDate = new Date(dateString);
+    const clickedDate = parseLocalDate(dateString);
 
     if (clickedDate < today) {
       return;
     }
 
     setSelectedDate(dateString);
-    setMenuPosition({ x: event.clientX, y: event.clientY });
     setShowMenu(true);
   };
 
-  const handleStatusChange = (status: AvailabilityStatus) => {
-    if (!selectedDate) return;
+  // Cada cambio se guarda al instante: no hay botón "Guardar" que olvidar ni
+  // cambios que se pierdan al pasar de mes.
+  const handleStatusChange = async (status: AvailabilityStatus) => {
+    if (!selectedDate || !geniusId) return;
+    const date = selectedDate;
+    const previous = availability[date];
 
-    setAvailability(prev => ({
-      ...prev,
-      [selectedDate]: status
-    }));
-
-    setChangedDates(prev => new Set(prev).add(selectedDate));
+    setAvailability(prev => ({ ...prev, [date]: status }));
     setShowMenu(false);
     setSelectedDate(null);
-  };
 
-  const handleSaveChanges = async () => {
-    if (!geniusId || changedDates.size === 0) {
-      alert('No hay cambios para guardar');
-      return;
-    }
-
-    setSaving(true);
     try {
-      const datesToSave: Array<{ date: string; status: AvailabilityStatus }> = [];
-      const datesToDelete: string[] = [];
-
-      Array.from(changedDates).forEach(date => {
-        const currentStatus = availability[date];
-        const originalStatus = originalAvailability[date];
-
-        if (currentStatus === 'available') {
-          if (originalStatus && originalStatus !== 'available') {
-            datesToDelete.push(date);
-          }
-        } else {
-          datesToSave.push({ date, status: currentStatus });
-        }
-      });
-
-      if (datesToSave.length > 0) {
-        await saveBulkAvailability(geniusId, datesToSave);
-      }
-
-      if (datesToDelete.length > 0) {
-        for (const date of datesToDelete) {
-          await deleteAvailabilityRecord(geniusId, date);
-        }
-      }
-
-      alert('Disponibilidad actualizada correctamente');
-
-      const newOriginalAvailability = { ...originalAvailability };
-      datesToDelete.forEach(date => {
-        delete newOriginalAvailability[date];
-      });
-      datesToSave.forEach(({ date, status }) => {
-        newOriginalAvailability[date] = status;
-      });
-      setOriginalAvailability(newOriginalAvailability);
-
-      setChangedDates(new Set());
-
-      if (window.location.pathname.includes('profile')) {
-        window.location.reload();
-      }
+      await setDayStatus(geniusId, date, status);
+      showToast('Guardado');
     } catch (error) {
       console.error('Error saving availability:', error);
-      alert('Error al guardar los cambios. Por favor, intenta nuevamente.');
-    } finally {
-      setSaving(false);
+      setAvailability(prev => ({ ...prev, [date]: previous }));
+      showToast('No se pudo guardar. Revisa tu conexión.', 'error');
     }
   };
 
@@ -223,7 +168,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
     if (!dateString) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const date = new Date(dateString);
+    const date = parseLocalDate(dateString);
     return date < today;
   };
 
@@ -231,7 +176,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
     if (!dateString) return false;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const date = new Date(dateString);
+    const date = parseLocalDate(dateString);
     return date >= today;
   };
 
@@ -272,9 +217,9 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="bg-gradient-to-r from-green-500 to-blue-500 px-4 sm:px-6 py-4">
-            <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">Calendario de Disponibilidad</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-white mb-1">Tu mes</h1>
             <p className="text-white/90 text-sm">
-              Configura tu disponibilidad para que los clientes sepan cuándo estás disponible
+              Toca un día para cambiarlo. Se guarda solo.
             </p>
           </div>
 
@@ -282,6 +227,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
             <div className="flex items-center justify-between mb-6">
               <button
                 onClick={handlePreviousMonth}
+                aria-label="Mes anterior"
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <ChevronLeft className="w-6 h-6 text-gray-700" />
@@ -293,6 +239,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
 
               <button
                 onClick={handleNextMonth}
+                aria-label="Mes siguiente"
                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <ChevronRight className="w-6 h-6 text-gray-700" />
@@ -311,7 +258,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
               {getDaysInMonth().map((day, index) => (
                 <div
                   key={index}
-                  onClick={(e) => day.isCurrentMonth && handleDayClick(day.dateString, e)}
+                  onClick={() => day.isCurrentMonth && handleDayClick(day.dateString)}
                   className={`aspect-square flex flex-col items-center justify-center rounded-lg border-2 transition-all ${
                     day.isCurrentMonth
                       ? isPastDate(day.dateString)
@@ -341,7 +288,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-yellow-100 border-2 border-yellow-500 rounded"></div>
-                  <span className="text-sm text-gray-700">Agenda llena</span>
+                  <span className="text-sm text-gray-700">Ocupado</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 bg-red-100 border-2 border-red-500 rounded"></div>
@@ -360,7 +307,7 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
                   <div className="flex items-center space-x-2">
                     <CalendarIcon className="w-4 h-4 text-yellow-600" />
                     <span className="text-gray-700">
-                      <span className="font-semibold text-yellow-700">{monthSummary.full}</span> agenda llena
+                      <span className="font-semibold text-yellow-700">{monthSummary.full}</span> ocupado
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -373,78 +320,22 @@ const GeniusAvailabilityCalendar: React.FC<GeniusAvailabilityCalendarProps> = ({
               </div>
             </div>
 
-            <div className="mt-6 flex items-center space-x-3">
-              <button
-                onClick={handleSaveChanges}
-                disabled={saving || changedDates.size === 0}
-                className={`flex-1 flex items-center justify-center space-x-2 py-3 rounded-lg font-semibold transition-colors ${
-                  saving || changedDates.size === 0
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white'
-                }`}
-              >
-                {saving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Guardando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-5 h-5" />
-                    <span>Guardar Cambios</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={onClose}
-                className="px-4 sm:px-6 py-3 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold transition-colors"
-              >
-                Cerrar
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              className="mt-6 w-full py-3 rounded-xl bg-gray-900 hover:bg-gray-800 text-white font-semibold transition-colors"
+            >
+              Listo
+            </button>
           </div>
         </div>
       </div>
 
-      {showMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowMenu(false)}
-          ></div>
-          <div
-            className="fixed z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 min-w-[200px]"
-            style={{
-              left: `${menuPosition.x}px`,
-              top: `${menuPosition.y}px`,
-              transform: 'translate(-50%, -100%) translateY(-10px)'
-            }}
-          >
-            <button
-              onClick={() => handleStatusChange('available')}
-              className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-green-50 transition-colors"
-            >
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              <span className="text-gray-900 font-medium">Disponible</span>
-            </button>
-            <button
-              onClick={() => handleStatusChange('full')}
-              className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-yellow-50 transition-colors"
-            >
-              <CalendarIcon className="w-5 h-5 text-yellow-600" />
-              <span className="text-gray-900 font-medium">Agenda llena</span>
-            </button>
-            <button
-              onClick={() => handleStatusChange('vacation')}
-              className="w-full flex items-center space-x-3 px-4 py-3 hover:bg-red-50 transition-colors"
-            >
-              <Plane className="w-5 h-5 text-red-600" />
-              <span className="text-gray-900 font-medium">De vacaciones</span>
-            </button>
-          </div>
-        </>
-      )}
+      <DayStatusSheet
+        date={showMenu ? selectedDate : null}
+        current={(selectedDate && availability[selectedDate]) || 'available'}
+        onPick={handleStatusChange}
+        onClose={() => { setShowMenu(false); setSelectedDate(null); }}
+      />
     </div>
   );
 };

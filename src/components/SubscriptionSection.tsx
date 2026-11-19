@@ -65,7 +65,7 @@ export default function SubscriptionSection({
   const header = (
     <div className="mb-6 flex items-center gap-3">
       <CreditCard className="w-6 h-6 text-blue-600" />
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Suscripción</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Mi plan</h2>
     </div>
   );
 
@@ -136,6 +136,19 @@ export default function SubscriptionSection({
         </div>
 
         {pending && <PendingNotice />}
+
+        {/* Durante la beta: avisar desde ya cómo será después, sin sorpresas. */}
+        {isBeta && !paymentsEnabled && !settingsLoading && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
+            <h3 className="font-semibold text-gray-900 mb-1">Cuando termine la beta</h3>
+            <p className="text-sm text-gray-600">
+              El plan cuesta <strong>S/{price} al año</strong> (menos de S/{(price / 365).toFixed(2)} al día). Lo pagas
+              aquí mismo con <strong>Yape, Plin o transferencia</strong> y subes la captura del pago. Te avisaremos con
+              tiempo, antes de que termine tu acceso.
+            </p>
+          </div>
+        )}
+
         {!pending && paymentsEnabled && (isBeta || expiringSoon) && (
           <PaymentCard
             settings={settings!}
