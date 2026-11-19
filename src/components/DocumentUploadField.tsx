@@ -140,15 +140,15 @@ const DocumentUploadField: React.FC<DocumentUploadFieldProps> = ({
         <div className="border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-primary/30 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-ink-blue" />
               </div>
               <div>
                 <p className="font-medium text-text">{currentDocument.name}</p>
                 <div className="flex items-center space-x-2 mt-1">
                   {getStatusIcon()}
                   <span className={`text-xs ${
-                    currentDocument.verified ? 'text-green-600' : 'text-orange-600'
+                    currentDocument.verified ? 'text-ink-blue' : 'text-orange-600'
                   }`}>
                     {getStatusText()}
                   </span>

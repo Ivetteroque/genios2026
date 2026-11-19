@@ -75,25 +75,25 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <MapPin className="w-5 h-5 text-blue-600" />
-        <label className="block text-sm font-medium text-gray-700">
+        <MapPin className="w-5 h-5 text-ink-blue" />
+        <label className="block text-sm font-medium text-text/80">
           ¿En qué distrito vives? <span className="text-red-500">*</span>
         </label>
       </div>
 
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-text/55">
         Ayuda a que los clientes cercanos te encuentren. No mostramos tu dirección.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-text/80 mb-2">
             Departamento
           </label>
           <select
             value={value?.departmentId || ''}
             onChange={handleDepartmentChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent"
           >
             <option value="">Seleccionar...</option>
             {departments.map(dept => (
@@ -105,14 +105,14 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-text/80 mb-2">
             Provincia
           </label>
           <select
             value={value?.provinceId || ''}
             onChange={handleProvinceChange}
             disabled={!selectedDepartment}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <option value="">Seleccionar...</option>
             {selectedDepartment?.provinces.map(prov => (
@@ -124,14 +124,14 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-text/80 mb-2">
             Distrito <span className="text-red-500">*</span>
           </label>
           <select
             value={value?.districtId || ''}
             onChange={handleDistrictChange}
             disabled={!selectedProvince}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           >
             <option value="">Seleccionar...</option>
             {selectedProvince?.districts.map(dist => (
@@ -148,8 +148,8 @@ export default function HierarchicalLocationSelector({ value, onChange, error }:
       )}
 
       {value && value.districtId && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-          <p className="text-sm text-green-800">
+        <div className="p-3 bg-primary/25 border border-primary rounded-lg">
+          <p className="text-sm text-ink-blue">
             <span className="font-medium">Ubicación seleccionada:</span> {value.districtName}, {value.provinceName}, {value.departmentName}
           </p>
         </div>

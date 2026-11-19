@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, X, Upload, AlertCircle, Plus } from 'lucide-react';
+import { X, AlertCircle, Plus } from 'lucide-react';
 import { uploadImages, PORTFOLIOS_BUCKET } from '../services/supabaseStorageService';
 
 interface MultiImageUploadFieldProps {
@@ -101,17 +101,17 @@ const MultiImageUploadField: React.FC<MultiImageUploadFieldProps> = ({
             <img
               src={image}
               alt={`Imagen ${index + 1}`}
-              className="w-full aspect-square object-cover rounded-lg border-2 border-gray-200 shadow-sm"
+              className="w-full aspect-square object-cover rounded-xl border border-gray-100"
             />
+            {/* Siempre visible: en el celular no existe "pasar el mouse por encima". */}
             <button
               type="button"
               onClick={() => handleRemoveImage(index)}
-              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md opacity-0 group-hover:opacity-100"
-              title="Eliminar imagen"
+              className="absolute top-1.5 right-1.5 w-8 h-8 flex items-center justify-center bg-white/95 text-text/70 hover:text-red-600 rounded-full shadow"
+              aria-label={`Quitar foto ${index + 1}`}
             >
-              <X size={14} />
+              <X size={16} />
             </button>
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-lg transition-all duration-300"></div>
           </div>
         ))}
 

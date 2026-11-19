@@ -64,8 +64,8 @@ export default function SubscriptionSection({
 
   const header = (
     <div className="mb-6 flex items-center gap-3">
-      <CreditCard className="w-6 h-6 text-blue-600" />
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Mi plan</h2>
+      <CreditCard className="w-6 h-6 text-ink-blue" />
+      <h2 className="font-heading text-2xl font-semibold text-text">Mi plan</h2>
     </div>
   );
 
@@ -79,8 +79,8 @@ export default function SubscriptionSection({
             <Ban className="w-7 h-7 text-red-500" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Tu membresía está suspendida</h3>
-            <p className="text-sm text-gray-600 mb-4">
+            <h3 className="text-lg font-semibold text-text mb-1">Tu membresía está suspendida</h3>
+            <p className="text-sm text-text/65 mb-4">
               Mientras esté suspendida, tu perfil no aparece en las búsquedas. Escríbenos y lo revisamos contigo.
             </p>
             <a
@@ -109,21 +109,21 @@ export default function SubscriptionSection({
         {header}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 sm:p-8">
           <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-5">
-            <div className={`p-3 rounded-xl shrink-0 ${isBeta ? 'bg-blue-50' : 'bg-green-50'}`}>
-              {isBeta ? <Sparkles className="w-8 h-8 text-blue-500" /> : <CheckCircle2 className="w-8 h-8 text-green-500" />}
+            <div className={`p-3 rounded-xl shrink-0 ${isBeta ? 'bg-primary/25' : 'bg-primary/25'}`}>
+              {isBeta ? <Sparkles className="w-8 h-8 text-ink-blue" /> : <CheckCircle2 className="w-8 h-8 text-green-500" />}
             </div>
             <div className="flex-1 min-w-0">
               <span className={`text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                expiringSoon ? 'text-amber-700 bg-amber-50' : 'text-green-600 bg-green-50'
+                expiringSoon ? 'text-ink-rose bg-surface-rose' : 'text-ink-blue bg-primary/25'
               }`}>
                 {expiringSoon ? 'Por vencer' : 'Activa'}
               </span>
-              <h3 className="text-lg font-semibold text-gray-900 mt-2 mb-1">
+              <h3 className="text-lg font-semibold text-text mt-2 mb-1">
                 {isBeta ? 'Acceso beta' : `Plan anual · S/${price}`}
               </h3>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-text/65">
                 Tu perfil es visible en las búsquedas. Te quedan{' '}
-                <span className="font-semibold text-blue-600">{days} {days === 1 ? 'día' : 'días'}</span>{' '}
+                <span className="font-semibold text-ink-blue">{days} {days === 1 ? 'día' : 'días'}</span>{' '}
                 (hasta el {fmtDate(membership.ends_at)}).
               </p>
               {isBeta && (
@@ -140,8 +140,8 @@ export default function SubscriptionSection({
         {/* Durante la beta: avisar desde ya cómo será después, sin sorpresas. */}
         {isBeta && !paymentsEnabled && !settingsLoading && (
           <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6">
-            <h3 className="font-semibold text-gray-900 mb-1">Cuando termine la beta</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="font-semibold text-text mb-1">Cuando termine la beta</h3>
+            <p className="text-sm text-text/65">
               El plan cuesta <strong>S/{price} al año</strong> (menos de S/{(price / 365).toFixed(2)} al día). Lo pagas
               aquí mismo con <strong>Yape, Plin o transferencia</strong> y subes la captura del pago. Te avisaremos con
               tiempo, antes de que termine tu acceso.
@@ -167,8 +167,8 @@ export default function SubscriptionSection({
   return (
     <div className="max-w-lg mx-auto space-y-4">
       <div className="text-center">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">Activa tu perfil</h2>
-        <p className="text-gray-500 text-sm">
+        <h2 className="font-heading text-2xl font-semibold text-text mb-1">Activa tu perfil</h2>
+        <p className="text-text/55 text-sm">
           Tu perfil aparece en las búsquedas cuando tienes un acceso activo. Los clientes te contactan directo, sin
           intermediarios.
         </p>
@@ -195,7 +195,7 @@ export default function SubscriptionSection({
         )
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200 p-5 text-center">
-          <p className="text-sm text-gray-600 mb-3">
+          <p className="text-sm text-text/65 mb-3">
             Durante la beta el acceso es solo por invitación. ¿No tienes código? Pídelo por WhatsApp.
           </p>
           <a
@@ -217,11 +217,11 @@ export default function SubscriptionSection({
 
 function PendingNotice() {
   return (
-    <div className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-2xl p-4">
+    <div className="flex items-start gap-3 bg-surface-rose border border-secondary/50 rounded-2xl p-4">
       <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
       <div>
-        <p className="text-sm font-semibold text-amber-800">Recibimos tu comprobante</p>
-        <p className="text-sm text-amber-700">Lo estamos revisando. Normalmente lo aprobamos en menos de 24 horas.</p>
+        <p className="text-sm font-semibold text-ink-rose">Recibimos tu comprobante</p>
+        <p className="text-sm text-ink-rose">Lo estamos revisando. Normalmente lo aprobamos en menos de 24 horas.</p>
       </div>
     </div>
   );
@@ -251,12 +251,12 @@ function BetaCodeCard({ onRedeemed }: { onRedeemed: () => void }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-4 sm:p-6">
+    <div className="bg-white rounded-2xl shadow-sm border border-primary/40 p-4 sm:p-6">
       <div className="flex items-center gap-2 mb-1">
-        <Tag className="w-4 h-4 text-blue-500" />
-        <p className="text-sm font-semibold text-gray-900">¿Tienes un código de invitación?</p>
+        <Tag className="w-4 h-4 text-ink-blue" />
+        <p className="text-sm font-semibold text-text">¿Tienes un código de invitación?</p>
       </div>
-      <p className="text-xs text-gray-500 mb-3">Con tu código de la beta tu perfil se activa gratis.</p>
+      <p className="text-xs text-text/55 mb-3">Con tu código de la beta tu perfil se activa gratis.</p>
       <div className="flex gap-2">
         <input
           type="text"
@@ -265,13 +265,13 @@ function BetaCodeCard({ onRedeemed }: { onRedeemed: () => void }) {
           onKeyDown={(e) => e.key === 'Enter' && handleRedeem()}
           placeholder="Ej. TACNA2026"
           aria-label="Código de invitación"
-          className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 font-mono tracking-wider"
+          className="flex-1 min-w-0 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent placeholder-gray-400 font-mono tracking-wider"
           maxLength={30}
         />
         <button
           onClick={handleRedeem}
           disabled={loading || !code.trim()}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium px-4 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+          className="bg-ink-blue hover:bg-[#355f9c] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium px-4 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-1.5"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Activar'}
         </button>
@@ -280,7 +280,7 @@ function BetaCodeCard({ onRedeemed }: { onRedeemed: () => void }) {
         <div
           role={message.type === 'error' ? 'alert' : 'status'}
           className={`flex items-start gap-2 mt-3 p-3 rounded-lg text-sm ${
-            message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+            message.type === 'success' ? 'bg-primary/25 text-ink-blue' : 'bg-red-50 text-red-600'
           }`}
         >
           {message.type === 'error' ? <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" /> : <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />}
@@ -336,8 +336,8 @@ function PaymentCard({
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="p-4 sm:p-6">
-        <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-500 mb-5">{subtitle}</p>
+        <h3 className="text-base font-semibold text-text">{title}</h3>
+        <p className="text-sm text-text/55 mb-5">{subtitle}</p>
 
         {rejected && (
           <div role="alert" className="flex items-start gap-2 mb-5 p-3 rounded-lg text-sm bg-red-50 text-red-600">
@@ -355,17 +355,17 @@ function PaymentCard({
           {settings.qr_image_url ? (
             <img src={settings.qr_image_url} alt="QR de pago" className="w-44 h-44 rounded-xl object-contain border border-gray-200" />
           ) : (
-            <div className="w-44 h-44 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 flex flex-col items-center justify-center gap-2">
+            <div className="w-44 h-44 rounded-xl border-2 border-dashed border-gray-300 bg-surface-blue flex flex-col items-center justify-center gap-2">
               <QrCode className="w-10 h-10 text-gray-300" />
               <p className="text-xs text-gray-400 text-center px-4">QR de pago próximamente</p>
             </div>
           )}
-          <p className="text-sm font-semibold text-gray-800 mt-3">{settings.payment_name || 'Genios'}</p>
+          <p className="text-sm font-semibold text-text/90 mt-3">{settings.payment_name || 'Genios'}</p>
           {settings.payment_phone && (
-            <p className="text-sm text-gray-500">{settings.payment_phone.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}</p>
+            <p className="text-sm text-text/55">{settings.payment_phone.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3')}</p>
           )}
           {settings.payment_instructions && (
-            <p className="text-xs text-gray-500 text-center mt-2 whitespace-pre-line">{settings.payment_instructions}</p>
+            <p className="text-xs text-text/55 text-center mt-2 whitespace-pre-line">{settings.payment_instructions}</p>
           )}
         </div>
 
@@ -374,7 +374,7 @@ function PaymentCard({
             <button
               type="button"
               onClick={() => setShowBank((v) => !v)}
-              className="w-full flex items-center justify-between gap-2 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors rounded-xl"
+              className="w-full flex items-center justify-between gap-2 px-4 py-3 text-sm text-text/65 hover:bg-surface-blue transition-colors rounded-xl"
               aria-expanded={showBank}
             >
               <span className="flex items-center gap-2 font-medium">
@@ -392,8 +392,8 @@ function PaymentCard({
                   ['CCI', settings.bank_cci],
                 ].filter(([, value]) => value).map(([label, value]) => (
                   <div key={label} className="flex justify-between gap-3">
-                    <dt className="text-gray-500 shrink-0">{label}</dt>
-                    <dd className="font-semibold text-gray-900 text-right break-all">{value}</dd>
+                    <dt className="text-text/55 shrink-0">{label}</dt>
+                    <dd className="font-semibold text-text text-right break-all">{value}</dd>
                   </div>
                 ))}
               </dl>
@@ -413,7 +413,7 @@ function PaymentCard({
                 aria-checked={method === option.value}
                 onClick={() => setMethod(option.value)}
                 className={`py-2 rounded-lg border text-sm transition-colors ${
-                  method === option.value ? 'border-blue-500 bg-blue-50 text-blue-700 font-medium' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  method === option.value ? 'border-primary bg-primary/25 text-ink-blue font-medium' : 'border-gray-200 text-text/65 hover:border-gray-300'
                 }`}
               >
                 {option.label}
@@ -427,9 +427,9 @@ function PaymentCard({
             placeholder="N.º de operación (opcional)"
             aria-label="Número de operación"
             maxLength={100}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent placeholder-gray-400"
           />
-          <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-200 hover:border-blue-300 rounded-lg px-3 py-4 text-sm text-gray-600 cursor-pointer transition-colors">
+          <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-200 hover:border-blue-300 rounded-lg px-3 py-4 text-sm text-text/65 cursor-pointer transition-colors">
             <Upload className="w-4 h-4 text-gray-400 shrink-0" />
             <span className="truncate">{voucher ? voucher.name : 'Adjunta la captura o PDF del pago'}</span>
             <input
@@ -448,7 +448,7 @@ function PaymentCard({
           <button
             type="submit"
             disabled={sending}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold py-3 rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-ink-blue hover:bg-[#355f9c] disabled:bg-gray-300 text-white font-semibold py-3 rounded-xl transition-colors"
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {sending ? 'Enviando…' : 'Enviar comprobante'}

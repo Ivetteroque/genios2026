@@ -16,9 +16,9 @@ import { showToast } from '../../utils/toast';
  */
 
 const STYLE: Record<AvailabilityStatus, { label: string; cell: string; icon: React.FC<{ className?: string }>; dot: string }> = {
-  available: { label: 'Disponible', cell: 'bg-green-50 border-green-200 text-green-900', icon: CheckCircle2, dot: 'bg-green-400' },
-  full: { label: 'Ocupado', cell: 'bg-amber-50 border-amber-300 text-amber-900', icon: Clock, dot: 'bg-amber-400' },
-  vacation: { label: 'De vacaciones', cell: 'bg-sky-50 border-sky-300 text-sky-900', icon: Plane, dot: 'bg-sky-400' },
+  available: { label: 'Disponible', cell: 'bg-primary/25 border-primary text-ink-blue', icon: CheckCircle2, dot: 'bg-ink-blue' },
+  full: { label: 'Ocupado', cell: 'bg-surface-rose border-secondary text-ink-rose', icon: Clock, dot: 'bg-secondary' },
+  vacation: { label: 'De vacaciones', cell: 'bg-gray-100 border-gray-300 text-gray-700', icon: Plane, dot: 'bg-gray-400' },
 };
 
 const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -108,8 +108,8 @@ const GeniusAgenda: React.FC<GeniusAgendaProps> = ({ geniusId, onTodayChange }) 
   return (
     <div className="max-w-3xl space-y-4">
       <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Agenda</h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <h2 className="font-heading text-2xl font-semibold text-text">Agenda</h2>
+        <p className="text-sm text-text/65 mt-1">
           Así los clientes saben cuándo puedes atenderlos. Si no marcas nada, apareces como disponible.
         </p>
       </div>
@@ -126,9 +126,9 @@ const GeniusAgenda: React.FC<GeniusAgendaProps> = ({ geniusId, onTodayChange }) 
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="text-center">
-            <p className="font-semibold text-gray-900 first-letter:uppercase">{monthLabel}</p>
+            <p className="font-semibold text-text first-letter:uppercase">{monthLabel}</p>
             {!isCurrentMonth && (
-              <button onClick={() => setMonth({ year: now.getFullYear(), month: now.getMonth() })} className="text-xs text-blue-700 underline">
+              <button onClick={() => setMonth({ year: now.getFullYear(), month: now.getMonth() })} className="text-xs text-ink-blue underline">
                 Volver a este mes
               </button>
             )}
@@ -141,7 +141,7 @@ const GeniusAgenda: React.FC<GeniusAgendaProps> = ({ geniusId, onTodayChange }) 
         {/* Días de la semana */}
         <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-1">
           {WEEKDAYS.map((d) => (
-            <div key={d} className="text-center text-xs font-medium text-gray-500 py-1">{d}</div>
+            <div key={d} className="text-center text-xs font-medium text-text/55 py-1">{d}</div>
           ))}
         </div>
 
@@ -179,7 +179,7 @@ const GeniusAgenda: React.FC<GeniusAgendaProps> = ({ geniusId, onTodayChange }) 
         </div>
 
         {/* Leyenda + resumen */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 text-sm text-gray-700">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 text-sm text-text/80">
           {(Object.keys(STYLE) as AvailabilityStatus[]).map((s) => (
             <span key={s} className="flex items-center gap-1.5">
               <span className={`w-2.5 h-2.5 rounded-full ${STYLE[s].dot}`} />
@@ -187,7 +187,7 @@ const GeniusAgenda: React.FC<GeniusAgendaProps> = ({ geniusId, onTodayChange }) 
             </span>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-2">Toca un día para cambiarlo. Se guarda solo.</p>
+        <p className="text-xs text-text/55 mt-2">Toca un día para cambiarlo. Se guarda solo.</p>
       </section>
 
       <DayStatusSheet

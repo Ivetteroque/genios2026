@@ -152,12 +152,12 @@ const BecomeGenius: React.FC = () => {
       </Section>
 
       {/* Beneficios */}
-      <Section tone="mint">
-        <SectionHeader eyebrow="Por qué Genios" title="Tu trabajo, más visible" tone="mint" />
+      <Section tone="blue">
+        <SectionHeader eyebrow="Por qué Genios" title="Tu trabajo, más visible" tone="blue" />
         <div className="grid gap-4 sm:grid-cols-2 max-w-3xl mx-auto mt-10">
           {BENEFITS.map(({ icon: Icon, title, text }) => (
             <div key={title} className="flex gap-4 bg-white rounded-2xl border border-gray-100 p-5">
-              <Icon className="w-6 h-6 text-ink-mint shrink-0 mt-0.5" aria-hidden="true" />
+              <Icon className="w-6 h-6 text-ink-blue shrink-0 mt-0.5" aria-hidden="true" />
               <div>
                 <h3 className="font-semibold text-text">{title}</h3>
                 <p className="text-sm text-text/65">{text}</p>
@@ -191,8 +191,8 @@ const BecomeGenius: React.FC = () => {
       </Section>
 
       {/* Preguntas */}
-      <Section tone="blue">
-        <SectionHeader eyebrow="Preguntas" title="Lo que suelen preguntarnos" tone="blue" />
+      <Section tone="rose">
+        <SectionHeader eyebrow="Preguntas" title="Lo que suelen preguntarnos" tone="rose" />
         <div className="max-w-2xl mx-auto mt-10 space-y-3">
           {FAQS.map(({ q, a }) => (
             <details key={q} className="group bg-white rounded-2xl border border-gray-100 px-5 py-4">

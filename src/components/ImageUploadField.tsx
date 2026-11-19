@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Camera, X, Upload, AlertCircle, CheckCircle } from 'lucide-react';
+import { Camera, Upload, AlertCircle } from 'lucide-react';
 import { uploadImage, PROFILE_PHOTOS_BUCKET } from '../services/supabaseStorageService';
 
 interface ImageUploadFieldProps {
@@ -86,14 +86,6 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
                 alt="Vista previa"
                 className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-primary/20 shadow-md"
               />
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-md"
-                title="Eliminar imagen"
-              >
-                <X size={16} />
-              </button>
             </div>
           ) : (
             <div className="w-24 h-24 md:w-32 md:h-32 rounded-full border-2 border-dashed border-primary/30 flex items-center justify-center bg-primary/5">
@@ -104,8 +96,8 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
 
         {/* Upload Controls */}
         <div className="flex-1">
-          <label className="cursor-pointer inline-flex items-center space-x-2 bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-lg transition-colors shadow-md">
-            <Upload className="w-4 h-4" />
+          <label className="cursor-pointer inline-flex items-center gap-2 h-11 px-4 rounded-xl border border-gray-200 bg-white hover:bg-surface-blue text-text font-medium transition-colors">
+            <Upload className="w-4 h-4 text-ink-blue" />
             <span>{currentImage ? 'Cambiar foto' : 'Seleccionar foto'}</span>
             <input
               type="file"
@@ -129,11 +121,10 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             </div>
           )}
 
-          {currentImage && !isLoading && !error && (
-            <div className="flex items-center mt-2 text-green-500">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              <span className="text-sm">Imagen cargada correctamente</span>
-            </div>
+          {currentImage && !isLoading && (
+            <button type="button" onClick={handleRemove} className="block mt-2 text-sm text-text/55 hover:text-red-600 underline underline-offset-2">
+              Quitar foto
+            </button>
           )}
         </div>
       </div>
