@@ -15,6 +15,7 @@ interface LoginModalProps {
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, title, subtitle, redirectTo }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   // Auto-focus the Google button when the modal opens
   useEffect(() => {
@@ -29,6 +30,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, title, subtitl
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
+    setLoginError('');
     // Google devuelve a la persona a la página de inicio; SocialAuthBridge la
     // lleva después a donde iba (por ejemplo, al formulario del genio).
     rememberPostLoginRedirect(redirectTo ?? window.location.pathname + window.location.search);
@@ -40,7 +42,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, title, subtitl
       // page is navigating to Google; nothing else to do here
     } catch (error) {
       console.error('Google login error:', error);
-      alert('Error al iniciar sesión con Google. Por favor, intenta nuevamente.');
+      setLoginError('No pudimos conectar con Google. Revisa tu conexión e inténtalo de nuevo.');
       setIsLoading(false);
     }
   };
@@ -98,6 +100,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, title, subtitl
               </>
             )}
           </button>
+
+          {loginError && <p role="alert" className="text-sm text-red-600 text-center -mt-2">{loginError}</p>}
 
           {/* Legal */}
           <p className="text-center text-[#2F2F2F]/30 text-[11px] font-body leading-relaxed">

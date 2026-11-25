@@ -1,12 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Briefcase, Menu, X, Bell, ChevronDown, User, LogOut } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Briefcase, Menu, X, ChevronDown, User, LogOut, Search } from 'lucide-react';
 import { getFirstName } from '../utils/commonUtils';
 import LoginModal from './LoginModal';
 import { getCurrentUser, logout, isAuthenticated, setActiveMode } from '../utils/authUtils';
 import type { LoginIntent } from '../utils/onboardingUtils';
 
+/** Buscador del menú: lleva a la página de resultados con lo escrito. */
+const HeaderSearch: React.FC<{ className?: string; onDone?: () => void }> = ({ className = '', onDone }) => {
+  const [q, setQ] = useState('');
+  const navigate = useNavigate();
+  return (
+    <form
+      role="search"
+      className={`relative ${className}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const term = q.trim();
+        navigate(term ? `/categories?q=${encodeURIComponent(term)}` : '/categories');
+        setQ('');
+        onDone?.();
+      }}
+    >
+      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text/40" />
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Buscar un genio…"
+        aria-label="Buscar un genio"
+        className="w-full h-10 pl-10 pr-4 rounded-full border border-gray-200 bg-white text-[15px] focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+      />
+    </form>
+  );
+};
+
+/** Foto de la persona o, si no tiene, su inicial (nunca la foto de un desconocido). */
+const HeaderAvatar: React.FC<{ name: string; image?: string; size?: string }> = ({ name, image, size = 'w-8 h-8' }) =>
+  image ? (
+    <img src={image} alt="" className={`${size} rounded-full object-cover border-2 border-primary/20`} />
+  ) : (
+    <span className={`${size} rounded-full bg-primary/30 text-ink-blue text-sm font-semibold flex items-center justify-center`}>
+      {(name.trim()[0] ?? '?').toUpperCase()}
+    </span>
+  );
+
 const Header: React.FC = () => {
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -74,9 +114,6 @@ const Header: React.FC = () => {
     
     // Dispatch custom event to notify other components
     window.dispatchEvent(new Event('authStateChanged'));
-    
-    // Show logout confirmation
-    alert('¡Hasta pronto!\n\nHas cerrado sesión exitosamente.');
   };
 
   const handleProfileClick = () => {
@@ -85,11 +122,9 @@ const Header: React.FC = () => {
 
     // Navigate to user profile based on active view mode
     if (currentUser?.role === 'genius') {
-      // Navigate to genius profile page
-      window.location.href = '/genius-profile';
+      navigate('/genius-profile');
     } else {
-      // Navigate to client profile page
-      window.location.href = '/client-profile';
+      navigate('/client-profile');
     }
   };
 
@@ -98,7 +133,8 @@ const Header: React.FC = () => {
     setActiveMode(mode);
     setShowUserDropdown(false);
     setMobileMenuOpen(false);
-    window.location.href = mode === 'genius' ? '/genius-profile' : '/client-profile';
+    setCurrentUser(getCurrentUser());
+    navigate(mode === 'genius' ? '/genius-profile' : '/client-profile');
   };
 
   // A plain client opts in to becoming a genio; the genio panel opens the wizard
@@ -106,7 +142,7 @@ const Header: React.FC = () => {
   const handleBecomeGenius = () => {
     setShowUserDropdown(false);
     setMobileMenuOpen(false);
-    window.location.href = '/genius-profile';
+    navigate('/genius-profile');
   };
 
   // Close dropdown when clicking outside
@@ -149,14 +185,7 @@ const Header: React.FC = () => {
           <nav className="hidden md:flex items-center space-x-6">
             {/* Search Bar for Authenticated Users */}
             {isUserAuthenticated && (
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="🔍 Buscar un genio..."
-                  className="w-64 px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm"
-                  style={{ fontFamily: 'Open Sans, sans-serif' }}
-                />
-              </div>
+              <HeaderSearch className="w-64" />
             )}
 
             {/* Navigation Links for Non-Authenticated Users */}
@@ -176,27 +205,17 @@ const Header: React.FC = () => {
             {/* Authenticated User Section */}
             {isUserAuthenticated && currentUser ? (
               <div className="flex items-center space-x-4">
-                {/* Notifications */}
-                <button className="relative text-text/60 hover:text-primary transition-colors">
-                  <Bell size={20} />
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                    3
-                  </span>
-                </button>
-
                 {/* User Profile Dropdown */}
                 <div className="relative user-dropdown-container">
                   <button
                     onClick={() => setShowUserDropdown(!showUserDropdown)}
-                    className="flex items-center space-x-2 text-text hover:text-primary transition-colors"
+                    aria-expanded={showUserDropdown}
+                    aria-haspopup="menu"
+                    className="flex items-center space-x-2 text-text hover:text-ink-blue transition-colors"
                   >
-                    <img
-                      src={currentUser.profileImage || 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2'}
-                      alt={currentUser.name}
-                      className="w-8 h-8 rounded-full object-cover border-2 border-primary/20"
-                    />
+                    <HeaderAvatar name={currentUser.name} image={currentUser.profileImage} />
                     <div className="text-left">
-                      <p className="text-sm font-semibold" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: '600' }}>
+                      <p className="text-sm font-semibold">
                         Hola, {getFirstName(currentUser.name)}
                       </p>
                     </div>
@@ -212,14 +231,14 @@ const Header: React.FC = () => {
                         style={{ fontFamily: 'Open Sans, sans-serif' }}
                       >
                         <User size={16} className="mr-3" />
-                        🧾 Ver mi perfil
+                        Mi cuenta
                       </button>
 
                       {/* Dual users: switch view. Plain clients: opt in to Genio. */}
                       <div className="my-1 border-t border-gray-100" />
                       {currentUser.isGenius ? (
                         <>
-                          <p className="px-4 pt-1 pb-0.5 text-[10px] uppercase tracking-wide text-text/40" style={{ fontFamily: 'Open Sans, sans-serif' }}>
+                          <p className="px-4 pt-1 pb-0.5 text-xs text-text/50" style={{ fontFamily: 'Open Sans, sans-serif' }}>
                             Ver como
                           </p>
                           <button
@@ -246,7 +265,7 @@ const Header: React.FC = () => {
                           style={{ fontFamily: 'Open Sans, sans-serif' }}
                         >
                           <Briefcase size={16} className="mr-3" />
-                          💼 Conviértete en Genio
+                          Ofrece tus servicios
                         </button>
                       )}
                       <div className="my-1 border-t border-gray-100" />
@@ -257,7 +276,7 @@ const Header: React.FC = () => {
                         style={{ fontFamily: 'Open Sans, sans-serif' }}
                       >
                         <LogOut size={16} className="mr-3" />
-                        ❌ Cerrar sesión
+                        Cerrar sesión
                       </button>
                     </div>
                   )}
@@ -287,14 +306,7 @@ const Header: React.FC = () => {
             <div className="container mx-auto px-4 py-3 flex flex-col space-y-3">
               {/* Search Bar for Mobile Authenticated Users */}
               {isUserAuthenticated && (
-                <div className="relative mb-3">
-                  <input
-                    type="text"
-                    placeholder="🔍 Buscar un genio..."
-                    className="w-full px-4 py-2 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm"
-                    style={{ fontFamily: 'Open Sans, sans-serif' }}
-                  />
-                </div>
+                <HeaderSearch className="mb-3" onDone={() => setMobileMenuOpen(false)} />
               )}
 
               {/* Mobile Navigation Links */}
@@ -320,13 +332,9 @@ const Header: React.FC = () => {
                 <>
                   {/* User Info */}
                   <div className="flex items-center space-x-3 py-2 border-b border-gray-100">
-                    <img
-                      src={currentUser?.profileImage || 'https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=100&h=100&dpr=2'}
-                      alt={currentUser?.name}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-primary/20"
-                    />
+                    <HeaderAvatar name={currentUser?.name ?? ''} image={currentUser?.profileImage} size="w-10 h-10" />
                     <div>
-                      <p className="font-semibold text-text" style={{ fontFamily: 'Montserrat, sans-serif', fontWeight: '600' }}>
+                      <p className="font-semibold text-text">
                         Hola, {currentUser ? getFirstName(currentUser.name) : 'Usuario'}
                       </p>
                       <p className="text-xs text-text/60" style={{ fontFamily: 'Open Sans, sans-serif' }}>
@@ -342,7 +350,7 @@ const Header: React.FC = () => {
                     style={{ fontFamily: 'Open Sans, sans-serif' }}
                   >
                     <User size={16} className="mr-3" />
-                    🧾 Ver mi perfil
+                    Mi cuenta
                   </button>
 
                   {/* Dual users: switch view. Plain clients: opt in to Genio. */}
@@ -369,7 +377,7 @@ const Header: React.FC = () => {
                       style={{ fontFamily: 'Open Sans, sans-serif' }}
                     >
                       <Briefcase size={16} className="mr-3" />
-                      💼 Conviértete en Genio
+                      Ofrece tus servicios
                     </button>
                   )}
 
@@ -379,7 +387,7 @@ const Header: React.FC = () => {
                     style={{ fontFamily: 'Open Sans, sans-serif' }}
                   >
                     <LogOut size={16} className="mr-3" />
-                    ❌ Cerrar sesión
+                    Cerrar sesión
                   </button>
                 </>
               )}

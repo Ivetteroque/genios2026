@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { openLogin } from '../utils/onboardingUtils';
 import { Heart } from 'lucide-react';
 import { getCurrentUser } from '../utils/authUtils';
 import { isGeniusFavorite, toggleFavorite, FavoriteGenius } from '../utils/favoritesUtils';
@@ -71,7 +72,7 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({
     e.stopPropagation();
 
     if (!currentUser) {
-      alert('Inicia sesión para guardar genios favoritos');
+      openLogin({ title: 'Guarda tus favoritos', subtitle: 'Entra con tu cuenta de Google para guardar a este genio.' });
       return;
     }
 

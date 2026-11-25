@@ -75,6 +75,12 @@ const Categories: React.FC = () => {
   const { categorySlug } = useParams<{ categorySlug?: string }>();
   const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
+  // Si se busca desde el menú estando ya en esta página, la URL cambia
+  // (?q=...) y el buscador tiene que reflejarlo.
+  const urlQuery = searchParams.get('q');
+  useEffect(() => {
+    if (urlQuery !== null) setSearchTerm(urlQuery);
+  }, [urlQuery]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [filteredProfessionals, setFilteredProfessionals] = useState<Professional[]>([]);

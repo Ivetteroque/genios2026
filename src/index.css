@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fondo papel de la página: las bandas de sección se desvanecen sobre él */
+/* Fondo crema de la página: más cálido que el blanco puro */
 body {
-  background-color: #FDFDFD;
+  background-color: #FBF8F3;
 }
 
 /* Custom animations for modal */

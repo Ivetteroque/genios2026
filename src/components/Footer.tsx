@@ -1,93 +1,66 @@
 import React from 'react';
-import { Facebook, Twitter, Instagram, Linkedin, Briefcase } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Briefcase, MessageCircle } from 'lucide-react';
+
+/**
+ * Pie de página solo con enlaces que llevan a algún lado. (Antes había redes
+ * sociales, "Blog" y "Sobre nosotros" que no iban a ninguna parte, y dos fotos
+ * de stock pesadas.) Las páginas legales se suman cuando estén escritas.
+ */
+
+const SUPPORT_WHATSAPP = '51952719641';
 
 const Footer: React.FC = () => {
+  const supportUrl = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent('Hola, tengo una consulta sobre Genios.')}`;
+  const linkCls = 'text-white/75 hover:text-white transition-colors';
+
   return (
-    <footer className="relative bg-[linear-gradient(to_bottom,transparent_0%,rgba(160,196,255,0.14)_14%,rgba(160,196,255,0.14)_100%)] text-text pt-14 md:pt-16 pb-12">
+    <footer className="bg-brand-deep text-white border-t border-white/10 pt-14 md:pt-16 pb-10">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between">
-          <div className="mb-8 md:mb-0">
-            <div className="flex items-center mb-4">
-              <Briefcase className="text-ink-blue mr-2" size={24} />
+        <div className="flex flex-col md:flex-row md:justify-between gap-10">
+          <div className="max-w-xs">
+            <Link to="/" className="flex items-center mb-3">
+              <Briefcase className="text-primary mr-2" size={24} />
               <span className="font-heading font-bold text-xl">Genios</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <img 
-                src="https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" 
-                alt="Equipo de trabajo" 
-                className="w-24 h-24 rounded-lg object-cover"
-              />
-              <p className="text-text/60 max-w-xs">
-                Conectamos talentos locales con personas que necesitan servicios profesionales de calidad.
-              </p>
-            </div>
-            <div className="flex space-x-4 mt-6">
-              <a href="#facebook" className="text-text/70 hover:text-ink-blue transition-colors">
-                <Facebook size={20} />
-              </a>
-              <a href="#twitter" className="text-text/70 hover:text-ink-blue transition-colors">
-                <Twitter size={20} />
-              </a>
-              <a href="#instagram" className="text-text/70 hover:text-ink-blue transition-colors">
-                <Instagram size={20} />
-              </a>
-              <a href="#linkedin" className="text-text/70 hover:text-ink-blue transition-colors">
-                <Linkedin size={20} />
-              </a>
-            </div>
+            </Link>
+            <p className="text-white/75">Porque el talento tacneño merece brillar. Encuentra a alguien de tu ciudad y escríbele directo.</p>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
             <div>
-              <h3 className="font-heading font-bold text-lg mb-4">Enlaces rápidos</h3>
+              <h3 className="font-heading font-semibold mb-3">Para clientes</h3>
               <ul className="space-y-2">
-                <li><a href="#inicio" className="text-text/70 hover:text-ink-blue transition-colors">Inicio</a></li>
-                <li><a href="#como-funciona" className="text-text/70 hover:text-ink-blue transition-colors">Cómo funciona</a></li>
-                <li><a href="#categorias" className="text-text/70 hover:text-ink-blue transition-colors">Categorías</a></li>
-                <li><a href="#historias" className="text-text/70 hover:text-ink-blue transition-colors">Historias</a></li>
+                <li><Link to="/categories" className={linkCls}>Buscar genios</Link></li>
+                <li><a href="/#como-funciona" className={linkCls}>Cómo funciona</a></li>
+                <li><a href="/#faq" className={linkCls}>Preguntas frecuentes</a></li>
               </ul>
             </div>
-            
             <div>
-              <h3 className="font-heading font-bold text-lg mb-4">Legal</h3>
+              <h3 className="font-heading font-semibold mb-3">Para genios</h3>
               <ul className="space-y-2">
-                <li><a href="#terminos" className="text-text/70 hover:text-ink-blue transition-colors">Términos y condiciones</a></li>
-                <li><a href="#privacidad" className="text-text/70 hover:text-ink-blue transition-colors">Política de privacidad</a></li>
-                <li><a href="#cookies" className="text-text/70 hover:text-ink-blue transition-colors">Política de cookies</a></li>
+                <li><Link to="/ser-genio" className={linkCls}>Ofrece tus servicios</Link></li>
+                <li><Link to="/genius-profile" className={linkCls}>Mi panel</Link></li>
               </ul>
             </div>
-            
             <div>
-              <h3 className="font-heading font-bold text-lg mb-4">Más información</h3>
+              <h3 className="font-heading font-semibold mb-3">Ayuda</h3>
               <ul className="space-y-2">
-                <li><a href="#nosotros" className="text-text/70 hover:text-ink-blue transition-colors">Sobre nosotros</a></li>
-                <li><a href="#blog" className="text-text/70 hover:text-ink-blue transition-colors">Blog</a></li>
-                <li><a href="#contacto" className="text-text/70 hover:text-ink-blue transition-colors">Contacto</a></li>
+                <li>
+                  <a href={supportUrl} target="_blank" rel="noopener noreferrer" className={`${linkCls} inline-flex items-center gap-1.5`}>
+                    <MessageCircle className="w-4 h-4 text-green-400" /> Escríbenos
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
         </div>
-        
-        <div className="border-t border-text/10 mt-8 pt-8">
-          <div className="flex flex-col md:flex-row items-center justify-between">
-            <div className="flex items-center mb-4 md:mb-0">
-              <img 
-                src="https://images.pexels.com/photos/3184299/pexels-photo-3184299.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" 
-                alt="Equipo colaborativo" 
-                className="w-16 h-16 rounded-full object-cover mr-4"
-              />
-              <p className="text-text/60">
-                ✨ Genios: Porque el talento tacneño merece brillar
-              </p>
-            </div>
-            <p className="text-text/40 text-sm">
-              © {new Date().getFullYear()} Genios. Todos los derechos reservados.
-            </p>
-          </div>
+
+        <div className="border-t border-white/15 mt-10 pt-6">
+          <p className="text-white/55 text-sm">© {new Date().getFullYear()} Genios · Tacna, Perú</p>
         </div>
       </div>
     </footer>
   );
 };
 
-export default Footer
+export default Footer;

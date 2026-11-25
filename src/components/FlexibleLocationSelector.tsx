@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showToast } from '../utils/toast';
 import { MapPin, X, ChevronDown, Search, Plus, Check } from 'lucide-react';
 import { getActiveDepartments, Department, Province, District } from '../utils/locationUtils';
 
@@ -113,7 +114,7 @@ const FlexibleLocationSelector: React.FC<FlexibleLocationSelectorProps> = ({
       if (selectedLocations.length < maxSelections) {
         onLocationsChange([...selectedLocations, location]);
       } else {
-        alert(`Máximo ${maxSelections} ubicaciones permitidas`);
+        showToast(`Puedes elegir hasta ${maxSelections} zonas.`, 'error');
       }
     }
   };

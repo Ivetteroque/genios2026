@@ -8,21 +8,21 @@ const steps = [
     title: 'Busca',
     description: 'Encuentra personas cerca de ti',
     circle: 'bg-surface-blue',
-    iconColor: 'text-ink-blue',
+    iconColor: 'text-brand',
   },
   {
     icon: MessageCircle,
     title: 'Conversa',
     description: 'Habla directo con el genio',
-    circle: 'bg-surface-mint',
-    iconColor: 'text-ink-mint',
+    circle: 'bg-surface-blue',
+    iconColor: 'text-brand',
   },
   {
     icon: Handshake,
     title: 'Coordinen',
     description: 'Y listo, manos a la obra',
-    circle: 'bg-surface-rose',
-    iconColor: 'text-ink-rose',
+    circle: 'bg-surface-blue',
+    iconColor: 'text-brand',
   },
 ];
 

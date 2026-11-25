@@ -96,13 +96,11 @@ const BecomeGenius: React.FC = () => {
   return (
     <div className="pt-24">
       {/* Portada */}
-      <Section tone="rose" className="!pt-10">
+      <Section tone="blue" className="!pt-10">
         <div className="max-w-2xl mx-auto text-center">
-          <span className="inline-block text-xs font-medium uppercase tracking-wide text-ink-rose border border-ink-rose/20 rounded-full px-3 py-1 mb-5">
-            Para genios
-          </span>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand mb-4">Para genios</p>
           <h1 className="font-heading text-4xl md:text-5xl font-bold text-text leading-tight mb-4">
-            Haz que te encuentren <span className="text-ink-blue">en Tacna</span>
+            Haz que te encuentren <span className="text-brand">en Tacna</span>
           </h1>
           <p className="text-base md:text-lg text-text/65 mb-8 max-w-xl mx-auto">
             Crea tu perfil gratis y recibe clientes por WhatsApp. Sin comisiones y sin intermediarios.
@@ -191,8 +189,8 @@ const BecomeGenius: React.FC = () => {
       </Section>
 
       {/* Preguntas */}
-      <Section tone="rose">
-        <SectionHeader eyebrow="Preguntas" title="Lo que suelen preguntarnos" tone="rose" />
+      <Section tone="blue">
+        <SectionHeader eyebrow="Preguntas" title="Lo que suelen preguntarnos" tone="blue" />
         <div className="max-w-2xl mx-auto mt-10 space-y-3">
           {FAQS.map(({ q, a }) => (
             <details key={q} className="group bg-white rounded-2xl border border-gray-100 px-5 py-4">

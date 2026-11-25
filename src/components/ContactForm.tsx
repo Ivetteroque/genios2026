@@ -9,9 +9,9 @@ const ContactForm: React.FC = () => {
   };
 
   return (
-    <Section id="contacto" tone="rose">
+    <Section id="contacto" tone="deep">
       <SectionHeader
-        tone="rose"
+        tone="deep"
         eyebrow="Contacto"
         title="¿Te ayudamos?"
         subtitle="Queremos que te sientas acompañado desde el inicio."
@@ -26,7 +26,7 @@ const ContactForm: React.FC = () => {
           Hablemos por WhatsApp
         </button>
 
-        <p className="mt-4 text-sm text-text/60">
+        <p className="mt-4 text-sm text-white/70">
           Normalmente respondemos en pocos minutos.
         </p>
       </Reveal>
