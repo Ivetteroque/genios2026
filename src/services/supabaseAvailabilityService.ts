@@ -194,10 +194,10 @@ export interface GeniusAvailabilityStatus {
 export const getGeniusAvailabilityStatus = async (
   geniusId: string
 ): Promise<GeniusAvailabilityStatus> => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateISO(); // hoy en hora de Perú
   const nextMonth = new Date();
   nextMonth.setMonth(nextMonth.getMonth() + 1);
-  const endDate = nextMonth.toISOString().split('T')[0];
+  const endDate = localDateISO(nextMonth);
 
   const todayAvailability = await getGeniusAvailabilityForDate(geniusId, today);
   const upcomingAvailability = await getGeniusAvailabilityRange(geniusId, today, endDate);
@@ -219,7 +219,7 @@ export const getGeniusAvailabilityStatus = async (
 };
 
 export const checkGeniusAvailability = async (geniusId: string): Promise<boolean> => {
-  const today = new Date().toISOString().split('T')[0];
+  const today = localDateISO(); // hoy en hora de Perú
   const availability = await getGeniusAvailabilityForDate(geniusId, today);
   return availability?.status === 'available';
 };

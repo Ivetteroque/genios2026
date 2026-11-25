@@ -47,23 +47,22 @@ export const useGeniusAvailability = (geniusId: string | undefined) => {
   }, [geniusId]);
 
   const getDisplayStatus = (): { text: string; color: string; bgColor: string } => {
-    if (!availabilityStatus || !availabilityStatus.currentStatus) {
-      return { text: 'Sin info', color: 'text-gray-600', bgColor: 'bg-gray-200/80' };
-    }
+    // Igual que en el panel del genio: si no marcó nada para hoy, está disponible.
+    const AVAILABLE = { text: 'Disponible hoy', color: 'text-ink-blue font-medium', bgColor: 'bg-white/95' };
 
-    if (availabilityStatus.isAvailableToday) {
-      return { text: 'Disponible', color: 'text-white', bgColor: 'bg-success/80' };
+    if (!availabilityStatus || !availabilityStatus.currentStatus || availabilityStatus.isAvailableToday) {
+      return AVAILABLE;
     }
 
     if (availabilityStatus.currentStatus === 'full') {
-      return { text: 'Agenda llena', color: 'text-white', bgColor: 'bg-red-500/80' };
+      return { text: 'Agenda llena hoy', color: 'text-text font-medium', bgColor: 'bg-secondary' };
     }
 
     if (availabilityStatus.currentStatus === 'vacation') {
-      return { text: 'De vacaciones', color: 'text-white', bgColor: 'bg-orange-500/80' };
+      return { text: 'De vacaciones', color: 'text-white font-medium', bgColor: 'bg-gray-700/85' };
     }
 
-    return { text: 'Sin info', color: 'text-gray-600', bgColor: 'bg-gray-200/80' };
+    return AVAILABLE;
   };
 
   return {

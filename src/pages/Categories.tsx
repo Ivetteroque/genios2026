@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { Search, Star, MapPin, MessageSquare, CheckCircle, ChevronDown, ChevronUp, ArrowLeft, Filter, X, ChevronRight } from 'lucide-react';
+import { Search, Star, MapPin, MessageSquare, CheckCircle, ArrowLeft, X, SlidersHorizontal } from 'lucide-react';
 import { createSlug } from '../utils/commonUtils';
 import { getActiveCategories, Category } from '../utils/categoryUtils';
-import { getActiveDepartments, Department, Province, District, getActiveDistricts } from '../utils/locationUtils';
-import { getCurrentUser, isAuthenticated } from '../utils/authUtils';
+import { getActiveDepartments, Department, Province, District } from '../utils/locationUtils';
 import { handleWhatsAppContact } from '../utils/whatsappUtils';
 import FavoriteButton from '../components/FavoriteButton';
 import GeniusAvailabilityBadge from '../components/GeniusAvailabilityBadge';
@@ -26,7 +25,13 @@ interface Professional {
   provinceId: string;
   districtId: string;
   workLocations: Array<{ departmentId?: string; provinceId?: string; districtId?: string }>;
+  /** Todo lo buscable, sin tildes ni mayúsculas. */
+  searchText: string;
 }
+
+/** "Albañil" y "albanil" deben encontrar lo mismo. */
+const normalizeText = (text: string) =>
+  text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
 /** Un perfil del directorio, en la forma que consume la tarjeta de resultados. */
 const toProfessional = (genius: DirectoryGenius): Professional => ({
@@ -45,6 +50,9 @@ const toProfessional = (genius: DirectoryGenius): Professional => ({
   provinceId: genius.home_location?.provinceId ?? '',
   districtId: genius.home_location?.districtId ?? '',
   workLocations: genius.work_locations ?? [],
+  searchText: normalizeText([
+    genius.full_name, genius.category, genius.service_name, genius.description, ...(genius.subcategories ?? []),
+  ].filter(Boolean).join(' ')),
 });
 
 /**
@@ -61,6 +69,8 @@ const matchesLocation = (
   return professional.workLocations.some((location) => location?.[level] === value);
 };
 
+const SUPPORT_WHATSAPP = '51952719641';
+
 const Categories: React.FC = () => {
   const { categorySlug } = useParams<{ categorySlug?: string }>();
   const [searchParams] = useSearchParams();
@@ -68,28 +78,25 @@ const Categories: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [filteredProfessionals, setFilteredProfessionals] = useState<Professional[]>([]);
-  const [currentUser, setCurrentUser] = useState(getCurrentUser());
   const [activeDepartments, setActiveDepartments] = useState<Department[]>([]);
-  const [availableProvinces, setAvailableProvinces] = useState<Province[]>([]);
-  const [availableDistricts, setAvailableDistricts] = useState<District[]>([]);
   const [locationFilters, setLocationFilters] = useState({
     department: '',
     province: '',
     district: ''
   });
-  const [showLocationFilters, setShowLocationFilters] = useState(false);
-  const [hasInitializedUserLocation, setHasInitializedUserLocation] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [isLoadingProfessionals, setIsLoadingProfessionals] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
+  // Solo filtros que funcionan de verdad ("Cerca de mí" y "Con WhatsApp" no
+  // filtraban nada: todos los genios tienen WhatsApp, y la cercanía va por
+  // el filtro de ubicación).
   const [activeFilters, setActiveFilters] = useState({
     rating4Plus: false,
     availableToday: false,
-    nearMe: false,
-    verified: false,
-    withWhatsapp: false
+    verified: false
   });
 
   // Helper function to create URL-friendly category name
@@ -109,34 +116,25 @@ const Categories: React.FC = () => {
   useEffect(() => {
     loadCategories();
     loadActiveDepartments();
-    
-    // Update current user state
-    setCurrentUser(getCurrentUser());
+
 
     // Listen for category changes from admin panel
-    const handleCategoriesChanged = (event: CustomEvent) => {
+    const handleCategoriesChanged = () => {
       loadCategories();
     };
 
     // Listen for location changes from admin panel
-    const handleLocationsChanged = (event: CustomEvent) => {
+    const handleLocationsChanged = () => {
       loadActiveDepartments();
     };
     
-    // Listen for auth state changes
-    const handleAuthStateChanged = () => {
-      setCurrentUser(getCurrentUser());
-      setHasInitializedUserLocation(false); // Reset to allow re-initialization
-    };
 
     window.addEventListener('categoriesChanged', handleCategoriesChanged as EventListener);
     window.addEventListener('locationsChanged', handleLocationsChanged as EventListener);
-    window.addEventListener('authStateChanged', handleAuthStateChanged);
 
     return () => {
       window.removeEventListener('categoriesChanged', handleCategoriesChanged as EventListener);
       window.removeEventListener('locationsChanged', handleLocationsChanged as EventListener);
-      window.removeEventListener('authStateChanged', handleAuthStateChanged);
     };
   }, []);
 
@@ -150,54 +148,9 @@ const Categories: React.FC = () => {
     }
   }, [categorySlug, categories]);
 
-  // Update available provinces when department changes
-  useEffect(() => {
-    if (locationFilters.department) {
-      const department = activeDepartments.find(dept => dept.id === locationFilters.department);
-      setAvailableProvinces(department?.provinces || []);
-      
-      // Reset province and district when department changes
-      setLocationFilters(prev => ({
-        ...prev,
-        province: '',
-        district: ''
-      }));
-    } else {
-      setAvailableProvinces([]);
-    }
-  }, [locationFilters.department, activeDepartments]);
-
-  // Update available districts when province changes
-  useEffect(() => {
-    if (locationFilters.province) {
-      const province = availableProvinces.find(prov => prov.id === locationFilters.province);
-      setAvailableDistricts(province?.districts || []);
-      
-      // Reset district when province changes
-      setLocationFilters(prev => ({
-        ...prev,
-        district: ''
-      }));
-    } else {
-      setAvailableDistricts([]);
-    }
-  }, [locationFilters.province, availableProvinces]);
-
-  // Initialize location filters with user's location (only once)
-  useEffect(() => {
-    if (currentUser && currentUser.location && !hasInitializedUserLocation && activeDepartments.length > 0) {
-      // Only set if no manual filters have been applied
-      if (!locationFilters.department && !locationFilters.province && !locationFilters.district) {
-        setLocationFilters({
-          department: currentUser.location.departmentId,
-          province: currentUser.location.provinceId,
-          district: currentUser.location.districtId
-        });
-        setHasInitializedUserLocation(true);
-        console.log('Initialized location filters with user location:', currentUser.location.fullName);
-      }
-    }
-  }, [currentUser, activeDepartments, hasInitializedUserLocation, locationFilters]);
+  // (Antes se filtraba en silencio por el distrito guardado del cliente y
+  // podía ver "sin resultados" sin saber por qué. Ahora la ubicación solo se
+  // filtra si la persona la elige.)
 
   // Cargar el directorio público de genios desde Supabase
   useEffect(() => {
@@ -233,13 +186,10 @@ const Categories: React.FC = () => {
     }
 
     // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(prof =>
-        prof.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prof.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prof.subcategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        prof.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    // Cada palabra tiene que aparecer en algún lado (sin tildes ni mayúsculas).
+    const words = normalizeText(searchTerm).split(/\s+/).filter(Boolean);
+    if (words.length > 0) {
+      filtered = filtered.filter(prof => words.every(word => prof.searchText.includes(word)));
     }
 
     // Apply additional filters
@@ -276,21 +226,11 @@ const Categories: React.FC = () => {
     setActiveDepartments(departments);
   };
 
-  const toggleCategoryAccordion = (categoryId: string) => {
-    setCategories(categories.map(category => 
-      category.id === categoryId 
-        ? { ...category, isExpanded: !category.isExpanded }
-        : category
-    ));
-  };
-
   const clearFilters = () => {
     setActiveFilters({
       rating4Plus: false,
       availableToday: false,
-      nearMe: false,
-      verified: false,
-      withWhatsapp: false
+      verified: false
     });
     setLocationFilters({
       department: '',
@@ -309,11 +249,6 @@ const Categories: React.FC = () => {
     );
   };
 
-  // Handle profile view click
-  const handleProfileClick = (professionalId: string) => {
-    // Navigate to profile page and scroll to top
-    window.location.href = `/profile/${professionalId}`;
-  };
 
   // Get available provinces for selected department
   const getAvailableProvinces = (): Province[] => {
@@ -350,449 +285,363 @@ const Categories: React.FC = () => {
     });
   };
 
-  // Clear location filters
-  const clearLocationFilters = () => {
-    setLocationFilters({
-      department: '',
-      province: '',
-      district: ''
-    });
-  };
-
   // Check if any location filter is active
   const hasActiveLocationFilters = () => {
     return locationFilters.department || locationFilters.province || locationFilters.district;
   };
 
+  // ─── Datos para la vista ────────────────────────────────────────────────
+  const countByCategory = professionals.reduce<Record<string, number>>((acc, p) => {
+    acc[p.category] = (acc[p.category] ?? 0) + 1;
+    return acc;
+  }, {});
+  // Primero las categorías que ya tienen genios; las vacías ("pronto") al final.
+  const sortedCategories = [...categories].sort(
+    (a, b) => Number((countByCategory[b.name] ?? 0) > 0) - Number((countByCategory[a.name] ?? 0) > 0)
+  );
+  const activeFilterCount =
+    Object.values(activeFilters).filter(Boolean).length + (hasActiveLocationFilters() ? 1 : 0);
+  const locationLabel = (() => {
+    const dept = activeDepartments.find((d) => d.id === locationFilters.department);
+    const prov = dept?.provinces.find((p) => p.id === locationFilters.province);
+    const dist = prov?.districts.find((d) => d.id === locationFilters.district);
+    return dist?.name ?? prov?.name ?? dept?.name ?? '';
+  })();
+  const whatYouSearch = searchTerm.trim() || selectedCategory?.name || '';
+  const helpWhatsappUrl = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(
+    whatYouSearch
+      ? `Hola, estoy buscando ${whatYouSearch} en Tacna y no encontré en Genios. ¿Me ayudan?`
+      : 'Hola, estoy buscando a alguien en Genios y no lo encontré. ¿Me ayudan?'
+  )}`;
+  const resetAll = () => {
+    clearFilters();
+    setSearchTerm('');
+  };
+
   return (
     <div className="min-h-screen bg-background pt-20">
-      <div className="container mx-auto px-4 py-8">
-        {/* Breadcrumb and Back Button */}
-        {selectedCategory && (
-          <div className="mb-6">
-            <Link 
-              to="/"
-              className="inline-flex items-center text-primary hover:text-primary-dark transition-colors mb-4"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver al inicio
+      <div className="container mx-auto px-4 py-6 md:py-8 max-w-6xl">
+        {/* Título */}
+        <div className="mb-4">
+          {selectedCategory && (
+            <Link to="/categories" className="inline-flex items-center text-sm text-text/60 hover:text-text mb-2">
+              <ArrowLeft className="w-4 h-4 mr-1" /> Todas las categorías
             </Link>
-            <div className="flex items-center text-sm text-gray-600">
-              <Link to="/" className="hover:text-primary transition-colors">Inicio</Link>
-              <span className="mx-2">›</span>
-              <Link to="/categories" className="hover:text-primary transition-colors">Categorías</Link>
-              <span className="mx-2">›</span>
-              <span className="text-gray-800 font-medium">{selectedCategory.name}</span>
+          )}
+          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-text">
+            {selectedCategory ? `${selectedCategory.emoji} ${selectedCategory.name}` : 'Buscar genios'}
+          </h1>
+          {selectedCategory?.description && <p className="text-text/60 mt-1">{selectedCategory.description}</p>}
+        </div>
+
+        {/* Buscador */}
+        <div className="relative mb-3">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text/40" size={20} />
+          <input
+            type="search"
+            placeholder={selectedCategory ? `Buscar en ${selectedCategory.name}…` : 'Ej: gasfitero, maquillaje, clases de inglés…'}
+            aria-label="Buscar genios"
+            className="w-full h-12 pl-12 pr-12 rounded-full border border-gray-200 bg-white text-[16px] focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button onClick={() => setSearchTerm('')} aria-label="Borrar búsqueda" className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-text/40 hover:text-text">
+              <X size={18} />
+            </button>
+          )}
+        </div>
+
+        {/* Categorías: se tocan para elegir. En el celular se deslizan de lado. */}
+        <div className="-mx-4 px-4 overflow-x-auto pb-2 mb-2" role="navigation" aria-label="Categorías">
+          <div className="flex gap-2 w-max">
+            <Link
+              to="/categories"
+              className={`shrink-0 h-10 px-4 rounded-full border text-sm flex items-center transition-colors ${
+                !selectedCategory ? 'bg-text text-white border-text' : 'bg-white border-gray-200 text-text/75 hover:border-primary'
+              }`}
+            >
+              Todas
+            </Link>
+            {sortedCategories.map((category) => {
+              const count = countByCategory[category.name] ?? 0;
+              const active = selectedCategory?.id === category.id;
+              return (
+                <Link
+                  key={category.id}
+                  to={`/categorias/${createCategorySlug(category.name)}`}
+                  aria-current={active ? 'page' : undefined}
+                  className={`shrink-0 h-10 px-4 rounded-full border text-sm flex items-center gap-1.5 transition-colors ${
+                    active ? 'bg-text text-white border-text' : 'bg-white border-gray-200 text-text/75 hover:border-primary'
+                  }`}
+                >
+                  <span aria-hidden="true">{category.emoji}</span>
+                  {category.name}
+                  <span className={active ? 'text-white/70' : 'text-text/40'}>{count > 0 ? count : 'pronto'}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Especialidades de la categoría elegida */}
+        {selectedCategory && selectedCategory.subcategories.length > 0 && (
+          <div className="-mx-4 px-4 overflow-x-auto pb-2 mb-2">
+            <div className="flex gap-2 w-max">
+              {selectedCategory.subcategories.map((sub) => {
+                const on = normalizeText(searchTerm) === normalizeText(sub.name);
+                return (
+                  <button
+                    key={sub.id}
+                    onClick={() => setSearchTerm(on ? '' : sub.name)}
+                    aria-pressed={on}
+                    className={`shrink-0 h-9 px-3.5 rounded-full text-sm transition-colors ${
+                      on ? 'bg-primary text-text font-medium' : 'bg-surface-blue text-text/70 hover:bg-primary/40'
+                    }`}
+                  >
+                    {sub.name}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* Category Header */}
-        {selectedCategory && (
-          <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-            <div className="flex items-center mb-4">
-              <div 
-                className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl mr-4"
-                style={{ backgroundColor: selectedCategory.color }}
-              >
-                {selectedCategory.emoji}
+        {/* Barra de resultados + filtros */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <p className="text-sm text-text/60" aria-live="polite">
+            {isLoadingProfessionals ? 'Buscando…' : `${filteredProfessionals.length} ${filteredProfessionals.length === 1 ? 'genio' : 'genios'}${locationLabel ? ` en ${locationLabel}` : ''}`}
+          </p>
+          <button
+            onClick={() => setShowFilters(true)}
+            className="shrink-0 inline-flex items-center gap-2 h-10 px-4 rounded-full border border-gray-200 bg-white text-sm font-medium text-text hover:border-primary"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filtros
+            {activeFilterCount > 0 && (
+              <span className="min-w-5 h-5 px-1.5 rounded-full bg-text text-white text-xs flex items-center justify-center">{activeFilterCount}</span>
+            )}
+          </button>
+        </div>
+
+        {/* Estado de carga */}
+        {isLoadingProfessionals && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="bg-white rounded-2xl shadow-sm overflow-hidden animate-pulse">
+                <div className="w-full h-48 bg-gray-100" />
+                <div className="p-4 space-y-3">
+                  <div className="h-4 bg-gray-100 rounded w-2/3" />
+                  <div className="h-3 bg-gray-100 rounded w-1/3" />
+                </div>
               </div>
-              <div>
-                <h1 className="font-heading text-2xl md:text-3xl font-bold text-gray-800">
-                  {selectedCategory.name}
-                </h1>
-                <p className="text-gray-600 mt-1">{selectedCategory.description}</p>
-              </div>
-            </div>
-            <div className="text-sm text-gray-500">
-              {filteredProfessionals.length} especialistas encontrados
-            </div>
+            ))}
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
-          <aside className="lg:w-1/4">
-            <div className="bg-white rounded-xl shadow-sm p-6 space-y-6">
-              <h2 className="font-heading text-xl font-bold mb-4">📂 Filtros y Categorías</h2>
-              
-              <div className="space-y-2">
-                {categories.map(category => (
-                  <div key={category.id} className="overflow-hidden">
+        {/* Error de carga */}
+        {!isLoadingProfessionals && loadError && (
+          <div className="text-center py-12">
+            <p className="text-lg font-medium text-text mb-2">No pudimos cargar los genios</p>
+            <p className="text-text/60 mb-4">Revisa tu conexión e inténtalo de nuevo.</p>
+            <button onClick={() => window.location.reload()} className="bg-primary text-text px-6 py-2.5 rounded-full hover:bg-primary-dark transition-colors">
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {/* Resultados */}
+        {!isLoadingProfessionals && !loadError && filteredProfessionals.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredProfessionals.map(professional => (
+              <article key={professional.id} className="bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                <Link to={`/profile/${professional.id}`} className="relative block" aria-label={`Ver el perfil de ${professional.name}`}>
+                  {professional.image ? (
+                    <img src={professional.image} alt="" loading="lazy" decoding="async" className="w-full h-48 object-cover" />
+                  ) : (
+                    <div className="w-full h-48 bg-surface-blue flex items-center justify-center">
+                      <span className="font-heading font-bold text-3xl text-ink-blue">{professional.name.trim().charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                  <div className="absolute top-2 left-2 flex flex-col gap-1">
+                    {professional.verified && (
+                      <span className="bg-white/95 text-ink-blue px-2 py-1 rounded-full text-xs font-medium">✓ Verificado</span>
+                    )}
+                    <GeniusAvailabilityBadge geniusId={professional.id} />
+                  </div>
+                </Link>
+                <div className="p-4 flex flex-col flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link to={`/profile/${professional.id}`} className="min-w-0">
+                      <h3 className="font-heading font-semibold text-lg text-text truncate">{professional.name}</h3>
+                      <p className="text-text/60 text-sm truncate">{professional.subcategory}</p>
+                    </Link>
+                    <FavoriteButton
+                      genius={{
+                        id: professional.id,
+                        name: professional.name,
+                        category: professional.category,
+                        subcategory: professional.subcategory,
+                        image: professional.image,
+                        rating: professional.rating,
+                        available: professional.available,
+                        phone: professional.phone
+                      }}
+                      size="sm"
+                      showTooltip={true}
+                    />
+                  </div>
+                  <p className="text-text/55 text-sm mt-2 line-clamp-2">{professional.description}</p>
+                  <div className="flex items-center gap-1 mt-3 text-sm">
+                    {professional.reviews > 0 ? (
+                      <>
+                        <Star className="text-amber-400 fill-amber-400" size={15} />
+                        <span className="font-medium">{professional.rating}</span>
+                        <span className="text-text/45">({professional.reviews} {professional.reviews === 1 ? 'reseña' : 'reseñas'})</span>
+                      </>
+                    ) : (
+                      <span className="text-text/45">Nuevo en Genios</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2 pt-4 mt-auto">
+                    <Link to={`/profile/${professional.id}`} className="flex-1 h-11 flex items-center justify-center rounded-full border border-gray-200 text-text font-medium hover:bg-surface-blue transition-colors">
+                      Ver perfil
+                    </Link>
                     <button
-                      onClick={() => toggleCategoryAccordion(category.id)}
-                      className={`flex items-center justify-between w-full text-left font-medium transition-colors p-3 hover:bg-gray-50 ${
-                        selectedCategory?.id === category.id ? 'bg-primary/10 text-primary' : 'text-text hover:text-primary'
+                      onClick={() => handleContactClick(professional)}
+                      className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-full bg-green-500 hover:bg-green-600 text-white font-semibold transition-colors"
+                    >
+                      <MessageSquare size={16} /> WhatsApp
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {/* Sin resultados: siempre una salida */}
+        {!isLoadingProfessionals && !loadError && filteredProfessionals.length === 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-8 sm:p-10 text-center max-w-xl mx-auto">
+            <div className="w-14 h-14 rounded-full bg-surface-blue flex items-center justify-center mx-auto mb-4">
+              <Search className="w-6 h-6 text-ink-blue" />
+            </div>
+            {activeFilterCount > 0 && professionals.length > 0 ? (
+              <>
+                <h2 className="font-heading text-xl font-semibold text-text mb-1">Ningún genio con esos filtros</h2>
+                <p className="text-text/60 mb-5">Prueba quitando algunos filtros.</p>
+                <button onClick={clearFilters} className="h-11 px-6 rounded-full bg-text text-white font-semibold">Quitar filtros</button>
+              </>
+            ) : (
+              <>
+                <h2 className="font-heading text-xl font-semibold text-text mb-1">
+                  {whatYouSearch ? `Todavía no hay genios de “${whatYouSearch}”` : 'Todavía no hay genios aquí'}
+                </h2>
+                <p className="text-text/60 mb-6">Genios recién empieza en Tacna. Escríbenos y te ayudamos a encontrar a alguien.</p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <a href={helpWhatsappUrl} target="_blank" rel="noopener noreferrer"
+                    className="h-12 px-6 inline-flex items-center justify-center gap-2 rounded-full bg-green-500 hover:bg-green-600 text-white font-semibold">
+                    <MessageSquare size={18} /> Te lo conseguimos
+                  </a>
+                  {(searchTerm || selectedCategory) && (
+                    <Link to="/categories" onClick={resetAll} className="h-12 px-6 inline-flex items-center justify-center rounded-full border border-gray-200 text-text font-medium hover:bg-surface-blue">
+                      Ver todos los genios
+                    </Link>
+                  )}
+                </div>
+              </>
+            )}
+            <p className="text-sm text-text/55 mt-6 pt-5 border-t border-gray-100">
+              ¿Tú haces esto? <Link to="/ser-genio" className="text-ink-blue font-medium underline underline-offset-4">Únete como genio</Link>
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Panel de filtros: sube desde abajo en el celular, centrado en computadora */}
+      {showFilters && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Filtros">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setShowFilters(false)} />
+          <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <h2 className="font-heading text-lg font-semibold text-text">Filtros</h2>
+              <button onClick={() => setShowFilters(false)} aria-label="Cerrar filtros" className="p-2 -mr-2 rounded-lg text-text/40 hover:text-text">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-5 pb-4 overflow-y-auto space-y-6">
+              <div>
+                <p className="text-sm font-semibold text-text/80 mb-2">Mostrar solo</p>
+                <div className="space-y-2">
+                  {([
+                    { key: 'availableToday', label: 'Disponibles hoy', icon: CheckCircle },
+                    { key: 'verified', label: 'Con DNI verificado', icon: CheckCircle },
+                    { key: 'rating4Plus', label: 'Con 4 estrellas o más', icon: Star },
+                  ] as const).map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => setActiveFilters(prev => ({ ...prev, [key]: !prev[key] }))}
+                      aria-pressed={activeFilters[key]}
+                      className={`w-full h-12 px-4 rounded-xl border flex items-center gap-3 text-left transition-colors ${
+                        activeFilters[key] ? 'border-primary bg-primary/25 text-text font-medium' : 'border-gray-200 text-text/75'
                       }`}
                     >
-                      <div className="flex items-center space-x-3">
-                        <span className="text-lg">{category.emoji}</span>
-                        <span>{category.name}</span>
-                      </div>
-                      {category.subcategories.length > 0 && (
-                        <ChevronRight 
-                          className={`w-4 h-4 transition-transform ${
-                            category.isExpanded ? 'rotate-90' : ''
-                          }`} 
-                        />
-                      )}
+                      <Icon className="w-5 h-5 text-ink-blue" />
+                      <span className="flex-1">{label}</span>
+                      <span className={`w-5 h-5 rounded-md border flex items-center justify-center ${activeFilters[key] ? 'bg-ink-blue border-ink-blue text-white' : 'border-gray-300'}`}>
+                        {activeFilters[key] && '✓'}
+                      </span>
                     </button>
-                    
-                    {category.isExpanded && category.subcategories.length > 0 && (
-                      <div className="bg-gray-50 border-t border-gray-200">
-                        <ul className="p-3 space-y-2">
-                          {category.subcategories.map(sub => (
-                            <li key={sub.id}>
-                              <Link
-                                to={`/categorias/${createCategorySlug(category.name)}`}
-                                onClick={() => setSearchTerm(sub.name)}
-                                className="text-text/60 hover:text-primary transition-colors block py-2 px-3 rounded hover:bg-white text-left w-full text-sm"
-                              >
-                                {sub.name}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {categories.length === 0 && (
-                <div className="text-center py-8 text-text/60">
-                  <p className="text-sm">No hay categorías disponibles</p>
+                  ))}
                 </div>
-              )}
-
-              
-              {/* Location Filters */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setShowLocationFilters(!showLocationFilters)}
-                  className="flex items-center justify-between w-full text-left font-medium transition-colors p-3 hover:bg-gray-50 text-text"
-                >
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="w-4 h-4 text-primary" />
-                    <span>Filtrar por ubicación</span>
-                  </div>
-                  <ChevronRight 
-                    className={`w-4 h-4 transition-transform ${
-                      showLocationFilters ? 'rotate-90' : ''
-                    }`} 
-                  />
-                </button>
-
-                {showLocationFilters && (
-                  <div className="bg-gray-50 border-t border-gray-200 p-3 space-y-3">
-                    {/* Department Filter */}
-                    <div>
-                      <label className="block text-sm font-medium text-text/70 mb-1">
-                        Departamento:
-                      </label>
-                      <select
-                        value={locationFilters.department}
-                        onChange={(e) => handleLocationFilterChange('department', e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm"
-                      >
-                        <option value="">Todos los departamentos</option>
-                        {activeDepartments.map(dept => (
-                          <option key={dept.id} value={dept.id}>{dept.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Province Filter */}
-                    {locationFilters.department && (
-                      <div>
-                        <label className="block text-sm font-medium text-text/70 mb-1">
-                          Provincia:
-                        </label>
-                        <select
-                          value={locationFilters.province}
-                          onChange={(e) => handleLocationFilterChange('province', e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm"
-                        >
-                          <option value="">Todas las provincias</option>
-                          {availableProvinces.map(prov => (
-                            <option key={prov.id} value={prov.id}>{prov.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* District Filter */}
-                    {locationFilters.province && (
-                      <div>
-                        <label className="block text-sm font-medium text-text/70 mb-1">
-                          Distrito:
-                        </label>
-                        <select
-                          value={locationFilters.district}
-                          onChange={(e) => handleLocationFilterChange('district', e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 text-sm"
-                        >
-                          <option value="">Todos los distritos</option>
-                          {availableDistricts.map(dist => (
-                            <option key={dist.id} value={dist.id}>{dist.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* Clear Location Filters */}
-                    {hasActiveLocationFilters() && (
-                      <button
-                        onClick={clearLocationFilters}
-                        className="text-red-500 hover:text-red-600 text-sm font-medium flex items-center"
-                      >
-                        <X className="w-3 h-3 mr-1" />
-                        Limpiar filtros de ubicación
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </aside>
-
-          {/* Main Content */}
-          <main className="lg:w-3/4">
-            {/* Search Bar */}
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder={selectedCategory ? `Buscar en ${selectedCategory.name}...` : "Ej: peluquero, gasfitero, coach, DJ..."}
-                  className="w-full pl-12 pr-4 py-3 rounded-full border border-text/10 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-text/40" size={20} />
               </div>
 
-              {/* Filters */}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  onClick={() => setActiveFilters(prev => ({ ...prev, rating4Plus: !prev.rating4Plus }))}
-                  className={`flex items-center px-4 py-2 rounded-full text-sm ${
-                    activeFilters.rating4Plus 
-                      ? 'bg-primary text-text' 
-                      : 'bg-text/5 text-text/60'
-                  }`}
-                >
-                  <Star size={16} className="mr-1" />
-                  4.0+
-                </button>
-                
-                <button
-                  onClick={() => setActiveFilters(prev => ({ ...prev, availableToday: !prev.availableToday }))}
-                  className={`flex items-center px-4 py-2 rounded-full text-sm ${
-                    activeFilters.availableToday 
-                      ? 'bg-primary text-text' 
-                      : 'bg-text/5 text-text/60'
-                  }`}
-                >
-                  Disponible hoy
-                </button>
-
-                <button
-                  onClick={() => setActiveFilters(prev => ({ ...prev, nearMe: !prev.nearMe }))}
-                  className={`flex items-center px-4 py-2 rounded-full text-sm ${
-                    activeFilters.nearMe 
-                      ? 'bg-primary text-text' 
-                      : 'bg-text/5 text-text/60'
-                  }`}
-                >
-                  <MapPin size={16} className="mr-1" />
-                  Cerca de mí
-                </button>
-
-                <button
-                  onClick={() => setActiveFilters(prev => ({ ...prev, withWhatsapp: !prev.withWhatsapp }))}
-                  className={`flex items-center px-4 py-2 rounded-full text-sm ${
-                    activeFilters.withWhatsapp 
-                      ? 'bg-primary text-text' 
-                      : 'bg-text/5 text-text/60'
-                  }`}
-                >
-                  <MessageSquare size={16} className="mr-1" />
-                  Con WhatsApp
-                </button>
-
-                <button
-                  onClick={() => setActiveFilters(prev => ({ ...prev, verified: !prev.verified }))}
-                  className={`flex items-center px-4 py-2 rounded-full text-sm ${
-                    activeFilters.verified 
-                      ? 'bg-primary text-text' 
-                      : 'bg-text/5 text-text/60'
-                  }`}
-                >
-                  <CheckCircle size={16} className="mr-1" />
-                  Verificados
-                </button>
-
-                {Object.values(activeFilters).some(Boolean) && (
-                  <button
-                    onClick={clearFilters}
-                    className="text-primary hover:text-primary-dark text-sm"
+              <div>
+                <p className="text-sm font-semibold text-text/80 mb-2 flex items-center gap-1.5"><MapPin className="w-4 h-4" /> Zona</p>
+                <div className="space-y-2">
+                  <select
+                    value={locationFilters.department}
+                    onChange={(e) => handleLocationFilterChange('department', e.target.value)}
+                    aria-label="Departamento"
+                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-[16px]"
                   >
-                    Limpiar todos los filtros
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Estado de carga */}
-            {isLoadingProfessionals && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[0, 1, 2].map(i => (
-                  <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse">
-                    <div className="w-full h-48 bg-gray-100" />
-                    <div className="p-4 space-y-3">
-                      <div className="h-4 bg-gray-100 rounded w-2/3" />
-                      <div className="h-3 bg-gray-100 rounded w-1/3" />
-                      <div className="h-3 bg-gray-100 rounded w-full" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Error de carga */}
-            {!isLoadingProfessionals && loadError && (
-              <div className="text-center py-12">
-                <p className="text-lg font-medium text-text mb-2">No pudimos cargar los genios</p>
-                <p className="text-text/60 mb-4">Revisa tu conexión e inténtalo de nuevo.</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="bg-primary text-text px-6 py-2 rounded-full hover:bg-primary-dark transition-colors"
-                >
-                  Reintentar
-                </button>
-              </div>
-            )}
-
-            {/* Results */}
-            {!isLoadingProfessionals && !loadError && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProfessionals.map(professional => (
-                <div key={professional.id} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                  <div className="relative">
-                    {professional.image ? (
-                      <img
-                        src={professional.image}
-                        alt={professional.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-48 object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-surface-blue flex items-center justify-center">
-                        <span className="font-heading font-bold text-3xl text-ink-blue">
-                          {professional.name.trim().charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {/* Status badges */}
-                    <div className="absolute top-2 left-2 flex flex-col space-y-1">
-                      {professional.verified && (
-                        <div className="bg-success/80 text-text px-2 py-1 rounded-full text-sm backdrop-blur-sm">
-                          ✓ Verificado
-                        </div>
-                      )}
-                      <GeniusAvailabilityBadge geniusId={professional.id} />
-                    </div>
-
-                    {/* Favorite Button */}
-                    <div className="absolute top-2 right-2">
-                      <FavoriteButton
-                        genius={{
-                          id: professional.id,
-                          name: professional.name,
-                          category: professional.category,
-                          subcategory: professional.subcategory,
-                          image: professional.image,
-                          rating: professional.rating,
-                          available: professional.available,
-                          phone: professional.phone
-                        }}
-                        size="sm"
-                        showTooltip={true}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="p-4">
-                    <h3 className="font-heading font-bold text-lg mb-1">{professional.name}</h3>
-                    <p className="text-text/60 text-sm mb-1">{professional.subcategory}</p>
-                    <p className="text-text/50 text-xs mb-3">{professional.description}</p>
-                    
-                    <div className="flex items-center mb-4">
-                      <Star className="text-primary" size={16} />
-                      <span className="ml-1 font-medium">{professional.rating}</span>
-                      <span className="text-text/40 text-sm ml-1">({professional.reviews} reseñas)</span>
-                    </div>
-                    
-                    <div className="flex space-x-2">
-                      <button 
-                        onClick={() => handleProfileClick(professional.id)}
-                        className="flex-1 bg-primary text-text text-center py-2 rounded-full hover:bg-primary-dark transition-colors"
-                      >
-                        Ver perfil
-                      </button>
-                      <button 
-                        onClick={() => handleContactClick(professional)}
-                        className="flex-1 bg-secondary text-text text-center py-2 rounded-full hover:bg-secondary-dark transition-colors"
-                      >
-                        Contactar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            )}
-
-            {/* No results message */}
-            {!isLoadingProfessionals && !loadError && filteredProfessionals.length === 0 && (
-              <div className="text-center py-12 text-text/60">
-                {professionals.length === 0 ? (
-                  <>
-                    <p className="text-lg font-medium text-text mb-2">Todavía no hay genios publicados</p>
-                    <p>Sé el primero: completa tu perfil y aparecerás aquí.</p>
-                    <Link
-                      to="/ser-genio"
-                      className="inline-block mt-4 bg-secondary text-gray-900 font-semibold px-6 py-2.5 rounded-full hover:bg-secondary-dark transition-colors"
+                    <option value="">Cualquier departamento</option>
+                    {activeDepartments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                  {locationFilters.department && (
+                    <select
+                      value={locationFilters.province}
+                      onChange={(e) => handleLocationFilterChange('province', e.target.value)}
+                      aria-label="Provincia"
+                      className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-[16px]"
                     >
-                      Quiero ser un Genio
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                <p className="text-lg font-medium mb-2">
-                  {selectedCategory
-                    ? `No se encontraron especialistas en ${selectedCategory.name}`
-                    : 'No se encontraron profesionales'
-                  }
-                </p>
-                <p>Intenta ajustar los filtros de búsqueda</p>
-                {selectedCategory && (
-                  <Link 
-                    to="/categories"
-                    className="inline-block mt-4 text-primary hover:text-primary-dark transition-colors"
-                  >
-                    Ver todas las categorías
-                  </Link>
-                )}
-                  </>
-                )}
+                      <option value="">Cualquier provincia</option>
+                      {getAvailableProvinces().map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  )}
+                  {locationFilters.province && (
+                    <select
+                      value={locationFilters.district}
+                      onChange={(e) => handleLocationFilterChange('district', e.target.value)}
+                      aria-label="Distrito"
+                      className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-white text-[16px]"
+                    >
+                      <option value="">Cualquier distrito</option>
+                      {getAvailableDistricts().map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  )}
+                </div>
               </div>
-            )}
-          </main>
+            </div>
+            <div className="flex gap-3 px-5 py-4 border-t border-gray-100" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+              <button onClick={clearFilters} className="flex-1 h-12 rounded-xl border border-gray-200 text-text font-medium">Limpiar</button>
+              <button onClick={() => setShowFilters(false)} className="flex-[2] h-12 rounded-xl bg-text text-white font-semibold">
+                Ver {filteredProfessionals.length} {filteredProfessionals.length === 1 ? 'genio' : 'genios'}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

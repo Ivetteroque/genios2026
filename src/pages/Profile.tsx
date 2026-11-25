@@ -205,7 +205,7 @@ const Profile: React.FC = () => {
             className="inline-flex items-center text-primary hover:text-primary-dark transition-colors"
           >
             <ChevronLeft className="w-4 h-4 mr-2" />
-            Volver a categorías
+            Volver a buscar
           </Link>
 
           {/* Context menu */}
@@ -313,10 +313,10 @@ const Profile: React.FC = () => {
             <GeniusAvailabilityBadge geniusId={geniusData.id} showIcon={true} showNextDate={true} />
             <button
               onClick={handleContactClick}
-              className="bg-primary text-white px-6 py-2 rounded-full hover:bg-primary-dark transition-colors flex items-center"
+              className="bg-green-500 hover:bg-green-600 text-white font-semibold h-12 px-6 rounded-full transition-colors inline-flex items-center"
             >
               <MessageSquare className="w-5 h-5 mr-2" />
-              Contactar por WhatsApp
+              Escribir por WhatsApp
             </button>
           </div>
         </div>
@@ -442,12 +442,12 @@ const Profile: React.FC = () => {
 
           <div>
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-              <h2 className="font-heading text-xl sm:text-2xl font-bold">⭐ VALORACIONES DEL GENIO</h2>
+              <h2 className="font-heading text-xl sm:text-2xl font-bold">Reseñas de clientes</h2>
               <button
                 onClick={() => setShowReviewModal(true)}
                 className="text-primary hover:text-primary-dark transition-colors text-sm sm:text-base whitespace-nowrap"
               >
-                🔽 Ver más comentarios
+                Ver todas
               </button>
             </div>
 
@@ -470,7 +470,7 @@ const Profile: React.FC = () => {
               {/* Rating Distribution */}
               {ratingStats.count > 0 && (
                 <div className="p-3 bg-gray-50 rounded-lg">
-                  <h4 className="font-medium text-text text-sm mb-2">Distribución de calificaciones:</h4>
+                  <h4 className="font-medium text-text text-sm mb-2">Calificaciones</h4>
                   <div className="space-y-1.5">
                     {[5, 4, 3, 2, 1].map((rating) => (
                       <div key={rating} className="flex items-center space-x-2">
@@ -613,7 +613,7 @@ const Profile: React.FC = () => {
           <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white p-4 border-b flex justify-between items-center">
               <h3 className="font-heading text-xl font-bold">
-                🧾 TODAS LAS VALORACIONES ({ratingStats.count})
+                Todas las reseñas ({ratingStats.count})
               </h3>
               <button
                 onClick={() => setShowReviewModal(false)}
@@ -781,19 +781,39 @@ const Profile: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-20">
+    <div className="min-h-screen bg-background pt-20 pb-24 md:pb-0">
       {heroSection}
       {aboutSection}
       {portfolioSection}
       {reviewsSection}
       <GeniusPeerReviews reviewedGeniusId={id || ''} />
 
-      {/* WhatsApp Float Button */}
+      {/* WhatsApp siempre a mano. En el celular: barra fija abajo con el
+          nombre (se entiende a quién se escribe). En computadora: botón flotante
+          con texto. */}
+      <div
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-100 px-4 py-3 flex items-center gap-3"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-text truncate">{geniusData.name}</p>
+          <p className="text-xs text-text/55 truncate">{geniusData.subcategory}</p>
+        </div>
+        <button
+          onClick={handleContactClick}
+          className="shrink-0 h-12 px-5 rounded-full bg-green-500 hover:bg-green-600 text-white font-semibold inline-flex items-center gap-2"
+        >
+          <MessageSquare className="w-5 h-5" />
+          WhatsApp
+        </button>
+      </div>
       <button
         onClick={handleContactClick}
-        className="fixed bottom-6 right-6 bg-[#25D366] text-white p-4 rounded-full shadow-lg hover:bg-[#128C7E] transition-colors"
+        aria-label={`Escribir a ${geniusData.name} por WhatsApp`}
+        className="hidden md:inline-flex fixed bottom-6 right-6 z-40 items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold h-12 px-5 rounded-full shadow-lg transition-colors"
       >
-        <MessageSquare className="w-6 h-6" />
+        <MessageSquare className="w-5 h-5" />
+        WhatsApp
       </button>
 
       <ReportModal

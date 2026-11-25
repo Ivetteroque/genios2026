@@ -1,3 +1,4 @@
+import { addDays, localDateISO, parseLocalDate } from '../utils/dateUtils';
 import React from 'react';
 import { Calendar } from 'lucide-react';
 import { useGeniusAvailability } from '../hooks/useGeniusAvailability';
@@ -17,29 +18,16 @@ const GeniusAvailabilityBadge: React.FC<GeniusAvailabilityBadgeProps> = ({
 }) => {
   const { availabilityStatus, loading, getDisplayStatus } = useGeniusAvailability(geniusId);
 
-  if (loading) {
-    return (
-      <div className={`px-2 py-1 rounded-full text-sm backdrop-blur-sm bg-gray-200/80 text-gray-600 animate-pulse ${className}`}>
-        Cargando...
-      </div>
-    );
-  }
+  // Mientras carga no se muestra nada (antes aparecía "Cargando..." en cada tarjeta).
+  if (loading) return null;
 
   const displayStatus = getDisplayStatus();
 
   const formatNextDate = (date: string) => {
-    const dateObj = new Date(date);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (dateObj.toISOString().split('T')[0] === today.toISOString().split('T')[0]) {
-      return 'hoy';
-    }
-
-    if (dateObj.toISOString().split('T')[0] === tomorrow.toISOString().split('T')[0]) {
-      return 'mañana';
-    }
+    // Fechas en hora local (en UTC, después de las 7 p. m. "hoy" sería mañana).
+    const dateObj = parseLocalDate(date);
+    if (date === localDateISO()) return 'hoy';
+    if (date === localDateISO(addDays(new Date(), 1))) return 'mañana';
 
     return dateObj.toLocaleDateString('es-ES', {
       day: 'numeric',
@@ -49,7 +37,7 @@ const GeniusAvailabilityBadge: React.FC<GeniusAvailabilityBadgeProps> = ({
 
   return (
     <div className="flex flex-col gap-1">
-      <div className={`flex items-center px-2 py-1 rounded-full text-sm backdrop-blur-sm ${displayStatus.bgColor} ${displayStatus.color} ${className}`}>
+      <div className={`flex items-center px-2 py-1 rounded-full text-xs backdrop-blur-sm ${displayStatus.bgColor} ${displayStatus.color} ${className}`}>
         {showIcon && <Calendar className="w-3 h-3 mr-1" />}
         {displayStatus.text}
       </div>

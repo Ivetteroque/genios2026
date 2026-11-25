@@ -321,7 +321,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
   if (!currentUser) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
-        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">✍️ COMPARTE TU EXPERIENCIA</h2>
+        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">Deja tu reseña</h2>
 
         <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 sm:p-6 flex flex-col md:flex-row md:items-center gap-4">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
@@ -329,7 +329,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
           </div>
           <div className="flex-1">
             <p className="text-text font-medium mb-1">
-              🔐 Debes iniciar sesión para dejar una reseña
+              Inicia sesión para dejar una reseña
             </p>
             <p className="text-text/60 text-sm">
               Inicia sesión para compartir tu experiencia con {geniusName} y ayudar a otros clientes.
@@ -352,7 +352,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
   if (isCheckingOwnReview) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
-        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">✍️ COMPARTE TU EXPERIENCIA</h2>
+        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-6">Deja tu reseña</h2>
         <LoadingSpinner size="md" text="Cargando..." className="py-6" />
       </div>
     );
@@ -363,7 +363,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
   if (ownReview) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
-        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1">✍️ TU RESEÑA</h2>
+        <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1">Tu reseña</h2>
         <p className="text-text/60 mb-6">
           Ya compartiste tu experiencia con {geniusName}. Cada cliente puede dejar una sola reseña
           por genio.
@@ -421,7 +421,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
     <>
       <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-8">
         <div className="mb-6">
-          <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1">✍️ COMPARTE TU EXPERIENCIA</h2>
+          <h2 className="font-heading text-xl sm:text-2xl font-bold mb-1">Deja tu reseña</h2>
           <p className="text-text/60">
             Tu comentario ayuda a otros a elegir mejor.
           </p>

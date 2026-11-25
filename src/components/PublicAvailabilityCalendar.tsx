@@ -57,17 +57,14 @@ const PublicAvailabilityCalendar: React.FC<PublicAvailabilityCalendarProps> = ({
   };
 
   const getStatusColor = (status: 'available' | 'full' | 'vacation' | null): string => {
-    if (!status) return 'bg-white border-gray-200';
-
+    // Igual que en el panel del genio: sin marcar = disponible.
     switch (status) {
-      case 'available':
-        return 'bg-success/20 border-success text-success';
       case 'full':
-        return 'bg-red-100 border-red-300 text-red-700';
+        return 'bg-secondary/40 border-secondary text-ink-rose';
       case 'vacation':
-        return 'bg-orange-100 border-orange-300 text-orange-700';
+        return 'bg-gray-100 border-gray-300 text-gray-600';
       default:
-        return 'bg-white border-gray-200';
+        return 'bg-primary/25 border-primary text-ink-blue';
     }
   };
 
@@ -118,12 +115,16 @@ const PublicAvailabilityCalendar: React.FC<PublicAvailabilityCalendarProps> = ({
         </div>
         <div className="mt-3 flex items-center gap-4 text-xs text-gray-600">
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-success/20 border border-success rounded"></div>
+            <div className="w-3 h-3 bg-primary/25 border border-primary rounded"></div>
             <span>Disponible</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-3 bg-red-100 border border-red-300 rounded"></div>
+            <div className="w-3 h-3 bg-secondary/40 border border-secondary rounded"></div>
             <span>Agenda llena</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 bg-gray-100 border border-gray-300 rounded"></div>
+            <span>Vacaciones</span>
           </div>
         </div>
       </div>
@@ -194,15 +195,15 @@ const PublicAvailabilityCalendar: React.FC<PublicAvailabilityCalendarProps> = ({
 
           <div className="mt-6 flex flex-wrap gap-4 text-sm text-gray-600">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-success/20 border border-success rounded"></div>
+              <div className="w-4 h-4 bg-primary/25 border border-primary rounded"></div>
               <span>Disponible</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-100 border border-red-300 rounded"></div>
+              <div className="w-4 h-4 bg-secondary/40 border border-secondary rounded"></div>
               <span>Agenda llena</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-orange-100 border border-orange-300 rounded"></div>
+              <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
               <span>De vacaciones</span>
             </div>
           </div>
