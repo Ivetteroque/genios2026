@@ -28,9 +28,9 @@ const testimonials = [
 
 const SuccessStories: React.FC = () => {
   return (
-    <Section id="historias" tone="mint">
+    <Section id="historias" tone="blue">
       <SectionHeader
-        tone="mint"
+        tone="blue"
         eyebrow="Historias"
         title="Historias reales de tu ciudad"
         subtitle="Cada genio tiene una historia que merece ser contada."
@@ -52,7 +52,7 @@ const SuccessStories: React.FC = () => {
                 />
                 <div>
                   <p className="font-heading font-semibold text-sm text-text leading-tight">{t.name}</p>
-                  <p className="text-xs text-ink-mint mt-0.5">{t.service}</p>
+                  <p className="text-xs text-brand mt-0.5">{t.service}</p>
                 </div>
               </div>
 
@@ -67,7 +67,7 @@ const SuccessStories: React.FC = () => {
         <div className="text-center mt-10">
           <a
             href="#leer-mas"
-            className="inline-flex items-center gap-1.5 text-sm text-ink-mint hover:text-text transition-colors duration-200"
+            className="inline-flex items-center gap-1.5 text-sm text-brand hover:text-text transition-colors duration-200"
           >
             Ver más historias
             <ArrowRight className="w-3.5 h-3.5" />

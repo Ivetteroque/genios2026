@@ -84,7 +84,7 @@ const Hero: React.FC = () => {
       <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 -left-24 w-[28rem] h-[28rem] rounded-full bg-primary/25 blur-3xl" />
         <div className="absolute top-1/3 -right-32 w-[26rem] h-[26rem] rounded-full bg-secondary/20 blur-3xl" />
-        <div className="absolute -bottom-32 left-1/4 w-[24rem] h-[24rem] rounded-full bg-success/30 blur-3xl" />
+        <div className="absolute -bottom-32 left-1/4 w-[24rem] h-[24rem] rounded-full bg-primary/30 blur-3xl" />
       </div>
 
       {/* Slides area */}

@@ -22,13 +22,24 @@ export default {
         text: {
           DEFAULT: '#2F2F2F',
         },
+        /* Fondo crema: más cálido que el blanco, el contenido resalta sin cansar */
         background: {
-          DEFAULT: '#FDFDFD',
+          DEFAULT: '#FBF8F3',
+        },
+        /* Color principal de marca: el azul firme para títulos destacados,
+           enlaces y etiquetas. "deep" es para el footer y secciones oscuras.
+           El celeste (primary) queda como tono suave de fondo y selección;
+           el salmón (secondary) queda solo para los botones de acción. */
+        brand: {
+          light: '#5B86C6',
+          DEFAULT: '#3F6FB5',
+          dark: '#335C98',
+          deep: '#1C3254',
         },
         /* Bandas de sección: lavados muy tenues de los pasteles de marca.
            Reemplazan a los grises neutros para que cada sección se distinga. */
         surface: {
-          paper: '#FDFDFD',
+          paper: '#FBF8F3',
           blue: '#F1F6FF',
           mint: '#EDFAF9',
           rose: '#FFF4F2',
@@ -41,7 +52,7 @@ export default {
         },
       },
       fontFamily: {
-        heading: ['Poppins', 'sans-serif'],
+        heading: ['Fraunces', 'Georgia', 'serif'],
         body: ['Open Sans', 'system-ui', 'sans-serif'],
       },
     },

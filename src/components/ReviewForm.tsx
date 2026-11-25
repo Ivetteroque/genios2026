@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showToast } from '../utils/toast';
 import { Star, X, Check, Calendar, Camera } from 'lucide-react';
 import LoadingSpinner from './LoadingSpinner';
 import { getCurrentUser } from '../utils/authUtils';
@@ -209,7 +210,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
 
       const validationErrors = validateReviewData(reviewToSubmit);
       if (validationErrors.length > 0) {
-        alert('❌ Error en los datos:\n\n' + validationErrors.join('\n'));
+        showToast(validationErrors[0], 'error');
         setIsSubmitting(false);
         return;
       }
@@ -220,7 +221,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
       // Una foto que falla se descarta en silencio: sin este aviso, la reseña
       // se publicaría sin ella y el cliente nunca se enteraría.
       if (uploadedImages.length < imageFiles.length) {
-        alert('⚠️ No se pudieron subir todas las fotos. La reseña se publicará con las que sí funcionaron.');
+        showToast('Algunas fotos no se pudieron subir; tu reseña va con las demás.', 'error');
       }
 
       const saved = await submitClientReview({
@@ -235,7 +236,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
       });
 
       if (!saved) {
-        alert('❌ No se pudo publicar la reseña. Inténtalo de nuevo en un momento.');
+        showToast('No se pudo publicar la reseña. Inténtalo de nuevo en un momento.', 'error');
         setIsSubmitting(false);
         return;
       }
@@ -264,13 +265,14 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
       // Redirect after animation
       setTimeout(() => {
         setShowSuccessAnimation(false);
-        // Just reload the current page to show the new review
-        window.location.reload();
+        // Sin recargar la página: se actualizan las reseñas y se muestra la propia.
+        window.dispatchEvent(new Event('reviewsChanged'));
+        getClientReviewForGenius(currentUser!.id, geniusId).then(setOwnReview);
       }, 3000);
 
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('❌ Error al enviar la reseña. Por favor, intenta nuevamente.');
+      showToast('No se pudo enviar la reseña. Revisa tu conexión e inténtalo de nuevo.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -288,8 +290,8 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
         <div className="mb-6">
           {/* Animated Check Circle */}
           <div className="relative mx-auto w-20 h-20">
-            <div className="absolute inset-0 bg-success rounded-full animate-ping opacity-75"></div>
-            <div className="relative bg-success rounded-full w-20 h-20 flex items-center justify-center animate-bounce">
+            <div className="absolute inset-0 bg-primary rounded-full animate-ping opacity-75"></div>
+            <div className="relative bg-primary rounded-full w-20 h-20 flex items-center justify-center animate-bounce">
               <Check className="w-10 h-10 text-white animate-pulse" />
             </div>
           </div>
@@ -305,7 +307,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
         
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div 
-            className="bg-success h-2 rounded-full transition-all duration-3000 ease-out"
+            className="bg-primary h-2 rounded-full transition-all duration-3000 ease-out"
             style={{ width: '100%', animation: 'progressBar 3s ease-out' }}
           ></div>
         </div>
@@ -530,7 +532,7 @@ const ReviewForm: React.FC<ReviewFormProps> = ({ geniusId, geniusName, onReviewS
                 {300 - reviewData.comment.length} caracteres restantes
               </span>
               {reviewData.comment.length >= 10 && (
-                <span className="text-xs text-success flex items-center">
+                <span className="text-xs text-brand flex items-center">
                   <Check className="w-3 h-3 mr-1" />
                   Comentario válido
                 </span>
